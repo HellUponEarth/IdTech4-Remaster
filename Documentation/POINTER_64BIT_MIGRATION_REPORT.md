@@ -1817,6 +1817,34 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 AltiVec Alignment Macro Pointer-Width Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_AltiVec.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `IS_16BYTE_ALIGNED` and `NOT_16BYTE_ALIGNED` in the legacy AltiVec SIMD backend | Legacy API interop / runtime pointer arithmetic | Replaced address masking through `(unsigned long)&x` with `reinterpret_cast<uintptr_t>( &( x ) )`, preserving the 16-byte low-bit alignment test without assuming `unsigned long` is pointer-width. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, or asset formats. The touched state is a compile-time macro used for process-local SIMD alignment decisions in the gated `MACOS_X && __ppc__` AltiVec implementation.
+
+Known boundary: the Windows CMake presets do not compile the legacy PPC/Mac AltiVec implementation in this environment. The changed path was verified with source scans here and should still be compiled on a PPC/Mac-capable target if that build path is restored.
+
+### Verification Log For This Slice
+
+- `rg -n "\(unsigned long\)&|unsigned long\)&|reinterpret_cast\s*<\s*(int|unsigned int|long|unsigned long|dword)\s*>" neo\idlib\math\Simd_AltiVec.cpp`: no stale pointer-to-32-bit address casts remain in the touched file.
+- `rg -n "IS_16BYTE_ALIGNED|NOT_16BYTE_ALIGNED|reinterpret_cast<uintptr_t>" neo\idlib\math\Simd_AltiVec.cpp`: the two alignment macros now use `uintptr_t`; call sites continue through the existing macros.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; no Windows target work was required because the touched AltiVec path is gated out of this preset.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; no Windows target work was required because the touched AltiVec path is gated out of this preset.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-15 Script VM And Callback Float Lane Alias Cleanup Slice
 
 ### Files Changed
