@@ -318,6 +318,8 @@ typedef struct searchpath_s {
 // + .jpg and .tga
 #define MAX_CACHED_DIRS 6
 
+static_assert( sizeof( int ) == 4, "journal data length fields must stay fixed-width" );
+
 // how many OSes to handle game paks for ( we don't have to know them precisely )
 #define MAX_GAME_OS	6
 #define BINARY_CONFIG "binary.conf"
@@ -1074,10 +1076,13 @@ int idFileSystemLocal::ReadFile( const char *relativePath, void **buffer, ID_TIM
 
 			common->DPrintf( "Loading %s from journal file.\n", relativePath );
 			len = 0;
-			r = eventLoop->com_journalDataFile->Read( &len, sizeof( len ) );
+			r = eventLoop->com_journalDataFile->ReadInt( len );
 			if ( r != sizeof( len ) ) {
 				*buffer = NULL;
 				return -1;
+			}
+			if ( len < 0 ) {
+				common->FatalError( "Invalid journalDataFile length" );
 			}
 			buf = (byte *)Mem_ClearedAlloc(len+1);
 			*buffer = buf;
@@ -1129,7 +1134,7 @@ int idFileSystemLocal::ReadFile( const char *relativePath, void **buffer, ID_TIM
 	// if we are journalling and it is a config file, write it to the journal file
 	if ( isConfig && eventLoop && eventLoop->JournalLevel() == 1 ) {
 		common->DPrintf( "Writing %s to journal file.\n", relativePath );
-		eventLoop->com_journalDataFile->Write( &len, sizeof( len ) );
+		eventLoop->com_journalDataFile->WriteInt( len );
 		eventLoop->com_journalDataFile->Write( buf, len );
 		eventLoop->com_journalDataFile->Flush();
 	}

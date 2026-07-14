@@ -164,9 +164,9 @@ Known remaining examples:
 
 ## Serialization / Networking / File Format Notes
 
-- `journal.dat` currently stores native `sysEvent_t`; this is a confirmed 32/64-bit compatibility break.
-- `journaldata.dat` stores side-band payload bytes by `evPtrLength`; payload length versioning is still needed.
-- Collision trace `modelFeature` pointer-derived values are confirmed in savegame and event serialization. Prefer converting polygon contacts to stable 32-bit polygon IDs over widening serialized pointer tokens.
+- `journal.dat` originally stored native `sysEvent_t`; later slices replaced this with a versioned fixed-width event record.
+- `journaldata.dat` stores `.cfg` journal payload lengths and bytes for file-system playback; later slices switched the length field to the fixed-width `idFile::ReadInt` / `WriteInt` helpers.
+- Collision trace `modelFeature` originally carried pointer-derived values; later slices converted polygon contacts to stable 32-bit polygon IDs without widening the save/event field.
 - No network message format has been changed in this slice.
 
 ## Recommended Next Slices
@@ -1812,6 +1812,81 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg -n "sizeof\s*\(\s*ev\s*\)|Write\s*\(\s*&ev|Read\s*\(\s*&ev|reinterpret_cast<int &>\( ev\.evType \)" neo/framework/EventLoop.cpp`: no matches.
 - `cmake --build --preset ninja-gcc-release -j 8`: passed; existing legacy warnings remain, but no errors.
 - `cmake --build --preset ninja-dedicated-release -j 8`: passed; existing legacy warnings remain, but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
+## 2026-07-14 Fixed-Width JournalData Config Length Slice
+
+### Files Changed
+
+- `neo/framework/FileSystem.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `journaldata.dat` `.cfg` payload length in `idFileSystemLocal::ReadFile` | Serialization | Replaced raw native `Read( &len, sizeof( len ) )` with `ReadInt( len )`, matching the fixed 32-bit little-endian helper used elsewhere in file serialization. |
+| `journaldata.dat` `.cfg` payload length in `idFileSystemLocal::ReadFile` recording path | Serialization | Replaced raw native `Write( &len, sizeof( len ) )` with `WriteInt( len )`. |
+| Journal playback length validation | Serialization robustness | Added a negative-length guard before allocating the journaled config payload buffer. |
+
+This slice does not widen the journaldata length field. The on-disk length remains a 32-bit signed integer, but the byte order and width are now explicit through `idFile::ReadInt` / `WriteInt` rather than implicit native memory layout. The `.cfg` payload bytes remain unchanged after the length field.
+
+Compile-time guard:
+
+```c
+static_assert( sizeof( int ) == 4, "journal data length fields must stay fixed-width" );
+```
+
+Compatibility boundary: old same-endian 32-bit/64-bit journaldata files remain readable because the field width is unchanged. Cross-endian journaldata files now follow the existing `ReadInt` little-endian conversion behavior.
+
+### Verification Log For This Slice
+
+- `rg -n "com_journalDataFile->(Read|Write)\s*\(\s*&len|com_journalDataFile->ReadInt\s*\(\s*len\s*\)|com_journalDataFile->WriteInt\s*\(\s*len\s*\)|Invalid journalDataFile length|journal data length" neo/framework/FileSystem.cpp`: stale raw `&len` reads/writes are gone; fixed-width helpers and the negative-length guard are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `FileSystem.cpp` and linked `Doom3.exe`, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt `FileSystem.cpp` and linked `DedServer.exe`, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
+## 2026-07-14 Trace Event Save Marker And D3XP Fast Event Serialization Slice
+
+### Files Changed
+
+- `neo/game/gamesys/Event.cpp`
+- `neo/d3xp/gamesys/Event.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idEvent::SaveTrace` / `idEvent::RestoreTrace` material field in base game and d3xp | Savegame field / serialization | Replaced `WriteInt( (int&)trace.c.material )` and `ReadInt( (int&)trace.c.material )` with an explicit 32-bit material presence marker. The material name string that already follows the trace payload remains the authoritative restore data. |
+| `trace_t::c.material` inside queued event buffers | Pointer storage in transient event data | Runtime event buffers still carry a native material pointer while the event is live, but saves now persist only the 32-bit marker plus the material name string. On restore, a non-null marker is used only to trigger reading the following material name; `ServiceEvents` resolves the real pointer through `declManager->FindMaterial`. |
+| Saved event argument size for `D_EVENT_TRACE` | Savegame compatibility | Restore accepts both the current 64-bit event argument size and the legacy 32-bit trace-event argument size (`108 + MAX_STRING_LEN + sizeof(bool)` for each trace argument). It allocates the current event buffer size before reading typed fields, so legacy arg-size validation does not under-allocate on x64. |
+| d3xp `_D3XP` fast event queue | Serialization | Replaced raw `savefile->Write( event->data, event->eventdef->GetArgSize() )` and raw restore with the same typed per-argument serialization path used by the normal event queue. This avoids writing native pointer-bearing `trace_t` bytes directly. |
+| Queued string event arguments | Serialization | Added explicit `D_EVENT_STRING` read/write handling in typed event serialization, preserving the fixed `MAX_STRING_LEN` payload instead of relying on raw event-data dumps. |
+
+This slice does not widen any savegame field. The trace material slot stays a 32-bit marker in the save stream. Existing old saves that wrote a truncated nonzero material pointer still restore as "material present" because any nonzero marker causes the following material name to be read and later resolved to a real material pointer.
+
+The fixed-width assumptions used by the compatibility path are guarded with compile-time assertions for the trace event scalar/vector/matrix field widths:
+
+```c
+static_assert( sizeof( contactType_t ) == sizeof( int ), ... );
+static_assert( sizeof( idVec3 ) == 12, ... );
+static_assert( sizeof( idMat3 ) == 36, ... );
+```
+
+Known boundary: the compatibility path validates legacy 32-bit queued trace-event argument sizes, but this workspace still has no checked-in save corpus to prove a full old-save load through a real saved event queue.
+
+### Verification Log For This Slice
+
+- `rg -n "\(int&\)trace\.c\.material|\(int &\)trace\.c\.material|Write\s*\(\s*event->data\s*,\s*event->eventdef->GetArgSize\s*\(\s*\)\s*\)|Read\s*\(\s*event->data\s*,\s*argsize\s*\)" neo/game/gamesys/Event.cpp neo/d3xp/gamesys/Event.cpp`: no matches.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `Game` and `Game-d3xp`, regenerated TypeInfo, and emitted existing legacy warning noise, but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the same touched game modules under the dedicated preset, with existing legacy warning noise but no errors.
 - `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
