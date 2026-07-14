@@ -1817,6 +1817,43 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-14 BitMsg Float Bit Serialization Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/BitMsg.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idBitMsg::WriteFloat` / `ReadFloat` | Network field / serialization | Replaced strict-aliasing `reinterpret_cast<int *>` float bit punning with local `memcpy` helpers that preserve the same 32-bit IEEE payload. |
+| `idBitMsg::WriteDeltaFloat` / `ReadDeltaFloat` | Network field / serialization | Replaced old/new float aliasing casts with the same fixed-width helper path before feeding the existing 32-bit delta codec. |
+| `idBitMsgDelta` float and delta-float helpers | Network field / serialization | Applied the same conversion helpers to the delta message wrapper, keeping base and delta message float encoding identical. |
+
+This slice does not widen any network message field. Full-precision float messages still write exactly 32 bits, and compressed float messages still use the existing `idMath::FloatToBits` / `BitsToFloat` path. The change only removes undefined aliasing behavior in the in-memory conversion between `float` and the 32-bit integer lane used by `WriteBits`, `ReadBits`, and `ReadDelta`.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( int ) == 4, "bit-message float fields must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "bit-message float fields must stay 32-bit" );
+```
+
+Known boundary: this does not address the remaining strict-aliasing warnings in `neo/idlib/math/Math.h` and `neo/idlib/math/Random.h`; those are separate math helper slices and should preserve their existing bit-level semantics when converted.
+
+### Verification Log For This Slice
+
+- `rg -n "reinterpret_cast<\s*int \*>\(&[A-Za-z_][A-Za-z0-9_]*\)|\*reinterpret_cast<int \*>\(&" neo\idlib\BitMsg.h`: no matches.
+- `rg -n "BitMsg_FloatToRawBits|BitMsg_RawBitsToFloat|static_assert\( sizeof\( (int|float) \) == 4" neo\idlib\BitMsg.h`: fixed-width guards and helper use sites are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: initial invocation exceeded the tool timeout while still running; after the background build exited, rerun passed. A final post-report run also passed, reran TypeInfo, linked `gamex64.dll`, `d3xp/gamex64.dll`, and `Doom3.exe`, and emitted existing TypeInfo warnings but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad idLib/header dependency surface and emitted existing legacy warning noise, but no errors. A final post-report run also passed with no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-14 Fixed-Width JournalData Config Length Slice
 
 ### Files Changed

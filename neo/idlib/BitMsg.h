@@ -151,6 +151,21 @@ private:
 	int				ReadDelta( int oldValue, int numBits ) const;
 };
 
+static_assert( sizeof( int ) == 4, "bit-message float fields must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "bit-message float fields must stay 32-bit" );
+
+static ID_INLINE int BitMsg_FloatToRawBits( float f ) {
+	int bits;
+	memcpy( &bits, &f, sizeof( bits ) );
+	return bits;
+}
+
+static ID_INLINE float BitMsg_RawBitsToFloat( int bits ) {
+	float value;
+	memcpy( &value, &bits, sizeof( value ) );
+	return value;
+}
+
 
 ID_INLINE void idBitMsg::Init( byte *data, int length ) {
 	writeData = data;
@@ -297,7 +312,7 @@ ID_INLINE void idBitMsg::WriteLong( int c ) {
 }
 
 ID_INLINE void idBitMsg::WriteFloat( float f ) {
-	WriteBits( *reinterpret_cast<int *>(&f), 32 );
+	WriteBits( BitMsg_FloatToRawBits( f ), 32 );
 }
 
 ID_INLINE void idBitMsg::WriteFloat( float f, int exponentBits, int mantissaBits ) {
@@ -334,7 +349,7 @@ ID_INLINE void idBitMsg::WriteDeltaLong( int oldValue, int newValue ) {
 }
 
 ID_INLINE void idBitMsg::WriteDeltaFloat( float oldValue, float newValue ) {
-	WriteDelta( *reinterpret_cast<int *>(&oldValue), *reinterpret_cast<int *>(&newValue), 32 );
+	WriteDelta( BitMsg_FloatToRawBits( oldValue ), BitMsg_FloatToRawBits( newValue ), 32 );
 }
 
 ID_INLINE void idBitMsg::WriteDeltaFloat( float oldValue, float newValue, int exponentBits, int mantissaBits ) {
@@ -377,9 +392,7 @@ ID_INLINE int idBitMsg::ReadLong( void ) const {
 }
 
 ID_INLINE float idBitMsg::ReadFloat( void ) const {
-	float value;
-	*reinterpret_cast<int *>(&value) = ReadBits( 32 );
-	return value;
+	return BitMsg_RawBitsToFloat( ReadBits( 32 ) );
 }
 
 ID_INLINE float idBitMsg::ReadFloat( int exponentBits, int mantissaBits ) const {
@@ -416,9 +429,7 @@ ID_INLINE int idBitMsg::ReadDeltaLong( int oldValue ) const {
 }
 
 ID_INLINE float idBitMsg::ReadDeltaFloat( float oldValue ) const {
-	float value;
-	*reinterpret_cast<int *>(&value) = ReadDelta( *reinterpret_cast<int *>(&oldValue), 32 );
-	return value;
+	return BitMsg_RawBitsToFloat( ReadDelta( BitMsg_FloatToRawBits( oldValue ), 32 ) );
 }
 
 ID_INLINE float idBitMsg::ReadDeltaFloat( float oldValue, int exponentBits, int mantissaBits ) const {
@@ -556,7 +567,7 @@ ID_INLINE void idBitMsgDelta::WriteLong( int c ) {
 }
 
 ID_INLINE void idBitMsgDelta::WriteFloat( float f ) {
-	WriteBits( *reinterpret_cast<int *>(&f), 32 );
+	WriteBits( BitMsg_FloatToRawBits( f ), 32 );
 }
 
 ID_INLINE void idBitMsgDelta::WriteFloat( float f, int exponentBits, int mantissaBits ) {
@@ -593,7 +604,7 @@ ID_INLINE void idBitMsgDelta::WriteDeltaLong( int oldValue, int newValue ) {
 }
 
 ID_INLINE void idBitMsgDelta::WriteDeltaFloat( float oldValue, float newValue ) {
-	WriteDelta( *reinterpret_cast<int *>(&oldValue), *reinterpret_cast<int *>(&newValue), 32 );
+	WriteDelta( BitMsg_FloatToRawBits( oldValue ), BitMsg_FloatToRawBits( newValue ), 32 );
 }
 
 ID_INLINE void idBitMsgDelta::WriteDeltaFloat( float oldValue, float newValue, int exponentBits, int mantissaBits ) {
@@ -623,9 +634,7 @@ ID_INLINE int idBitMsgDelta::ReadLong( void ) const {
 }
 
 ID_INLINE float idBitMsgDelta::ReadFloat( void ) const {
-	float value;
-	*reinterpret_cast<int *>(&value) = ReadBits( 32 );
-	return value;
+	return BitMsg_RawBitsToFloat( ReadBits( 32 ) );
 }
 
 ID_INLINE float idBitMsgDelta::ReadFloat( int exponentBits, int mantissaBits ) const {
@@ -662,9 +671,7 @@ ID_INLINE int idBitMsgDelta::ReadDeltaLong( int oldValue ) const {
 }
 
 ID_INLINE float idBitMsgDelta::ReadDeltaFloat( float oldValue ) const {
-	float value;
-	*reinterpret_cast<int *>(&value) = ReadDelta( *reinterpret_cast<int *>(&oldValue), 32 );
-	return value;
+	return BitMsg_RawBitsToFloat( ReadDelta( BitMsg_FloatToRawBits( oldValue ), 32 ) );
 }
 
 ID_INLINE float idBitMsgDelta::ReadDeltaFloat( float oldValue, int exponentBits, int mantissaBits ) const {
