@@ -1817,6 +1817,44 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 SSE Float Sign Bit And Mask Lane Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_SSE.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| SSE 128-bit mask constants | Legacy API interop / SIMD fixed-width mask lane | Replaced `unsigned long[4]` SIMD mask constants with `dword[4]` lanes so sign, absolute-value, infinity, shuffle, and bitwise-not masks remain explicitly 4 x 32-bit values on LP64 and LLP64 hosts. |
+| `SSE_ATan` scalar fallback sign transfer | Legacy API interop / SIMD math float bit lane | Replaced `unsigned long *` float aliasing with fixed-width `memcpy` helpers that copy the sign bit from the input ratio into the half-pi fallback result. |
+| `idSIMD_SSE::BlendJoints` quaternion sign handling | Legacy API interop / SIMD math float bit lane | Replaced `unsigned long *` float aliasing and scalar `unsigned long` sign storage with `dword` sign lanes plus fixed-width float-bit helpers. |
+| `idSIMD_SSE::DeriveTangents` scalar fallback sign handling | Legacy API interop / SIMD math float bit lane | Replaced `unsigned long *` float aliasing in the non-asm tangent fallback paths with `dword` sign lanes plus fixed-width float-bit helpers. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The edited values are process-local SSE math masks and transient float sign-bit lanes. Existing inline-assembly paths still consume aligned 16-byte mask arrays; those arrays now use four explicit 32-bit `dword` lanes instead of host-width `unsigned long` lanes.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( dword ) == 4, "SSE bit-mask lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "SSE float bit helpers require 32-bit IEEE float storage" );
+```
+
+Known boundary: `neo/idlib/math/Simd_SSE2.cpp` still declares related SIMD mask constants with `unsigned long` and should be cleaned in a dedicated SSE2 slice.
+
+### Verification Log For This Slice
+
+- `rg -n "unsigned long|\*\s*\(\s*unsigned long\s*\*\s*\)\s*&|SimdSSE_|signBit" neo\idlib\math\Simd_SSE.cpp`: stale `unsigned long *` float aliases are gone; fixed-width helpers, `dword` masks, and sign-bit use are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; the current runnable x64 client preset stayed green, with existing TypeInfo warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; no work was needed after the client preset, and the dedicated runnable output remained current.
+- `MSBuild.exe neo\idlib.vcxproj /p:Configuration=Release /p:Platform=Win32 /clp:ErrorsOnly`: passed; this is the direct compiler coverage for `neo/idlib/math/Simd_SSE.cpp`, which is intentionally excluded from the x64 Visual Studio configs and not part of the current CMake Ninja target source list.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-15 Generic SIMD Float Sign Bit Alias Cleanup Slice
 
 ### Files Changed
