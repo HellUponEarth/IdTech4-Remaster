@@ -35,6 +35,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "Simd_SSE2.h"
 #include "Simd_SSE3.h"
 
+#include <stddef.h>
+
 
 //===============================================================
 //
@@ -234,6 +236,18 @@ const char * idSIMD_SSE3::GetName( void ) const {
 #define JOINTMAT_SIZE				(4*3*4)
 #define JOINTWEIGHT_SIZE			(4*4)
 
+static_assert( sizeof( idDrawVert ) == DRAWVERT_SIZE, "idDrawVert layout must match SSE3 vertex format" );
+static_assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET, "idDrawVert xyz offset must match SSE3 vertex format" );
+static_assert( offsetof( idDrawVert, st ) == DRAWVERT_ST_OFFSET, "idDrawVert st offset must match SSE3 vertex format" );
+static_assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET, "idDrawVert normal offset must match SSE3 vertex format" );
+static_assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET, "idDrawVert tangent0 offset must match SSE3 vertex format" );
+static_assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET, "idDrawVert tangent1 offset must match SSE3 vertex format" );
+static_assert( offsetof( idDrawVert, color ) == DRAWVERT_COLOR_OFFSET, "idDrawVert color offset must match SSE3 vertex format" );
+static_assert( sizeof( idJointQuat ) == JOINTQUAT_SIZE, "idJointQuat layout must match SSE3 joint format" );
+static_assert( sizeof( idJointMat ) == JOINTMAT_SIZE, "idJointMat layout must match SSE3 joint format" );
+static_assert( sizeof( idVec4 ) == JOINTWEIGHT_SIZE, "idVec4 layout must match SSE3 joint-weight format" );
+static_assert( offsetof( idJointQuat, t ) == offsetof( idJointQuat, q ) + sizeof( ( ( idJointQuat * )0 )->q ), "idJointQuat translation must directly follow quaternion storage" );
+
 
 /*
 ============
@@ -272,7 +286,7 @@ void VPCALL idSIMD_SSE3::TransformVerts( idDrawVert *verts, const int numVerts, 
 #if 1
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 	assert( sizeof( idVec4 ) == JOINTWEIGHT_SIZE );
 	assert( sizeof( idJointMat ) == JOINTMAT_SIZE );
 

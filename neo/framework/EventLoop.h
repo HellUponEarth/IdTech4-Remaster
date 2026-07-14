@@ -70,8 +70,15 @@ public:
 	idFile *		com_journalDataFile;
 
 private:
+	enum {
+		JOURNAL_FORMAT_NONE,
+		JOURNAL_FORMAT_FIXED,
+		JOURNAL_FORMAT_LEGACY_32
+	};
+
 					// all events will have this subtracted from their time
 	int				initialTimeOffset;
+	int				com_journalReadFormat;
 
 	int				com_pushedEventsHead, com_pushedEventsTail;
 	sysEvent_t		com_pushedEvents[MAX_PUSHED_EVENTS];

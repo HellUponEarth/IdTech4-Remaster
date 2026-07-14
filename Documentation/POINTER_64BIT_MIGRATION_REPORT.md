@@ -1659,3 +1659,160 @@ Known remaining:
 - `C:\Program Files\Microsoft Visual Studio\18\Community\MSBuild\Current\Bin\amd64\MSBuild.exe neo\doom.sln /p:Configuration=Debug /p:Platform=x64 /clp:ErrorsOnly`: passed.
 - `git diff --check`: passed.
 - `rg -n "\bint \*\s*(hash|indexChain|oldIndexChain|numHashItems)\b|\bconst char \*string\b|\bother\.(hash|indexChain)\b|\b(hash|indexChain)\s*=|[^_]\b(hash|indexChain)\[|\boldIndexChain\b|\bnumHashItems\b" neo/idlib/containers/HashIndex.h neo/idlib/containers/HashIndex.cpp`: no matches.
+
+## 2026-07-14 SSE Joint Layout Assertion and Anchor Classification Slice
+
+Files changed in this slice:
+
+- `neo/idlib/math/Simd_SSE.cpp`
+- `neo/idlib/math/Simd_SSE3.cpp`
+- `neo/framework/CVarSystem.h`
+- `neo/framework/CVarSystem.cpp`
+- `neo/game/Game_local.cpp`
+- `neo/d3xp/Game_local.cpp`
+- `neo/MayaImport/maya_main.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+Corrections made:
+
+- Replaced repeated `idDrawVert` and `idJointQuat` layout checks that formed null-member addresses and narrowed them through `int`.
+- Added file-scope `static_assert` checks for `idDrawVert` size and offsets, `idJointQuat` size, `idJointMat` size, `idVec4` joint-weight size, and the `idJointQuat::q` to `idJointQuat::t` offset relationship used by the SSE joint conversion code.
+- Replaced the `idCVar::staticVars` magic pointer sentinel `(idCVar *)0xFFFFFFFF` with explicit `idCVar::staticVarsRegistered` boolean state in each module that owns a private static CVar list.
+- Renamed the touched `SetInternalVar` pointer parameter to `p_cvar` and the `RegisterStaticVars` traversal local to `p_cvar`.
+- Kept savegame, network, and renderer handle field widths unchanged; this slice only removed local pointer-width layout idioms.
+
+### Classification Against Requested Categories
+
+| Location | Category | Current disposition |
+| --- | --- | --- |
+| `neo/idlib/math/Simd_SSE.cpp` before this slice | Legacy API interop | Fixed locally. The x86 SSE implementation still relies on fixed draw-vertex and joint binary layouts, but the guards are now `static_assert` plus `offsetof` instead of pointer-to-`int` arithmetic. |
+| `neo/idlib/math/Simd_SSE3.cpp` before this slice | Legacy API interop | Fixed locally. The SSE3 transform path now uses the same `static_assert`/`offsetof` layout guards instead of narrowing `idDrawVert` member addresses to `int`. |
+| `neo/framework/CVarSystem.h:292,301,305` before this slice | Pointer storage | Fixed locally. The static CVar registration path no longer stores the sentinel value `0xFFFFFFFF` in an `idCVar *`; it now uses `staticVarsRegistered` and resets the pointer list to `NULL` after registration. |
+| `neo/game/gamesys/SaveGame.cpp:678,1449` and `neo/d3xp/gamesys/SaveGame.cpp:683,1459` | Savegame field | `contactInfo_t::modelFeature` remains a 32-bit saved field. Earlier collision work changed the runtime value to a stable polygon ID, so this field must not be widened without a versioned save compatibility story. |
+| `neo/game/Game_network.cpp:420,1434,1439` | Network field / renderer handle | Portal states serialize `qhandle_t` portal numbers through fixed bit widths. These are explicit renderer handles/indices, not pointer storage, and should stay narrow unless a protocol version is added. |
+| `neo/renderer/tr_local.h:151,164` | Renderer handle | Existing comments identify the legacy `qhandle_t` render-light/entity API. Future work should move callers to typed render interfaces or explicit indices, not pointer-valued integers. |
+| `neo/renderer/Model.h:297-301` | Renderer handle | `jointHandle_t` is an explicit model joint handle. No pointer widening is appropriate; any future migration should preserve it as a typed handle/index. |
+| `neo/idlib/containers/HashIndex.*` from the starting inventory | Pointer hashing | Already classified as integer hash/index storage, not pointer hashing. No address-derived hash key was changed in this slice. |
+| `neo/framework/*` journal/event items from the starting inventory | Serialization | Still open. Native `sysEvent_t` journaling remains a serialization compatibility issue and needs a versioned fixed-width journal record before any field widening. |
+
+### Struct Layout / ABI Notes
+
+#### `idDrawVert`, `idJointQuat`, `idJointMat`, and `idVec4`
+
+The SSE code uses hard-coded vertex and joint sizes:
+
+```c
+#define DRAWVERT_SIZE   60
+#define JOINTQUAT_SIZE (7*4)
+#define JOINTMAT_SIZE  (4*3*4)
+#define JOINTWEIGHT_SIZE (4*4)
+```
+
+This slice keeps those binary layout constants unchanged and promotes the checks to compile time:
+
+```c
+static_assert( sizeof( idDrawVert ) == DRAWVERT_SIZE, ... );
+static_assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET, ... );
+static_assert( offsetof( idDrawVert, st ) == DRAWVERT_ST_OFFSET, ... );
+static_assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET, ... );
+static_assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET, ... );
+static_assert( offsetof( idDrawVert, color ) == DRAWVERT_COLOR_OFFSET, ... );
+static_assert( sizeof( idJointQuat ) == JOINTQUAT_SIZE, ... );
+static_assert( sizeof( idJointMat ) == JOINTMAT_SIZE, ... );
+static_assert( sizeof( idVec4 ) == JOINTWEIGHT_SIZE, ... );
+static_assert( offsetof( idJointQuat, t ) == offsetof( idJointQuat, q ) + sizeof( ( ( idJointQuat * )0 )->q ), ... );
+```
+
+Layout impact: none. This is a guard-strengthening change only.
+
+Binary compatibility: no savegame, network, demo, or renderer handle width changed in this slice.
+
+#### `idCVar` Static Registration State
+
+Before this slice:
+
+```c
+static idCVar *staticVars;
+...
+if ( staticVars != (idCVar *)0xFFFFFFFF ) { ... }
+...
+staticVars = (idCVar *)0xFFFFFFFF;
+```
+
+After this slice:
+
+```c
+static idCVar *staticVars;
+static bool staticVarsRegistered;
+...
+if ( !staticVarsRegistered ) { ... }
+...
+staticVars = NULL;
+staticVarsRegistered = true;
+```
+
+Layout impact: `idCVar` gains one static boolean per module, but object layout is unchanged because this is static class state.
+
+Binary compatibility: no file-format or network-format impact. The changed state is process-local CVar registration bookkeeping.
+
+Known remaining:
+
+- `sysEvent_t` journaling still serializes a native pointer-bearing structure and needs a versioned fixed-width format.
+- `contactInfo_t::modelFeature` remains savegame/event serialized as `int`; this is acceptable only because it now carries a stable polygon ID rather than a pointer token.
+- Renderer `qhandle_t` and `jointHandle_t` surfaces remain explicit handles/indices. They should be documented or wrapped with typed handles where API ownership changes, not widened as pointer storage.
+- This slice did not perform a save/load smoke because it did not change save serialization and no existing save corpus is checked into this workspace.
+
+### Verification Log For This Slice
+
+- `rg -n "\(idCVar \*\)0xFFFFFFFF|staticVarsRegistered|staticVars|SetInternalVar" neo/framework/CVarSystem.h neo/framework/CVarSystem.cpp neo/game/Game_local.cpp neo/d3xp/Game_local.cpp neo/MayaImport/maya_main.cpp`: stale magic pointer sentinel is gone; the explicit `staticVarsRegistered` state is present.
+- `rg -n "\(int\)&\(\(id(DrawVert|JointQuat) \*\)0\)->|static_assert\( sizeof\( idDrawVert|static_assert\( sizeof\( idJointQuat|offsetof\( idDrawVert|offsetof\( idJointQuat" neo/idlib/math/Simd_SSE.cpp neo/idlib/math/Simd_SSE3.cpp`: stale pointer-to-`int` member-offset patterns are gone; the new static assertions are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; this rebuilt the touched CVar header users and emitted existing legacy warning noise, but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; this rebuilt the touched CVar header users and emitted existing legacy warning noise, but no errors.
+- `rg -n "\(\s*idCVar\s*\*\s*\)\s*0xFFFFFFFF|\(int\)&\(\(id(DrawVert|JointQuat) \*\)0\)->" neo/framework neo/game neo/d3xp neo/MayaImport neo/idlib`: no matches.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+
+## 2026-07-14 Fixed-Width Journal Event Serialization Slice
+
+### Files Changed
+
+- `neo/framework/EventLoop.cpp`
+- `neo/framework/EventLoop.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `neo/framework/EventLoop.cpp` native `sysEvent_t` journal reads/writes | Serialization | Replaced native `Read( &ev, sizeof( ev ) )` / `Write( &ev, sizeof( ev ) )` event serialization with explicit fixed-width integer fields. |
+| `sysEvent_t::p_evPtr` in `journal.dat` | Pointer storage inside serialized data | New journal records no longer write the native pointer value. Event payload bytes remain serialized after the fixed record when `evPtrLength > 0`. |
+| Headerless legacy journal files | Serialization compatibility | Playback falls back to a legacy 32-bit reader that reads five 32-bit fields and ignores the old serialized pointer token. |
+| New `journal.dat` files | Serialization format | New recordings start with a `JRN2` magic and version `1`, then write a 16-byte event record plus optional payload bytes. |
+
+The fixed journal event record is:
+
+```c
+typedef struct journalEventRecord_s {
+	int evType;
+	int evValue;
+	int evValue2;
+	int evPtrLength;
+} journalEventRecord_t;
+```
+
+Compile-time guards now require `sizeof( int ) == 4` and `sizeof( journalEventRecord_t ) == 16`, keeping the on-disk event header independent from native pointer width and structure padding. `evPtrLength` remains a 32-bit `int`; no savegame or network field was widened in this slice.
+
+Payload bytes continue to live in `journal.dat` immediately after the event record, matching the old event payload behavior. `journaldata.dat` remains reserved for the existing file-system/config journaling path and was not repurposed.
+
+Compatibility boundary: this slice supports new versioned journals and old headerless 32-bit native journals. Headerless 64-bit native journals are not auto-detected because they have no reliable format marker; they should be regenerated with the new versioned writer.
+
+### Verification Log For This Slice
+
+- `rg -n "sizeof\s*\(\s*ev\s*\)|Write\s*\(\s*&ev|Read\s*\(\s*&ev|reinterpret_cast<int &>\( ev\.evType \)" neo/framework/EventLoop.cpp`: no matches.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; existing legacy warnings remain, but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; existing legacy warnings remain, but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.

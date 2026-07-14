@@ -148,7 +148,7 @@ public:
 	void					SetInteger( const int value ) { internalVar->InternalSetInteger( value ); }
 	void					SetFloat( const float value ) { internalVar->InternalSetFloat( value ); }
 
-	void					SetInternalVar( idCVar *cvar ) { internalVar = cvar; }
+	void					SetInternalVar( idCVar *p_cvar ) { internalVar = p_cvar; }
 
 	static void				RegisterStaticVars( void );
 
@@ -176,6 +176,7 @@ private:
 	virtual void			InternalSetFloat( const float newValue ) {}
 
 	static idCVar *			staticVars;
+	static bool				staticVarsRegistered;
 };
 
 ID_INLINE idCVar::idCVar( const char *name, const char *value, int flags, const char *description,
@@ -267,8 +268,10 @@ extern idCVarSystem *		cvarSystem;
 
 	CVar Registration
 
-	Each DLL using CVars has to declare a private copy of the static variable
-	idCVar::staticVars like this: idCVar * idCVar::staticVars = NULL;
+	Each DLL using CVars has to declare private copies of the static variables
+	idCVar::staticVars and idCVar::staticVarsRegistered like this:
+	idCVar * idCVar::staticVars = NULL;
+	bool idCVar::staticVarsRegistered = false;
 	Furthermore idCVar::RegisterStaticVars() has to be called after the
 	cvarSystem pointer is set when the DLL is first initialized.
 
@@ -289,7 +292,7 @@ ID_INLINE void idCVar::Init( const char *name, const char *value, int flags, con
 	this->integerValue = 0;
 	this->floatValue = 0.0f;
 	this->internalVar = this;
-	if ( staticVars != (idCVar *)0xFFFFFFFF ) {
+	if ( !staticVarsRegistered ) {
 		this->next = staticVars;
 		staticVars = this;
 	} else {
@@ -298,11 +301,12 @@ ID_INLINE void idCVar::Init( const char *name, const char *value, int flags, con
 }
 
 ID_INLINE void idCVar::RegisterStaticVars( void ) {
-	if ( staticVars != (idCVar *)0xFFFFFFFF ) {
-		for ( idCVar *cvar = staticVars; cvar; cvar = cvar->next ) {
-			cvarSystem->Register( cvar );
+	if ( !staticVarsRegistered ) {
+		for ( idCVar *p_cvar = staticVars; p_cvar; p_cvar = p_cvar->next ) {
+			cvarSystem->Register( p_cvar );
 		}
-		staticVars = (idCVar *)0xFFFFFFFF;
+		staticVars = NULL;
+		staticVarsRegistered = true;
 	}
 }
 

@@ -50,6 +50,7 @@ idCommon *		common = NULL;
 idCVarSystem *	cvarSystem = NULL;
 
 idCVar *		idCVar::staticVars = NULL;
+bool			idCVar::staticVarsRegistered = false;
 
 /*
 =================

@@ -33,6 +33,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "Simd_MMX.h"
 #include "Simd_SSE.h"
 
+#include <stddef.h>
+
 
 //===============================================================
 //                                                        M
@@ -52,6 +54,14 @@ If you have questions concerning this license or the applicable additional terms
 #define DRAWVERT_TANGENT0_OFFSET	(8*4)
 #define DRAWVERT_TANGENT1_OFFSET	(11*4)
 #define DRAWVERT_COLOR_OFFSET		(14*4)
+
+static_assert( sizeof( idDrawVert ) == DRAWVERT_SIZE, "idDrawVert layout must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET, "idDrawVert xyz offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, st ) == DRAWVERT_ST_OFFSET, "idDrawVert st offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET, "idDrawVert normal offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET, "idDrawVert tangent0 offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET, "idDrawVert tangent1 offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, color ) == DRAWVERT_COLOR_OFFSET, "idDrawVert color offset must match SSE vertex format" );
 
 #define SHUFFLEPS( x, y, z, w )		(( (x) & 3 ) << 6 | ( (y) & 3 ) << 4 | ( (z) & 3 ) << 2 | ( (w) & 3 ))
 #define R_SHUFFLEPS( x, y, z, w )	(( (w) & 3 ) << 6 | ( (z) & 3 ) << 4 | ( (y) & 3 ) << 2 | ( (x) & 3 ))
@@ -93,7 +103,7 @@ void VPCALL idSIMD_SSE::Dot( float *dst, const idPlane &constant, const idDrawVe
 	char *dst_p = (char *) dst;                             // dst_p = ecx
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 	
 	/*
 		and			eax, ~3
@@ -256,7 +266,7 @@ idSIMD_SSE::MinMax
 void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src, const int *indexes, const int count ) {
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__m128 xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
 	char *indexes_p;
@@ -1008,6 +1018,18 @@ void VPCALL idSIMD_SSE::Dot( float *dst, const idVec3 &constant, const idPlane *
 #define JOINTQUAT_SIZE				(7*4)
 #define JOINTMAT_SIZE				(4*3*4)
 #define JOINTWEIGHT_SIZE			(4*4)
+
+static_assert( sizeof( idDrawVert ) == DRAWVERT_SIZE, "idDrawVert layout must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET, "idDrawVert xyz offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, st ) == DRAWVERT_ST_OFFSET, "idDrawVert st offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET, "idDrawVert normal offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET, "idDrawVert tangent0 offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET, "idDrawVert tangent1 offset must match SSE vertex format" );
+static_assert( offsetof( idDrawVert, color ) == DRAWVERT_COLOR_OFFSET, "idDrawVert color offset must match SSE vertex format" );
+static_assert( sizeof( idJointQuat ) == JOINTQUAT_SIZE, "idJointQuat layout must match SSE joint format" );
+static_assert( sizeof( idJointMat ) == JOINTMAT_SIZE, "idJointMat layout must match SSE joint format" );
+static_assert( sizeof( idVec4 ) == JOINTWEIGHT_SIZE, "idVec4 layout must match SSE joint-weight format" );
+static_assert( offsetof( idJointQuat, t ) == offsetof( idJointQuat, q ) + sizeof( ( ( idJointQuat * )0 )->q ), "idJointQuat translation must directly follow quaternion storage" );
 
 
 #define ALIGN4_INIT1( X, INIT )				ALIGN16( static X[4] ) = { INIT, INIT, INIT, INIT }
@@ -2685,7 +2707,7 @@ idSIMD_SSE::Dot
 void VPCALL idSIMD_SSE::Dot( float *dst, const idVec3 &constant, const idDrawVert *src, const int count ) {
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	// 0,  1,  2
 	// 3,  4,  5
@@ -2982,7 +3004,7 @@ idSIMD_SSE::Dot
 void VPCALL idSIMD_SSE::Dot( float *dst, const idPlane &constant, const idDrawVert *src, const int count ) {
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	// 0,  1,  2
 	// 3,  4,  5
@@ -3776,7 +3798,7 @@ idSIMD_SSE::MinMax
 void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src, const int count ) {
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__asm {
 
@@ -3860,7 +3882,7 @@ idSIMD_SSE::MinMax
 void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src, const int *indexes, const int count ) {
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__asm {
 
@@ -11696,7 +11718,6 @@ void VPCALL idSIMD_SSE::ConvertJointQuatsToJointMats( idJointMat *jointMats, con
 
 	assert( sizeof( idJointQuat ) == JOINTQUAT_SIZE );
 	assert( sizeof( idJointMat ) == JOINTMAT_SIZE );
-	assert( (int)(&((idJointQuat *)0)->t) == (int)(&((idJointQuat *)0)->q) + (int)sizeof( ((idJointQuat *)0)->q ) );
 
 	for ( int i = 0; i < numJoints; i++ ) {
 
@@ -11756,7 +11777,6 @@ void VPCALL idSIMD_SSE::ConvertJointMatsToJointQuats( idJointQuat *jointQuats, c
 
 	assert( sizeof( idJointQuat ) == JOINTQUAT_SIZE );
 	assert( sizeof( idJointMat ) == JOINTMAT_SIZE );
-	assert( (int)(&((idJointQuat *)0)->t) == (int)(&((idJointQuat *)0)->q) + (int)sizeof( ((idJointQuat *)0)->q ) );
 
 #if 1
 
@@ -12483,7 +12503,7 @@ void VPCALL idSIMD_SSE::TransformVerts( idDrawVert *verts, const int numVerts, c
 #if 1
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 	assert( sizeof( idVec4 ) == JOINTWEIGHT_SIZE );
 	assert( sizeof( idJointMat ) == JOINTMAT_SIZE );
 
@@ -12593,7 +12613,7 @@ void VPCALL idSIMD_SSE::TracePointCull( byte *cullBits, byte &totalOr, const flo
 #if 1
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__asm {
 		push		ebx
@@ -12723,7 +12743,7 @@ void VPCALL idSIMD_SSE::DecalPointCull( byte *cullBits, const idPlane *planes, c
 	ALIGN16( float p7[4] );
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__asm {
 		mov			ecx, planes
@@ -12960,7 +12980,7 @@ void VPCALL idSIMD_SSE::OverlayPointCull( byte *cullBits, idVec2 *texCoords, con
 #if 1
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__asm {
 		mov			eax, numVerts
@@ -13128,7 +13148,7 @@ void VPCALL idSIMD_SSE::DeriveTriPlanes( idPlane *planes, const idDrawVert *vert
 #if 1
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__asm {
 		mov			eax, numIndexes
@@ -13644,9 +13664,9 @@ void VPCALL idSIMD_SSE::DeriveTangents( idPlane *planes, idDrawVert *verts, cons
 	int i;
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->normal == DRAWVERT_NORMAL_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[0] == DRAWVERT_TANGENT0_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[1] == DRAWVERT_TANGENT1_OFFSET );
+	assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET );
 
 	assert( planes != NULL );
 	assert( verts != NULL );
@@ -15095,9 +15115,9 @@ void VPCALL idSIMD_SSE::NormalizeTangents( idDrawVert *verts, const int numVerts
 	ALIGN16( float normal[12] );
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->normal == DRAWVERT_NORMAL_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[0] == DRAWVERT_TANGENT0_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[1] == DRAWVERT_TANGENT1_OFFSET );
+	assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET );
 
 	assert( verts != NULL );
 	assert( numVerts >= 0 );
@@ -15548,10 +15568,10 @@ idSIMD_SSE::CreateTextureSpaceLightVectors
 void VPCALL idSIMD_SSE::CreateTextureSpaceLightVectors( idVec3 *lightVectors, const idVec3 &lightOrigin, const idDrawVert *verts, const int numVerts, const int *indexes, const int numIndexes ) {
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
-	assert( (int)&((idDrawVert *)0)->normal == DRAWVERT_NORMAL_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[0] == DRAWVERT_TANGENT0_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[1] == DRAWVERT_TANGENT1_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET );
 
 	bool *used = (bool *)_alloca16( numVerts * sizeof( used[0] ) );
 	memset( used, 0, numVerts * sizeof( used[0] ) );
@@ -15976,10 +15996,10 @@ idSIMD_SSE::CreateSpecularTextureCoords
 void VPCALL idSIMD_SSE::CreateSpecularTextureCoords( idVec4 *texCoords, const idVec3 &lightOrigin, const idVec3 &viewOrigin, const idDrawVert *verts, const int numVerts, const int *indexes, const int numIndexes ) {
 
 	assert( sizeof( idDrawVert ) == DRAWVERT_SIZE );
-	assert( (int)&((idDrawVert *)0)->xyz == DRAWVERT_XYZ_OFFSET );
-	assert( (int)&((idDrawVert *)0)->normal == DRAWVERT_NORMAL_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[0] == DRAWVERT_TANGENT0_OFFSET );
-	assert( (int)&((idDrawVert *)0)->tangents[1] == DRAWVERT_TANGENT1_OFFSET );
+	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
+	assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET );
+	assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET );
 
 	bool *used = (bool *)_alloca16( numVerts * sizeof( used[0] ) );
 	memset( used, 0, numVerts * sizeof( used[0] ) );

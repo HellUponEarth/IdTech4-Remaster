@@ -30,6 +30,7 @@ If you have questions concerning this license or the applicable additional terms
 #pragma hdrstop
 
 idCVar * idCVar::staticVars = NULL;
+bool idCVar::staticVarsRegistered = false;
 
 /*
 ===============================================================================
