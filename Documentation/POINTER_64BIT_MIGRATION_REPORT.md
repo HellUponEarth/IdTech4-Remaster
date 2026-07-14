@@ -1817,6 +1817,44 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 Generic SIMD Float Sign Bit Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_Generic.cpp`
+- `neo/idlib/math/Simd.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idSIMD_Generic::DeriveTangents` tangent sign-bit handling | Legacy API interop / SIMD math float bit lane | Replaced `unsigned long *` float aliasing with fixed-width `memcpy` helpers; the sign bit still XORs into the `idMath::RSqrt` result exactly as before. |
+| `TestMath` `Fabs` benchmark bit path | Legacy API interop / SIMD test float bit lane | Replaced `int *` / `float *` aliasing with fixed-width `dword` bit copies, preserving the `0x7FFFFFFF` mask behavior. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, or asset formats. Only in-memory SIMD math object-representation access changed. The legacy sign-bit behavior is now expressed through fixed-width 32-bit copies rather than pointer casts that depend on aliasing and integer-width assumptions.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( dword ) == 4, "SIMD float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "SIMD float bit helpers require 32-bit IEEE float storage" );
+static_assert( sizeof( dword ) == 4, "SIMD test float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "SIMD test float bit helpers require 32-bit IEEE float storage" );
+```
+
+Known boundary: broader `neo/idlib/math/Simd_SSE.cpp` float-bit aliasing remains and should be cleaned in a dedicated SSE slice.
+
+### Verification Log For This Slice
+
+- `rg -n "\*\s*\(\s*(unsigned long|int|float)\s*\*\s*\)\s*&|signBit|Simd(Generic|Test)_" neo\idlib\math\Simd_Generic.cpp neo\idlib\math\Simd.cpp`: stale alias expressions are gone; fixed-width helpers and `signBit` use are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `neo/idlib/math/Simd.cpp`, `neo/idlib/math/Simd_Generic.cpp`, and linked `Doom3.exe`, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed when rerun sequentially; the first concurrent run hit a shared `libidLib.a` archive removal collision while the client build was also writing that archive.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-15 AltiVec Alignment Macro Pointer-Width Slice
 
 ### Files Changed

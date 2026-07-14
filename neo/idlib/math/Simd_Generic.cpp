@@ -38,6 +38,25 @@ If you have questions concerning this license or the applicable additional terms
 //
 //===============================================================
 
+static_assert( sizeof( dword ) == 4, "SIMD float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "SIMD float bit helpers require 32-bit IEEE float storage" );
+
+static dword SimdGeneric_FloatBits( float value ) {
+	dword bits;
+	memcpy( &bits, &value, sizeof( bits ) );
+	return bits;
+}
+
+static float SimdGeneric_BitsToFloat( dword bits ) {
+	float value;
+	memcpy( &value, &bits, sizeof( value ) );
+	return value;
+}
+
+static float SimdGeneric_XorFloatSignBits( float value, dword signBits ) {
+	return SimdGeneric_BitsToFloat( SimdGeneric_FloatBits( value ) ^ signBits );
+}
+
 #define UNROLL1(Y) { int _IX; for (_IX=0;_IX<count;_IX++) {Y(_IX);} }
 #define UNROLL2(Y) { int _IX, _NM = count&0xfffffffe; for (_IX=0;_IX<_NM;_IX+=2){Y(_IX+0);Y(_IX+1);} if (_IX < count) {Y(_IX);}}
 #define UNROLL4(Y) { int _IX, _NM = count&0xfffffffc; for (_IX=0;_IX<_NM;_IX+=4){Y(_IX+0);Y(_IX+1);Y(_IX+2);Y(_IX+3);}for(;_IX<count;_IX++){Y(_IX);}}
@@ -2499,7 +2518,7 @@ void VPCALL idSIMD_Generic::DeriveTangents( idPlane *planes, idDrawVert *verts, 
 	idPlane *planesPtr = planes;
 	for ( i = 0; i < numIndexes; i += 3 ) {
 		idDrawVert *a, *b, *c;
-		unsigned long signBit;
+		dword signBit;
 		float d0[5], d1[5], f, area;
 		idVec3 n, t0, t1;
 
@@ -2540,7 +2559,7 @@ void VPCALL idSIMD_Generic::DeriveTangents( idPlane *planes, idDrawVert *verts, 
 
 		// area sign bit
 		area = d0[3] * d1[4] - d0[4] * d1[3];
-		signBit = ( *(unsigned long *)&area ) & ( 1 << 31 );
+		signBit = SimdGeneric_FloatBits( area ) & ( 1u << 31 );
 
 		// first tangent
 		t0[0] = d0[0] * d1[4] - d0[4] * d1[0];
@@ -2548,7 +2567,7 @@ void VPCALL idSIMD_Generic::DeriveTangents( idPlane *planes, idDrawVert *verts, 
 		t0[2] = d0[2] * d1[4] - d0[4] * d1[2];
 
 		f = idMath::RSqrt( t0.x * t0.x + t0.y * t0.y + t0.z * t0.z );
-		*(unsigned long *)&f ^= signBit;
+		f = SimdGeneric_XorFloatSignBits( f, signBit );
 
 		t0.x *= f;
 		t0.y *= f;
@@ -2560,7 +2579,7 @@ void VPCALL idSIMD_Generic::DeriveTangents( idPlane *planes, idDrawVert *verts, 
 		t1[2] = d0[3] * d1[2] - d0[2] * d1[3];
 
 		f = idMath::RSqrt( t1.x * t1.x + t1.y * t1.y + t1.z * t1.z );
-		*(unsigned long *)&f ^= signBit;
+		f = SimdGeneric_XorFloatSignBits( f, signBit );
 
 		t1.x *= f;
 		t1.y *= f;

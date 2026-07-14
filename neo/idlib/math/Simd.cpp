@@ -40,6 +40,22 @@ If you have questions concerning this license or the applicable additional terms
 #include "Simd_AltiVec.h"
 
 
+static_assert( sizeof( dword ) == 4, "SIMD test float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "SIMD test float bit helpers require 32-bit IEEE float storage" );
+
+static dword SimdTest_FloatBits( float value ) {
+	dword bits;
+	memcpy( &bits, &value, sizeof( bits ) );
+	return bits;
+}
+
+static float SimdTest_BitsToFloat( dword bits ) {
+	float value;
+	memcpy( &value, &bits, sizeof( value ) );
+	return value;
+}
+
+
 idSIMDProcessor	*	processor = NULL;			// pointer to SIMD processor
 idSIMDProcessor *	generic = NULL;				// pointer to generic SIMD implementation
 idSIMDProcessor *	SIMDProcessor = NULL;
@@ -3694,9 +3710,9 @@ void TestMath( void ) {
 	tst = rnd.CRandomFloat();
 	for ( i = 0; i < NUMTESTS; i++ ) {
 		StartRecordTime( start );
-		int tmp = * ( int * ) &tst;
-		tmp &= 0x7FFFFFFF;
-		tst = * ( float * ) &tmp;
+		dword tmp = SimdTest_FloatBits( tst );
+		tmp &= 0x7FFFFFFFu;
+		tst = SimdTest_BitsToFloat( tmp );
 		StopRecordTime( end );
 		GetBest( start, end, bestClocks );
 		testvar = ( testvar + tst ) * tst;
