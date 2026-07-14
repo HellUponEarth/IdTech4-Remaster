@@ -68,7 +68,7 @@ public:
 	int					FindIndex( const type & obj ) const;				// find the index for the given element
 	type *				Find( type const & obj ) const;						// find pointer to the given element
 	int					FindNull( void ) const;								// find the index for the first NULL pointer in the list
-	int					IndexOf( const type *obj ) const;					// returns the index for the pointer to an element in the list
+	int					IndexOf( const type *p_obj ) const;					// returns the index for the pointer to an element in the list
 	bool				RemoveIndex( int index );							// remove the element at the given index
 	bool				Remove( const type & obj );							// remove the element
 	void				Swap( idStaticList<type,size> &other );				// swap the contents of the lists
@@ -471,10 +471,10 @@ but remains silent in release builds.
 ================
 */
 template<class type,int size>
-ID_INLINE int idStaticList<type,size>::IndexOf( type const *objptr ) const {
+ID_INLINE int idStaticList<type,size>::IndexOf( type const *p_obj ) const {
 	int index;
 
-	index = objptr - list;
+	index = p_obj - list;
 
 	assert( index >= 0 );
 	assert( index < num );

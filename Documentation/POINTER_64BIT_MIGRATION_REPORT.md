@@ -1590,6 +1590,35 @@ Known remaining:
 - `git diff --check`: passed.
 - `rg -n "const char \*string\b|const idPoolStr \*poolStr\b|idPoolStr \*poolStr\b|idStrPool \*\s*pool\b|->pool\b|\.pool\b|\bpoolStr\b" neo/idlib/containers/StrPool.h`: no matches.
 
+## 2026-07-15 idlib StaticList Pointer Parameter Rename Slice
+
+### Files Changed
+
+- `neo/idlib/containers/StaticList.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idStaticList::IndexOf( const type *objptr )` | Legacy API interop / idlib container pointer parameter | Renamed the actual pointer parameter to `p_obj` in the declaration and inline definition. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The function type is unchanged because only the template parameter name changed; `IndexOf` still computes an integer index from a pointer into the internal fixed array. The internal `num` count and `list[size]` storage remain unchanged.
+
+No binary-format compile-time assertion was added because `idStaticList` is a header-only in-memory container template and this slice does not introduce or modify any persisted structure size.
+
+Known boundary: this slice only covers the actual pointer parameter in `idStaticList::IndexOf`. `idList` still has broader pointer storage, pointer parameters, and pointer locals that need a dedicated container slice.
+
+### Verification Log For This Slice
+
+- `rg -n "IndexOf\( const type \*p_obj \)|IndexOf\( type const \*p_obj \)|\bobjptr\b|p_obj - list" neo\idlib\containers\StaticList.h`: `p_obj` declaration/definition and pointer-difference use are present; stale `objptr` is gone.
+- `cmake --build --preset ninja-gcc-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `cmake --build --preset ninja-dedicated-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-13 idlib HashIndex Pointer Rename Slice
 
 Files changed in this slice:
