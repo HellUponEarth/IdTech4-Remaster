@@ -1817,6 +1817,44 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-14 DrawVert Color And InvSqrt Bit Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/geometry/DrawVert.h`
+- `neo/idlib/math/Math.h`
+- `neo/idlib/math/Math.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idDrawVert::SetColor` / `idDrawVert::GetColor` packed color helpers | Renderer geometry helper / legacy API interop | Replaced `dword *` aliasing of the `byte color[4]` member with `memcpy`, preserving the exact 32-bit packed color payload. |
+| `idMath::InvSqrt16`, `idMath::InvSqrt`, and `idMath::InvSqrt64` seed bit paths | Legacy API interop / math helper bit fields | Replaced `_flint` union pointer aliasing with the fixed-width `idMath_FloatBits` and `idMath_BitsToFloat` helpers. |
+| `idMath::Init` inverse-square-root lookup table generation | Legacy API interop / math helper bit fields | Builds lookup-table input/output bit patterns through the same fixed-width helpers instead of `_flint` union aliasing. |
+
+This slice does not widen any savegame or network field. `idDrawVert::color` remains four bytes, and `SetColor` / `GetColor` still copy exactly one `dword`. The inverse-square-root paths keep the same 32-bit IEEE seed-bit math and lookup table values; only the object-representation access mechanism changed.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( dword ) == 4, "math float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "math float bit helpers require 32-bit IEEE float storage" );
+static_assert( sizeof( this->color ) == sizeof( dword ), "idDrawVert color storage must stay 32-bit" );
+```
+
+### Verification Log For This Slice
+
+- `rg -n "reinterpret_cast<\s*(const\s+)?dword\s*\*>\s*\(this->color\)|\(union _flint\*\)|union _flint|seed\.f|seed\.i" neo\idlib\geometry\DrawVert.h neo\idlib\math\Math.h neo\idlib\math\Math.cpp`: no matches.
+- `rg -n "idMath_FloatBits|idMath_BitsToFloat|SetColor|GetColor|idDrawVert color storage" neo\idlib\geometry\DrawVert.h neo\idlib\math\Math.h neo\idlib\math\Math.cpp`: fixed-width helpers and color storage guards are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the broad idLib/header dependency surface and linked runtime outputs, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad idLib/header dependency surface and linked `DedServer.exe`, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-14 Math And Random Float Bit Alias Cleanup Slice
 
 ### Files Changed

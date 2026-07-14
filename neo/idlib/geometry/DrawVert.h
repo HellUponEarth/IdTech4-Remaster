@@ -97,11 +97,15 @@ ID_INLINE void idDrawVert::LerpAll( const idDrawVert &a, const idDrawVert &b, co
 }
 
 ID_INLINE void idDrawVert::SetColor( dword color ) {
-	*reinterpret_cast<dword *>(this->color) = color;
+	static_assert( sizeof( this->color ) == sizeof( color ), "idDrawVert color storage must stay 32-bit" );
+	memcpy( this->color, &color, sizeof( color ) );
 }
 
 ID_INLINE dword idDrawVert::GetColor( void ) const {
-	return *reinterpret_cast<const dword *>(this->color);
+	static_assert( sizeof( this->color ) == sizeof( dword ), "idDrawVert color storage must stay 32-bit" );
+	dword color;
+	memcpy( &color, this->color, sizeof( color ) );
+	return color;
 }
 
 #endif /* !__DRAWVERT_H__ */

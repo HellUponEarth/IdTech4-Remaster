@@ -55,12 +55,12 @@ idMath::Init
 ===============
 */
 void idMath::Init( void ) {
-    union _flint fi, fo;
-
     for ( int i = 0; i < SQRT_TABLE_SIZE; i++ ) {
-        fi.i	 = ((EXP_BIAS-1) << EXP_POS) | (i << LOOKUP_POS);
-        fo.f	 = (float)( 1.0 / sqrt( fi.f ) );
-        iSqrt[i] = ((dword)(((fo.i + (1<<(SEED_POS-2))) >> SEED_POS) & 0xFF))<<SEED_POS;
+		const dword inputBits = ((EXP_BIAS-1) << EXP_POS) | (i << LOOKUP_POS);
+		const float input = idMath_BitsToFloat( inputBits );
+		const float output = (float)( 1.0 / sqrt( input ) );
+		const dword outputBits = idMath_FloatBits( output );
+		iSqrt[i] = ((dword)(((outputBits + (1<<(SEED_POS-2))) >> SEED_POS) & 0xFF))<<SEED_POS;
     }
     
 	iSqrt[SQRT_TABLE_SIZE / 2] = ((dword)(0xFF))<<(SEED_POS); 

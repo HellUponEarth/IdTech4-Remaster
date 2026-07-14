@@ -244,11 +244,6 @@ private:
 		LOOKUP_MASK				= (SQRT_TABLE_SIZE-1)
 	};
 
-	union _flint {
-		dword					i;
-		float					f;
-	};
-
 	static dword				iSqrt[SQRT_TABLE_SIZE];
 	static bool					initialized;
 };
@@ -268,42 +263,42 @@ ID_INLINE float idMath::RSqrt( float x ) {
 
 ID_INLINE float idMath::InvSqrt16( float x ) {
 
-	dword a = ((union _flint*)(&x))->i;
-	union _flint seed;
+	dword a = idMath_FloatBits( x );
+	dword seedBits;
 
 	assert( initialized );
 
 	double y = x * 0.5f;
-	seed.i = (( ( (3*EXP_BIAS-1) - ( (a >> EXP_POS) & 0xFF) ) >> 1)<<EXP_POS) | iSqrt[(a >> (EXP_POS-LOOKUP_BITS)) & LOOKUP_MASK];
-	double r = seed.f;
+	seedBits = (( ( (3*EXP_BIAS-1) - ( (a >> EXP_POS) & 0xFF) ) >> 1)<<EXP_POS) | iSqrt[(a >> (EXP_POS-LOOKUP_BITS)) & LOOKUP_MASK];
+	double r = idMath_BitsToFloat( seedBits );
 	r = r * ( 1.5f - r * r * y );
 	return (float) r;
 }
 
 ID_INLINE float idMath::InvSqrt( float x ) {
 
-	dword a = ((union _flint*)(&x))->i;
-	union _flint seed;
+	dword a = idMath_FloatBits( x );
+	dword seedBits;
 
 	assert( initialized );
 
 	double y = x * 0.5f;
-	seed.i = (( ( (3*EXP_BIAS-1) - ( (a >> EXP_POS) & 0xFF) ) >> 1)<<EXP_POS) | iSqrt[(a >> (EXP_POS-LOOKUP_BITS)) & LOOKUP_MASK];
-	double r = seed.f;
+	seedBits = (( ( (3*EXP_BIAS-1) - ( (a >> EXP_POS) & 0xFF) ) >> 1)<<EXP_POS) | iSqrt[(a >> (EXP_POS-LOOKUP_BITS)) & LOOKUP_MASK];
+	double r = idMath_BitsToFloat( seedBits );
 	r = r * ( 1.5f - r * r * y );
 	r = r * ( 1.5f - r * r * y );
 	return (float) r;
 }
 
 ID_INLINE double idMath::InvSqrt64( float x ) {
-	dword a = ((union _flint*)(&x))->i;
-	union _flint seed;
+	dword a = idMath_FloatBits( x );
+	dword seedBits;
 
 	assert( initialized );
 
 	double y = x * 0.5f;
-	seed.i = (( ( (3*EXP_BIAS-1) - ( (a >> EXP_POS) & 0xFF) ) >> 1)<<EXP_POS) | iSqrt[(a >> (EXP_POS-LOOKUP_BITS)) & LOOKUP_MASK];
-	double r = seed.f;
+	seedBits = (( ( (3*EXP_BIAS-1) - ( (a >> EXP_POS) & 0xFF) ) >> 1)<<EXP_POS) | iSqrt[(a >> (EXP_POS-LOOKUP_BITS)) & LOOKUP_MASK];
+	double r = idMath_BitsToFloat( seedBits );
 	r = r * ( 1.5f - r * r * y );
 	r = r * ( 1.5f - r * r * y );
 	r = r * ( 1.5f - r * r * y );
