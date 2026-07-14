@@ -362,9 +362,10 @@ void idTextureLevel::UpdateTile( int localX, int localY, int globalX, int global
 	if ( idMegaTexture::r_showMegaTextureLabels.GetBool() ) {
 		// put a color marker in it
 		byte	color[4] = { 255 * localX / TILE_PER_LEVEL, 255 * localY / TILE_PER_LEVEL, 0, 0 };
+		static_assert( sizeof( color ) == 4, "megaTexture label color storage must stay 32-bit" );
 		for ( int x = 0 ; x < 8 ; x++ ) {
 			for ( int y = 0 ; y < 8 ; y++ ) {
-				*(int *)&data[ ( ( y + TILE_SIZE/2 - 4 ) * TILE_SIZE + x + TILE_SIZE/2 - 4 ) * 4 ] = *(int *)color;
+				memcpy( &data[ ( ( y + TILE_SIZE/2 - 4 ) * TILE_SIZE + x + TILE_SIZE/2 - 4 ) * 4 ], color, sizeof( color ) );
 			}
 		}
 	}
@@ -909,5 +910,4 @@ void idMegaTexture::MakeMegaTexture_f( const idCmdArgs &args ) {
 	}
 #endif
 }
-
 

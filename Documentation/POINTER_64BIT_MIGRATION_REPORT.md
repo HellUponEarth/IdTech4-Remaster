@@ -2158,3 +2158,38 @@ Known boundary: the Windows CMake presets compile and link `neo/sys/win32/win_ma
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-15 Map CRC And MegaTexture 32-Bit Lane Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/MapFile.cpp`
+- `neo/renderer/MegaTexture.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `FloatCRC` in `neo/idlib/MapFile.cpp` | Legacy API interop / map geometry CRC bit lane | Replaced `*( unsigned int * )&f` with a `memcpy` copy into a 32-bit integer lane, preserving the exact IEEE float bits used by map geometry CRC generation. |
+| MegaTexture debug label RGBA stamp in `idTextureLevel::UpdateTile` | Renderer texture helper / fixed 32-bit color lane | Replaced `*( int * )` color/data aliasing with a four-byte `memcpy` from the RGBA label color into the tile buffer. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, map, or asset formats. Map geometry CRCs still use the same 32-bit float object representation, and MegaTexture debug labels still stamp exactly four RGBA bytes per pixel. The change only removes strict-aliasing access to those fixed-width lanes.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( unsigned int ) == 4, "map float CRC integer lane must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "map float CRC float lane must stay 32-bit" );
+static_assert( sizeof( color ) == 4, "megaTexture label color storage must stay 32-bit" );
+```
+
+### Verification Log For This Slice
+
+- `rg -n "\*\(unsigned int \*\)&f|\*\(int \*\)&data|\*\(int \*\)color|map float CRC|megaTexture label color|memcpy\( &bits|memcpy\( &data" neo\idlib\MapFile.cpp neo\renderer\MegaTexture.cpp`: stale alias expressions are gone; fixed-width guards and `memcpy` paths are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `neo/idlib/MapFile.cpp`, `neo/renderer/MegaTexture.cpp`, and linked `Doom3.exe`, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the same touched source files and linked `DedServer.exe`, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.

@@ -29,6 +29,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "precompiled.h"
 #pragma hdrstop
 
+static_assert( sizeof( unsigned int ) == 4, "map float CRC integer lane must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "map float CRC float lane must stay 32-bit" );
 
 /*
 ===============
@@ -36,7 +38,9 @@ FloatCRC
 ===============
 */
 ID_INLINE unsigned int FloatCRC( float f ) {
-	return *(unsigned int *)&f;
+	unsigned int bits;
+	memcpy( &bits, &f, sizeof( bits ) );
+	return bits;
 }
 
 /*
