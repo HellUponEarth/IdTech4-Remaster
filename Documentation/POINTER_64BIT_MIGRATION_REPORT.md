@@ -1817,6 +1817,40 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 SSE2 Fixed-Width Mask Lane Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_SSE2.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| SSE2 128-bit mask constants | Legacy API interop / SIMD fixed-width mask lane | Replaced `unsigned long[4]` sign, absolute-value, and infinity masks with explicit `dword[4]` lanes so each aligned SIMD mask remains exactly 4 x 32-bit values on LP64 and LLP64 hosts. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The edited values are process-local SSE2 mask constants consumed by legacy SIMD code. The aligned 16-byte storage shape is preserved, but the lane type no longer depends on host `unsigned long` width.
+
+Compile-time guard:
+
+```c
+static_assert( sizeof( dword ) == 4, "SSE2 bit-mask lanes must stay 32-bit" );
+```
+
+Known boundary: this slice only covers `neo/idlib/math/Simd_SSE2.cpp`; other legacy SIMD files still need their own fixed-width lane audits.
+
+### Verification Log For This Slice
+
+- `rg -n "unsigned long|SSE2 bit-mask|SIMD_SP_(singleSignBitMask|signBitMask|absMask|infinityMask)" neo\idlib\math\Simd_SSE2.cpp`: no `unsigned long` remains in the file; fixed-width masks and the guard are present.
+- `MSBuild.exe neo\idlib.vcxproj /p:Configuration=Release /p:Platform=Win32 /clp:ErrorsOnly`: passed; this is the direct compiler coverage for `neo/idlib/math/Simd_SSE2.cpp`, which is intentionally excluded from x64 Visual Studio configs.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; no work was needed, and the current runnable x64 client output remained current.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; no work was needed, and the current runnable x64 dedicated output remained current.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-15 SSE Float Sign Bit And Mask Lane Cleanup Slice
 
 ### Files Changed
@@ -1842,7 +1876,7 @@ static_assert( sizeof( dword ) == 4, "SSE bit-mask lanes must stay 32-bit" );
 static_assert( sizeof( float ) == 4, "SSE float bit helpers require 32-bit IEEE float storage" );
 ```
 
-Known boundary: `neo/idlib/math/Simd_SSE2.cpp` still declares related SIMD mask constants with `unsigned long` and should be cleaned in a dedicated SSE2 slice.
+Related boundary: `neo/idlib/math/Simd_SSE2.cpp` declared related SIMD mask constants with `unsigned long`; that follow-up is tracked in the SSE2 fixed-width mask lane cleanup slice above.
 
 ### Verification Log For This Slice
 

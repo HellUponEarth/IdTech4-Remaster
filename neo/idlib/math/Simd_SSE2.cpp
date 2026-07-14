@@ -40,6 +40,9 @@ If you have questions concerning this license or the applicable additional terms
 //	SSE2 implementation of idSIMDProcessor
 //
 //===============================================================
+
+static_assert( sizeof( dword ) == 4, "SSE2 bit-mask lanes must stay 32-bit" );
+
 #if defined(MACOS_X) && defined(__i386__)
 
 #include <xmmintrin.h>
@@ -261,10 +264,10 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *p_dst, const byte bitNum, const float *p_s
 ALIGN8_INIT1( unsigned short SIMD_W_zero, 0 );
 ALIGN8_INIT1( unsigned short SIMD_W_maxShort, 1<<15 );
 
-ALIGN4_INIT4( unsigned long SIMD_SP_singleSignBitMask, (unsigned long) ( 1 << 31 ), 0, 0, 0 );
-ALIGN4_INIT1( unsigned long SIMD_SP_signBitMask, (unsigned long) ( 1 << 31 ) );
-ALIGN4_INIT1( unsigned long SIMD_SP_absMask, (unsigned long) ~( 1 << 31 ) );
-ALIGN4_INIT1( unsigned long SIMD_SP_infinityMask, (unsigned long) ~( 1 << 23 ) );
+ALIGN4_INIT4( dword SIMD_SP_singleSignBitMask, ( 1u << 31 ), 0, 0, 0 );
+ALIGN4_INIT1( dword SIMD_SP_signBitMask, ( 1u << 31 ) );
+ALIGN4_INIT1( dword SIMD_SP_absMask, ~( 1u << 31 ) );
+ALIGN4_INIT1( dword SIMD_SP_infinityMask, ~( 1u << 23 ) );
 
 ALIGN4_INIT1( float SIMD_SP_zero, 0.0f );
 ALIGN4_INIT1( float SIMD_SP_one, 1.0f );
