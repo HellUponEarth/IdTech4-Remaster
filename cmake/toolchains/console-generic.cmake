@@ -1,0 +1,38 @@
+set(CMAKE_SYSTEM_NAME Generic)
+
+set(IDTECH4_CONSOLE_SDK_ROOT
+    ""
+    CACHE PATH "Root of the proprietary console SDK."
+)
+set(IDTECH4_CONSOLE_C_COMPILER
+    ""
+    CACHE FILEPATH "Console C compiler."
+)
+set(IDTECH4_CONSOLE_CXX_COMPILER
+    ""
+    CACHE FILEPATH "Console C++ compiler."
+)
+
+if(NOT IDTECH4_CONSOLE_SDK_ROOT)
+    message(FATAL_ERROR "Set IDTECH4_CONSOLE_SDK_ROOT and compiler paths for the target console SDK.")
+endif()
+
+if(IDTECH4_CONSOLE_C_COMPILER)
+    set(CMAKE_C_COMPILER
+        "${IDTECH4_CONSOLE_C_COMPILER}"
+        CACHE FILEPATH "Console C compiler" FORCE
+    )
+endif()
+
+if(IDTECH4_CONSOLE_CXX_COMPILER)
+    set(CMAKE_CXX_COMPILER
+        "${IDTECH4_CONSOLE_CXX_COMPILER}"
+        CACHE FILEPATH "Console C++ compiler" FORCE
+    )
+endif()
+
+set(CMAKE_FIND_ROOT_PATH "${IDTECH4_CONSOLE_SDK_ROOT}")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)

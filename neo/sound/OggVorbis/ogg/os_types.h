@@ -64,6 +64,14 @@ void _decoder_free( void *memblock );
 #pragma warning(disable : 4244)		// conversion to smaller type, possible loss of data
 #pragma warning(disable : 4305)		// truncation from 'double' to 'float'
 
+#  elif defined(__MINGW32__) || defined(__MINGW64__)
+   /* MinGW */
+   #include <stdint.h>
+   typedef int64_t ogg_int64_t;
+   typedef int32_t ogg_int32_t;
+   typedef uint32_t ogg_uint32_t;
+   typedef int16_t ogg_int16_t;
+   typedef uint16_t ogg_uint16_t;
 #  else
    /* Cygwin */
    #include <_G_config.h>

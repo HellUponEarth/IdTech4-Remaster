@@ -232,43 +232,43 @@ void R_ShowTriSurfMemory_f( const idCmdArgs &args ) {
 			srfTrianglesAllocator.GetAllocCount() );
 
 	common->Printf( "%6d kB vertex memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triVertexAllocator.GetBaseBlockMemory() >> 10, triVertexAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triVertexAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triVertexAllocator.GetFreeBlockMemory() >> 10 ),
 			triVertexAllocator.GetNumFreeBlocks(), triVertexAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB index memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triIndexAllocator.GetBaseBlockMemory() >> 10, triIndexAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triIndexAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triIndexAllocator.GetFreeBlockMemory() >> 10 ),
 			triIndexAllocator.GetNumFreeBlocks(), triIndexAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB shadow vert memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triShadowVertexAllocator.GetBaseBlockMemory() >> 10, triShadowVertexAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triShadowVertexAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triShadowVertexAllocator.GetFreeBlockMemory() >> 10 ),
 			triShadowVertexAllocator.GetNumFreeBlocks(), triShadowVertexAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB tri plane memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triPlaneAllocator.GetBaseBlockMemory() >> 10, triPlaneAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triPlaneAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triPlaneAllocator.GetFreeBlockMemory() >> 10 ),
 			triPlaneAllocator.GetNumFreeBlocks(), triPlaneAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB sil index memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triSilIndexAllocator.GetBaseBlockMemory() >> 10, triSilIndexAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triSilIndexAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triSilIndexAllocator.GetFreeBlockMemory() >> 10 ),
 			triSilIndexAllocator.GetNumFreeBlocks(), triSilIndexAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB sil edge memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triSilEdgeAllocator.GetBaseBlockMemory() >> 10, triSilEdgeAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triSilEdgeAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triSilEdgeAllocator.GetFreeBlockMemory() >> 10 ),
 			triSilEdgeAllocator.GetNumFreeBlocks(), triSilEdgeAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB dominant tri memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triDominantTrisAllocator.GetBaseBlockMemory() >> 10, triDominantTrisAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triDominantTrisAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triDominantTrisAllocator.GetFreeBlockMemory() >> 10 ),
 			triDominantTrisAllocator.GetNumFreeBlocks(), triDominantTrisAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB mirror vert memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triMirroredVertAllocator.GetBaseBlockMemory() >> 10, triMirroredVertAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triMirroredVertAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triMirroredVertAllocator.GetFreeBlockMemory() >> 10 ),
 			triMirroredVertAllocator.GetNumFreeBlocks(), triMirroredVertAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB dup vert memory (%d kB free in %d blocks, %d empty base blocks)\n",
-		triDupVertAllocator.GetBaseBlockMemory() >> 10, triDupVertAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( triDupVertAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( triDupVertAllocator.GetFreeBlockMemory() >> 10 ),
 			triDupVertAllocator.GetNumFreeBlocks(), triDupVertAllocator.GetNumEmptyBaseBlocks() );
 
 	common->Printf( "%6d kB total triangle memory\n",
-		( srfTrianglesAllocator.GetAllocCount() * sizeof( srfTriangles_t ) +
+		static_cast<int>( ( srfTrianglesAllocator.GetAllocCount() * sizeof( srfTriangles_t ) +
 			triVertexAllocator.GetBaseBlockMemory() +
 			triIndexAllocator.GetBaseBlockMemory() +
 			triShadowVertexAllocator.GetBaseBlockMemory() +
@@ -277,7 +277,7 @@ void R_ShowTriSurfMemory_f( const idCmdArgs &args ) {
 			triSilEdgeAllocator.GetBaseBlockMemory() +
 			triDominantTrisAllocator.GetBaseBlockMemory() +
 			triMirroredVertAllocator.GetBaseBlockMemory() +
-			triDupVertAllocator.GetBaseBlockMemory() ) >> 10 );
+			triDupVertAllocator.GetBaseBlockMemory() ) >> 10 ) );
 }
 
 /*
@@ -2271,4 +2271,3 @@ int R_DeformInfoMemoryUsed( deformInfo_t *deformInfo ) {
 	total += sizeof( *deformInfo );
 	return total;
 }
-

@@ -37,52 +37,52 @@ If you have questions concerning this license or the applicable additional terms
 ===============================================================================
 */
 
-#define idQueue( type, next )		idQueueTemplate<type, (int)&(((type*)NULL)->next)>
+#define idQueue( type, next )		idQueueTemplate<type, offsetof( type, next )>
 
-template< class type, int nextOffset >
+template< class type, size_t nextOffset >
 class idQueueTemplate {
 public:
 							idQueueTemplate( void );
 
-	void					Add( type *element );
+	void					Add( type *p_element );
 	type *					Get( void );
 
 private:
-	type *					first;
-	type *					last;
+	type *					p_first;
+	type *					p_last;
 };
 
-#define QUEUE_NEXT_PTR( element )		(*((type**)(((byte*)element)+nextOffset)))
+#define QUEUE_NEXT_PTR( p_element )		(*((type**)(((byte*)p_element)+nextOffset)))
 
-template< class type, int nextOffset >
+template< class type, size_t nextOffset >
 idQueueTemplate<type,nextOffset>::idQueueTemplate( void ) {
-	first = last = NULL;
+	p_first = p_last = NULL;
 }
 
-template< class type, int nextOffset >
-void idQueueTemplate<type,nextOffset>::Add( type *element ) {
-	QUEUE_NEXT_PTR(element) = NULL;
-	if ( last ) {
-		QUEUE_NEXT_PTR(last) = element;
+template< class type, size_t nextOffset >
+void idQueueTemplate<type,nextOffset>::Add( type *p_element ) {
+	QUEUE_NEXT_PTR(p_element) = NULL;
+	if ( p_last ) {
+		QUEUE_NEXT_PTR(p_last) = p_element;
 	} else {
-		first = element;
+		p_first = p_element;
 	}
-	last = element;
+	p_last = p_element;
 }
 
-template< class type, int nextOffset >
+template< class type, size_t nextOffset >
 type *idQueueTemplate<type,nextOffset>::Get( void ) {
-	type *element;
+	type *p_element;
 
-	element = first;
-	if ( element ) {
-		first = QUEUE_NEXT_PTR(first);
-		if ( last == element ) {
-			last = NULL;
+	p_element = p_first;
+	if ( p_element ) {
+		p_first = QUEUE_NEXT_PTR(p_first);
+		if ( p_last == p_element ) {
+			p_last = NULL;
 		}
-		QUEUE_NEXT_PTR(element) = NULL;
+		QUEUE_NEXT_PTR(p_element) = NULL;
 	}
-	return element;
+	return p_element;
 }
 
 #endif /* !__QUEUE_H__ */

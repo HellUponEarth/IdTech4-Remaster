@@ -63,20 +63,20 @@ idSIMD_SSE::CmpLT
   dst[i] |= ( src0[i] < constant ) << bitNum;
 ============
 */
-void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0, const float constant, const int count ) {
+void VPCALL idSIMD_SSE2::CmpLT( byte *p_dst, const byte bitNum, const float *p_src0, const float constant, const int count ) {
 	int i, cnt, pre, post;
-	float *aligned;
+	const float *p_aligned;
 	__m128 xmm0, xmm1;
 	__m128i xmm0i;
 	int cnt_l;
-	char *src0_p;
-	char *constant_p;
-	char *dst_p;
+	const char *p_src0Bytes;
+	const char *p_constantBytes;
+	char *p_dstBytes;
 	int mask_l;
 	int dst_l;
 	
 	/* if the float array is not aligned on a 4 byte boundary */
-	if ( ((int) src0) & 3 ) {
+	if ( reinterpret_cast<uintptr_t>( p_src0 ) & 3 ) {
 		/* unaligned memory access */
 		pre = 0;
 		cnt = count >> 2;
@@ -100,12 +100,12 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0,
 		__asm	mov			cl, bitNum	
 	*/
 			cnt_l = -cnt_l;
-			src0_p = (char *) src0;
-			_mm_prefetch(src0_p+64, _MM_HINT_NTA);
-			constant_p = (char *) &constant;
-			xmm1 = _mm_load_ss((float *)constant_p);
+			p_src0Bytes = (const char *) p_src0;
+			_mm_prefetch(p_src0Bytes+64, _MM_HINT_NTA);
+			p_constantBytes = (const char *) &constant;
+			xmm1 = _mm_load_ss((float *)p_constantBytes);
 			xmm1 = _mm_shuffle_ps(xmm1, xmm1, R_SHUFFLEPS( 0, 0, 0, 0 ));
-			dst_p = (char *)dst;
+			p_dstBytes = (char *)p_dst;
 	/*
 			__asm loopNA:																	
 	*/
@@ -130,8 +130,8 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0,
 		__asm	jl			loopNA														
 		__asm	pop			ebx		
 	*/
-				xmm0 = _mm_loadu_ps((float *) src0_p);
-				_mm_prefetch(src0_p+128, _MM_HINT_NTA);
+				xmm0 = _mm_loadu_ps((float *) p_src0Bytes);
+				_mm_prefetch(p_src0Bytes+128, _MM_HINT_NTA);
 				xmm0 = _mm_cmplt_ps(xmm0, xmm1);
 				// Simplify using SSE2
 				xmm0i = (__m128i) xmm0;
@@ -141,24 +141,24 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0,
 				// End 
 				mask_l = mask_l &  0x01010101;
 				mask_l = mask_l << bitNum;
-				dst_l  = *((int *) dst_p);
+				dst_l  = *((int *) p_dstBytes);
 				mask_l = mask_l | dst_l;
-				*((int *) dst_p) = mask_l;
-				src0_p = src0_p + 16;
-				dst_p = dst_p + 4;
+				*((int *) p_dstBytes) = mask_l;
+				p_src0Bytes = p_src0Bytes + 16;
+				p_dstBytes = p_dstBytes + 4;
 				cnt_l = cnt_l + 1;
 			} while (cnt_l < 0);
 		}													
 	}																					
 	else {																				
 		/* aligned memory access */														
-		aligned = (float *) ((((int) src0) + 15) & ~15);								
-		if ( (int)aligned > ((int)src0) + count ) {										
+		p_aligned = reinterpret_cast<const float *>( ( reinterpret_cast<uintptr_t>( p_src0 ) + 15 ) & ~static_cast<uintptr_t>( 15 ) );
+		if ( p_aligned > p_src0 + count ) {
 			pre = count;																
 			post = 0;																	
 		}																				
 		else {																			
-			pre = aligned - src0;														
+			pre = p_aligned - p_src0;
 			cnt = (count - pre) >> 2;													
 			post = count - pre - (cnt<<2);
 	/*
@@ -180,13 +180,13 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0,
 			__asm	mov			cl, bitNum
 	*/
 				cnt_l = -cnt_l;
-				src0_p = (char *) src0;
-				_mm_prefetch(src0_p+64, _MM_HINT_NTA);
-				constant_p = (char *) &constant;
-				xmm1 = _mm_load_ss((float *)constant_p);
+				p_src0Bytes = (const char *) p_aligned;
+				_mm_prefetch(p_src0Bytes+64, _MM_HINT_NTA);
+				p_constantBytes = (const char *) &constant;
+				xmm1 = _mm_load_ss((float *)p_constantBytes);
 				xmm1 = _mm_shuffle_ps(xmm1, xmm1, R_SHUFFLEPS( 0, 0, 0, 0 ));
-				dst_p = (char *)dst;
-				dst_p = dst_p + pre;
+				p_dstBytes = (char *)p_dst;
+				p_dstBytes = p_dstBytes + pre;
 	/*
 			__asm loopA:																
 	*/
@@ -211,8 +211,8 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0,
 			__asm	jl			loopA													
 			__asm	pop			ebx
 	*/
-					xmm0 = _mm_load_ps((float *) src0_p);
-					_mm_prefetch(src0_p+128, _MM_HINT_NTA);
+					xmm0 = _mm_load_ps((float *) p_src0Bytes);
+					_mm_prefetch(p_src0Bytes+128, _MM_HINT_NTA);
 					xmm0 = _mm_cmplt_ps(xmm0, xmm1);
 					// Simplify using SSE2
 					xmm0i = (__m128i) xmm0;
@@ -222,11 +222,11 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0,
 					// End 
 					mask_l = mask_l &  0x01010101;
 					mask_l = mask_l << bitNum;
-					dst_l  = *((int *) dst_p);
+					dst_l  = *((int *) p_dstBytes);
 					mask_l = mask_l | dst_l;
-					*((int *) dst_p) = mask_l;
-					src0_p = src0_p + 16;
-					dst_p = dst_p + 4;
+					*((int *) p_dstBytes) = mask_l;
+					p_src0Bytes = p_src0Bytes + 16;
+					p_dstBytes = p_dstBytes + 4;
 					cnt_l = cnt_l + 1;
 				} while (cnt_l < 0);
 			}	
@@ -237,10 +237,10 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *dst, const byte bitNum, const float *src0,
 	*/
 	float c = constant;																	
 	for ( i = 0; i < pre; i++ ) {														
-		dst[i] |= ( src0[i] < c ) << bitNum;											
+		p_dst[i] |= ( p_src0[i] < c ) << bitNum;
 	}																					
  	for ( i = count - post; i < count; i++ ) {											
-		dst[i] |= ( src0[i] < c ) << bitNum;											
+		p_dst[i] |= ( p_src0[i] < c ) << bitNum;
 	}
 }
 

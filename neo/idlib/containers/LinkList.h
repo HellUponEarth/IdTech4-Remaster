@@ -61,17 +61,17 @@ public:
 	type *				Prev( void ) const;
 
 	type *				Owner( void ) const;
-	void				SetOwner( type *object );
+	void				SetOwner( type *p_object );
 
 	idLinkList *		ListHead( void ) const;
 	idLinkList *		NextNode( void ) const;
 	idLinkList *		PrevNode( void ) const;
 
 private:
-	idLinkList *		head;
-	idLinkList *		next;
-	idLinkList *		prev;
-	type *				owner;
+	idLinkList *		p_head;
+	idLinkList *		p_next;
+	idLinkList *		p_prev;
+	type *				p_owner;
 };
 
 /*
@@ -83,10 +83,10 @@ Node is initialized to be the head of an empty list
 */
 template< class type >
 idLinkList<type>::idLinkList() {
-	owner	= NULL;
-	head	= this;	
-	next	= this;
-	prev	= this;
+	p_owner	= NULL;
+	p_head	= this;
+	p_next	= this;
+	p_prev	= this;
 }
 
 /*
@@ -111,7 +111,7 @@ Returns true if the list is empty.
 */
 template< class type >
 bool idLinkList<type>::IsListEmpty( void ) const {
-	return head->next == head;
+	return p_head->p_next == p_head;
 }
 
 /*
@@ -123,7 +123,7 @@ Returns true if the node is in a list.  If called on the head of a list, will al
 */
 template< class type >
 bool idLinkList<type>::InList( void ) const {
-	return head != this;
+	return p_head != this;
 }
 
 /*
@@ -135,11 +135,11 @@ Returns the number of nodes in the list.
 */
 template< class type >
 int idLinkList<type>::Num( void ) const {
-	idLinkList<type>	*node;
+	idLinkList<type>	*p_node;
 	int					num;
 
 	num = 0;
-	for( node = head->next; node != head; node = node->next ) {
+	for( p_node = p_head->p_next; p_node != p_head; p_node = p_node->p_next ) {
 		num++;
 	}
 
@@ -155,9 +155,9 @@ If node is the head of the list, clears the list.  Otherwise it just removes the
 */
 template< class type >
 void idLinkList<type>::Clear( void ) {
-	if ( head == this ) {
-		while( next != this ) {
-			next->Remove();
+	if ( p_head == this ) {
+		while( p_next != this ) {
+			p_next->Remove();
 		}
 	} else {
 		Remove();
@@ -173,12 +173,12 @@ Removes node from list
 */
 template< class type >
 void idLinkList<type>::Remove( void ) {
-	prev->next = next;
-	next->prev = prev;
+	p_prev->p_next = p_next;
+	p_next->p_prev = p_prev;
 
-	next = this;
-	prev = this;
-	head = this;
+	p_next = this;
+	p_prev = this;
+	p_head = this;
 }
 
 /*
@@ -193,11 +193,11 @@ template< class type >
 void idLinkList<type>::InsertBefore( idLinkList &node ) {
 	Remove();
 
-	next		= &node;
-	prev		= node.prev;
-	node.prev	= this;
-	prev->next	= this;
-	head		= node.head;
+	p_next			= &node;
+	p_prev			= node.p_prev;
+	node.p_prev		= this;
+	p_prev->p_next	= this;
+	p_head			= node.p_head;
 }
 
 /*
@@ -212,11 +212,11 @@ template< class type >
 void idLinkList<type>::InsertAfter( idLinkList &node ) {
 	Remove();
 
-	prev		= &node;
-	next		= node.next;
-	node.next	= this;
-	next->prev	= this;
-	head		= node.head;
+	p_prev			= &node;
+	p_next			= node.p_next;
+	node.p_next		= this;
+	p_next->p_prev	= this;
+	p_head			= node.p_head;
 }
 
 /*
@@ -228,7 +228,7 @@ Adds node at the end of the list
 */
 template< class type >
 void idLinkList<type>::AddToEnd( idLinkList &node ) {
-	InsertBefore( *node.head );
+	InsertBefore( *node.p_head );
 }
 
 /*
@@ -240,7 +240,7 @@ Adds node at the beginning of the list
 */
 template< class type >
 void idLinkList<type>::AddToFront( idLinkList &node ) {
-	InsertAfter( *node.head );
+	InsertAfter( *node.p_head );
 }
 
 /*
@@ -253,7 +253,7 @@ a pointer to itself.
 */
 template< class type >
 idLinkList<type> *idLinkList<type>::ListHead( void ) const {
-	return head;
+	return p_head;
 }
 
 /*
@@ -265,10 +265,10 @@ Returns the next object in the list, or NULL if at the end.
 */
 template< class type >
 type *idLinkList<type>::Next( void ) const {
-	if ( !next || ( next == head ) ) {
+	if ( !p_next || ( p_next == p_head ) ) {
 		return NULL;
 	}
-	return next->owner;
+	return p_next->p_owner;
 }
 
 /*
@@ -280,10 +280,10 @@ Returns the previous object in the list, or NULL if at the beginning.
 */
 template< class type >
 type *idLinkList<type>::Prev( void ) const {
-	if ( !prev || ( prev == head ) ) {
+	if ( !p_prev || ( p_prev == p_head ) ) {
 		return NULL;
 	}
-	return prev->owner;
+	return p_prev->p_owner;
 }
 
 /*
@@ -295,10 +295,10 @@ Returns the next node in the list, or NULL if at the end.
 */
 template< class type >
 idLinkList<type> *idLinkList<type>::NextNode( void ) const {
-	if ( next == head ) {
+	if ( p_next == p_head ) {
 		return NULL;
 	}
-	return next;
+	return p_next;
 }
 
 /*
@@ -310,10 +310,10 @@ Returns the previous node in the list, or NULL if at the beginning.
 */
 template< class type >
 idLinkList<type> *idLinkList<type>::PrevNode( void ) const {
-	if ( prev == head ) {
+	if ( p_prev == p_head ) {
 		return NULL;
 	}
-	return prev;
+	return p_prev;
 }
 
 /*
@@ -325,7 +325,7 @@ Gets the object that is associated with this node.
 */
 template< class type >
 type *idLinkList<type>::Owner( void ) const {
-	return owner;
+	return p_owner;
 }
 
 /*
@@ -336,8 +336,8 @@ Sets the object that this node is associated with.
 ================
 */
 template< class type >
-void idLinkList<type>::SetOwner( type *object ) {
-	owner = object;
+void idLinkList<type>::SetOwner( type *p_object ) {
+	p_owner = p_object;
 }
 
 #endif /* !__LINKLIST_H__ */

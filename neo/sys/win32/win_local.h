@@ -60,7 +60,7 @@ extern	PFNWGLSETPBUFFERATTRIBARBPROC	wglSetPbufferAttribARB;
 
 #define	WINDOW_STYLE	(WS_OVERLAPPED|WS_BORDER|WS_CAPTION|WS_VISIBLE | WS_THICKFRAME)
 
-void	Sys_QueEvent( int time, sysEventType_t type, int value, int value2, int ptrLength, void *ptr );
+void	Sys_QueEvent( int time, sysEventType_t type, int value, int value2, int ptrLength, void *p_ptr );
 
 void	Sys_CreateConsole( void );
 void	Sys_DestroyConsole( void );
@@ -97,7 +97,7 @@ LONG WINAPI MainWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 void Conbuf_AppendText( const char *msg );
 
-typedef struct {
+typedef struct Win32Vars_t {
 	HWND			hWnd;
 	HINSTANCE		hInstance;
 

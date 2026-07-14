@@ -164,7 +164,7 @@ void ListSounds_f( const idCmdArgs &args ) {
 	common->Printf( "%8d total samples loaded\n", totalSamples );
 	common->Printf( "%8d kB total system memory used\n", totalMemory >> 10 );
 #if ID_OPENAL
-	common->Printf( "%8d kB total OpenAL audio memory used\n", ( alGetInteger( alGetEnumValue( "AL_EAX_RAM_SIZE" ) ) - alGetInteger( alGetEnumValue( "AL_EAX_RAM_FREE" ) ) ) >> 10 );
+	common->Printf( "%8d kB total OpenAL audio memory used\n", ( alGetInteger( alGetEnumValue( const_cast<ALubyte *>( reinterpret_cast<const ALubyte *>( "AL_EAX_RAM_SIZE" ) ) ) ) - alGetInteger( alGetEnumValue( const_cast<ALubyte *>( reinterpret_cast<const ALubyte *>( "AL_EAX_RAM_FREE" ) ) ) ) ) >> 10 );
 #endif
 }
 
@@ -252,7 +252,7 @@ void ListSoundDecoders_f( const idCmdArgs &args ) {
 	common->Printf( "%d decoders\n", numWaitingDecoders + numActiveDecoders );
 	common->Printf( "%d waiting decoders\n", numWaitingDecoders );
 	common->Printf( "%d active decoders\n", numActiveDecoders );
-	common->Printf( "%d kB decoder memory in %d blocks\n", idSampleDecoder::GetUsedBlockMemory() >> 10, idSampleDecoder::GetNumUsedBlocks() );
+	common->Printf( "%d kB decoder memory in %d blocks\n", static_cast<int>( idSampleDecoder::GetUsedBlockMemory() >> 10 ), idSampleDecoder::GetNumUsedBlocks() );
 }
 
 /*
@@ -321,7 +321,7 @@ void idSoundSystemLocal::Init() {
 	}
 
 	// make a 16 byte aligned finalMixBuffer
-	finalMixBuffer = (float *) ( ( ( (int)realAccum ) + 15 ) & ~15 );
+	finalMixBuffer = reinterpret_cast<float *>( ( reinterpret_cast<uintptr_t>( realAccum ) + 15 ) & ~static_cast<uintptr_t>( 15 ) );
 
 	graph = NULL;
 

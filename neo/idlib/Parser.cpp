@@ -709,9 +709,9 @@ int idParser::ExpandBuiltinDefine( idToken *deftoken, define_t *define, idToken 
 			curtime = ctime(&t);
 			(*token) = "\"";
 			token->Append( curtime+4 );
-			token[7] = '\0';
+			(*token)[7] = '\0';
 			token->Append( curtime+20 );
-			token[10] = '\0';
+			(*token)[10] = '\0';
 			token->Append( "\"" );
 			free(curtime);
 			token->type = TT_STRING;
@@ -728,7 +728,7 @@ int idParser::ExpandBuiltinDefine( idToken *deftoken, define_t *define, idToken 
 			curtime = ctime(&t);
 			(*token) = "\"";
 			token->Append( curtime+11 );
-			token[8] = '\0';
+			(*token)[8] = '\0';
 			token->Append( "\"" );
 			free(curtime);
 			token->type = TT_STRING;
@@ -3151,16 +3151,16 @@ const char *idParser::GetPunctuationFromId( int id ) {
 idParser::GetPunctuationId
 ================
 */
-int idParser::GetPunctuationId( const char *p ) {
+int idParser::GetPunctuationId( const char *p_punctuation ) {
 	int i;
 
 	if ( !idParser::punctuations ) {
 		idLexer lex;
-		return lex.GetPunctuationId( p );
+		return lex.GetPunctuationId( p_punctuation );
 	}
 
 	for (i = 0; idParser::punctuations[i].p; i++) {
-		if ( !strcmp(idParser::punctuations[i].p, p) ) {
+		if ( !strcmp(idParser::punctuations[i].p, p_punctuation) ) {
 			return idParser::punctuations[i].n;
 		}
 	}
@@ -3249,4 +3249,3 @@ idParser::~idParser
 idParser::~idParser( void ) {
 	idParser::FreeSource( false );
 }
-

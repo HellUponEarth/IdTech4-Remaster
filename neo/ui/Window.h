@@ -29,6 +29,8 @@ If you have questions concerning this license or the applicable additional terms
 #ifndef __WINDOW_H__
 #define __WINDOW_H__
 
+#include <stddef.h>
+
 #include "Rectangle.h"
 #include "DeviceContext.h"
 #include "RegExp.h"
@@ -106,7 +108,8 @@ typedef enum {
 
 typedef struct {
 	wexpOpType_t opType;	
-	int	a, b, c, d;
+	intptr_t a;
+	int	b, c, d;
 } wexpOp_t;
 
 struct idRegEntry {
@@ -156,8 +159,8 @@ public:
 };
 
 struct idTransitionData {
-	idWinVar *data;
-	int	offset;
+	idWinVar *p_data;
+	ptrdiff_t offset;
 	idInterpolateAccelDecelLinear<idVec4> interp;
 };
 
@@ -230,7 +233,7 @@ public:
 
 	virtual idWinVar *GetWinVarByName	(const char *_name, bool winLookup = false, drawWin_t** owner = NULL);
 
-	int  GetWinVarOffset( idWinVar *wv, drawWin_t *dw );
+	ptrdiff_t GetWinVarOffset( idWinVar *p_wv, drawWin_t *p_dw );
 	float GetMaxCharHeight();
 	float GetMaxCharWidth();
 	void SetFont();
@@ -290,7 +293,7 @@ public:
 	bool HasOps() {	return (ops.Num() > 0); };
 	float EvalRegs(int test = -1, bool force = false);
 	void StartTransition();
-	void AddTransition(idWinVar *dest, idVec4 from, idVec4 to, int time, float accelTime, float decelTime);
+	void AddTransition(idWinVar *p_dest, idVec4 from, idVec4 to, int time, float accelTime, float decelTime);
 	void ResetTime(int time);
 	void ResetCinematics();
 
@@ -300,7 +303,7 @@ public:
 	bool RunScript(int n);
 	bool RunScriptList(idGuiScriptList *src);
 	void SetRegs(const char *key, const char *val);
-	int ParseExpression( idParser *src, idWinVar *var = NULL, int component = 0 );
+	int ParseExpression( idParser *src, idWinVar *p_var = NULL, int component = 0 );
 	int ExpressionConstant(float f);
 	idRegisterList *RegList() { return &regList; }
 	void AddCommand(const char *cmd);
@@ -350,10 +353,10 @@ protected:
 
 	int ExpressionTemporary();
 	wexpOp_t *ExpressionOp();
-	int EmitOp( int a, int b, wexpOpType_t opType, wexpOp_t **opp = NULL );
-	int ParseEmitOp( idParser *src, int a, wexpOpType_t opType, int priority, wexpOp_t **opp = NULL );
-	int ParseTerm( idParser *src, idWinVar *var = NULL, int component = 0 );
-	int ParseExpressionPriority( idParser *src, int priority, idWinVar *var = NULL, int component = 0 );
+	int EmitOp( intptr_t a, int b, wexpOpType_t opType, wexpOp_t **opp = NULL );
+	int ParseEmitOp( idParser *src, intptr_t a, wexpOpType_t opType, int priority, wexpOp_t **opp = NULL );
+	int ParseTerm( idParser *src, idWinVar *p_var = NULL, int component = 0 );
+	int ParseExpressionPriority( idParser *src, int priority, idWinVar *p_var = NULL, int component = 0 );
 	void EvaluateRegisters(float *registers);
 	void SaveExpressionParseState();
 	void RestoreExpressionParseState();

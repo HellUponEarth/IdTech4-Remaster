@@ -1,0 +1,33 @@
+repos:
+  - repo: local
+    hooks:
+      - id: clang-format
+        name: clang-format modern C++ surfaces
+        entry: clang-format -i
+        language: system
+        files: ^tests/.*\.(c|cc|cpp|cxx|h|hh|hpp|hxx)$
+      - id: cmake-format
+        name: cmake-format build scripts
+        entry: cmake-format -i
+        language: system
+        files: ^(CMakeLists\.txt|cmake/.*\.cmake|tests/package/.*/CMakeLists\.txt)$
+      - id: cmake-lint
+        name: cmake-lint build scripts
+        entry: cmake-lint
+        language: system
+        files: ^(CMakeLists\.txt|cmake/.*\.cmake|tests/package/.*/CMakeLists\.txt)$
+      - id: check-yaml
+        name: check yaml
+        entry: python -m pre_commit_hooks.check_yaml
+        language: system
+        files: \.(yml|yaml)$
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: python -m pre_commit_hooks.end_of_file_fixer
+        language: system
+        files: ^(\.clang-format|\.cmake-format\.yaml|\.github/.*|\.pre-commit-config\.yaml|CMakeLists\.txt|CMakePresets\.json|vcpkg\.json|cmake/.*|tests/.*)$
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        entry: python -m pre_commit_hooks.trailing_whitespace_fixer
+        language: system
+        files: ^(\.clang-format|\.cmake-format\.yaml|\.github/.*|\.pre-commit-config\.yaml|CMakeLists\.txt|CMakePresets\.json|vcpkg\.json|cmake/.*|tests/.*)$

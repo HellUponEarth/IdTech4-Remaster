@@ -331,7 +331,7 @@ idEvent *idEvent::Alloc( const idEventDef *evdef, int numargs, va_list args ) {
 idEvent::CopyArgs
 ================
 */
-void idEvent::CopyArgs( const idEventDef *evdef, int numargs, va_list args, int data[ D_EVENT_MAXARGS ] ) {
+void idEvent::CopyArgs( const idEventDef *evdef, int numargs, va_list args, intptr_t p_data[ D_EVENT_MAXARGS ] ) {
 	int			i;
 	const char	*format;
 	idEventArg	*arg;
@@ -350,7 +350,7 @@ void idEvent::CopyArgs( const idEventDef *evdef, int numargs, va_list args, int 
 			}
 		}
 
-		data[ i ] = arg->value;
+		p_data[ i ] = arg->value;
 	}
 }
 
@@ -460,12 +460,11 @@ idEvent::ServiceEvents
 void idEvent::ServiceEvents( void ) {
 	idEvent		*event;
 	int			num;
-	int			args[ D_EVENT_MAXARGS ];
+	intptr_t	args[ D_EVENT_MAXARGS ];
 	int			offset;
 	int			i;
 	int			numargs;
 	const char	*formatspec;
-	trace_t		**tracePtr;
 	const idEventDef *ev;
 	byte		*data;
 	const char  *materialName;
@@ -493,30 +492,29 @@ void idEvent::ServiceEvents( void ) {
 				break;
 
 			case D_EVENT_VECTOR :
-				*reinterpret_cast<idVec3 **>( &args[ i ] ) = reinterpret_cast<idVec3 *>( &data[ offset ] );
+				args[ i ] = reinterpret_cast<intptr_t>( &data[ offset ] );
 				break;
 
 			case D_EVENT_STRING :
-				*reinterpret_cast<const char **>( &args[ i ] ) = reinterpret_cast<const char *>( &data[ offset ] );
+				args[ i ] = reinterpret_cast<intptr_t>( &data[ offset ] );
 				break;
 
 			case D_EVENT_ENTITY :
 			case D_EVENT_ENTITY_NULL :
-				*reinterpret_cast<idEntity **>( &args[ i ] ) = reinterpret_cast< idEntityPtr<idEntity> * >( &data[ offset ] )->GetEntity();
+				args[ i ] = reinterpret_cast<intptr_t>( reinterpret_cast< idEntityPtr<idEntity> * >( &data[ offset ] )->GetEntity() );
 				break;
 
 			case D_EVENT_TRACE :
-				tracePtr = reinterpret_cast<trace_t **>( &args[ i ] );
 				if ( *reinterpret_cast<bool *>( &data[ offset ] ) ) {
-					*tracePtr = reinterpret_cast<trace_t *>( &data[ offset + sizeof( bool ) ] );
+					args[ i ] = reinterpret_cast<intptr_t>( &data[ offset + sizeof( bool ) ] );
 
-					if ( ( *tracePtr )->c.material != NULL ) {
+					if ( reinterpret_cast<trace_t *>( args[ i ] )->c.material != NULL ) {
 						// look up the material name to get the material pointer
 						materialName = reinterpret_cast<const char *>( &data[ offset + sizeof( bool ) + sizeof( trace_t ) ] );
-						( *tracePtr )->c.material = declManager->FindMaterial( materialName, true );
+						reinterpret_cast<trace_t *>( args[ i ] )->c.material = declManager->FindMaterial( materialName, true );
 					}
 				} else {
-					*tracePtr = NULL;
+					args[ i ] = 0;
 				}
 				break;
 
@@ -848,10 +846,10 @@ void CreateEventCallbackHandler( void ) {
 			for( k = 0; k < i; k++ ) {
 				if ( j & ( 1 << k ) ) {
 					string1 += "const float";
-					string2 += va( "*( float * )&data[ %d ]", k );
+					string2 += va( "*( float * )&p_data[ %d ]", k );
 				} else {
-					string1 += "const int";
-					string2 += va( "data[ %d ]", k );
+					string1 += "const intptr_t";
+					string2 += va( "p_data[ %d ]", k );
 				}
 
 				if ( k < i - 1 ) {

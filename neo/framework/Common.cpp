@@ -193,7 +193,7 @@ private:
 	idStrList					warningList;
 	idStrList					errorList;
 
-	int							gameDLL;
+	sysHandle_t					p_gameDLL;
 
 	idLangDict					languageDict;
 
@@ -225,7 +225,7 @@ idCommonLocal::idCommonLocal( void ) {
 	rd_buffersize = 0;
 	rd_flush = NULL;
 
-	gameDLL = 0;
+	p_gameDLL = 0;
 
 #ifdef ID_WRITE_VERSION
 	config_compressor = NULL;
@@ -2641,16 +2641,16 @@ void idCommonLocal::LoadGameDLL( void ) {
 		return;
 	}
 	common->DPrintf( "Loading game DLL: '%s'\n", dllPath );
-	gameDLL = sys->DLL_Load( dllPath );
-	if ( !gameDLL ) {
+	p_gameDLL = sys->DLL_Load( dllPath );
+	if ( !p_gameDLL ) {
 		common->FatalError( "couldn't load game dynamic library" );
 		return;
 	}
 
-	GetGameAPI = (GetGameAPI_t) Sys_DLL_GetProcAddress( gameDLL, "GetGameAPI" );
+	GetGameAPI = (GetGameAPI_t) Sys_DLL_GetProcAddress( p_gameDLL, "GetGameAPI" );
 	if ( !GetGameAPI ) {
-		Sys_DLL_Unload( gameDLL );
-		gameDLL = NULL;
+		Sys_DLL_Unload( p_gameDLL );
+		p_gameDLL = NULL;
 		common->FatalError( "couldn't find game DLL API" );
 		return;
 	}
@@ -2673,8 +2673,8 @@ void idCommonLocal::LoadGameDLL( void ) {
 	gameExport							= *GetGameAPI( &gameImport );
 
 	if ( gameExport.version != GAME_API_VERSION ) {
-		Sys_DLL_Unload( gameDLL );
-		gameDLL = NULL;
+		Sys_DLL_Unload( p_gameDLL );
+		p_gameDLL = NULL;
 		common->FatalError( "wrong game DLL API version" );
 		return;
 	}
@@ -2704,9 +2704,9 @@ void idCommonLocal::UnloadGameDLL( void ) {
 
 #ifdef __DOOM_DLL__
 
-	if ( gameDLL ) {
-		Sys_DLL_Unload( gameDLL );
-		gameDLL = NULL;
+	if ( p_gameDLL ) {
+		Sys_DLL_Unload( p_gameDLL );
+		p_gameDLL = NULL;
 	}
 	game = NULL;
 	gameEdit = NULL;

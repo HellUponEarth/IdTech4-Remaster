@@ -103,8 +103,8 @@ idCommon *			common = &commonLocal;
 ==============================================================
 */
 
-void			Sys_Mkdir( const char *path ) {}
-ID_TIME_T			Sys_FileTimeStamp( FILE *fp ) { return 0; }
+void			Sys_Mkdir( const char *p_path ) {}
+ID_TIME_T			Sys_FileTimeStamp( FILE *p_fp ) { return 0; }
 
 #ifdef _WIN32
 
@@ -141,25 +141,39 @@ const char *Sys_EXEPath( void ) {
 	return "";
 }
 
-int Sys_ListFiles( const char *directory, const char *extension, idStrList &list ) {
+static idStr BuildSourceCodePath( const char *p_relativePath ) {
+	idStr path;
+
+	if ( _access( SOURCE_CODE_BASE_FOLDER, 0 ) == 0 ) {
+		path = SOURCE_CODE_BASE_FOLDER;
+		path += "/";
+		path += p_relativePath;
+	} else {
+		path = p_relativePath;
+	}
+
+	return path;
+}
+
+int Sys_ListFiles( const char *p_directory, const char *p_extension, idStrList &list ) {
 	idStr		search;
 	struct _finddata_t findinfo;
-	int			findhandle;
+	intptr_t	findhandle;
 	int			flag;
 
-	if ( !extension) {
-		extension = "";
+	if ( !p_extension) {
+		p_extension = "";
 	}
 
 	// passing a slash as extension will find directories
-	if ( extension[0] == '/' && extension[1] == 0 ) {
-		extension = "";
+	if ( p_extension[0] == '/' && p_extension[1] == 0 ) {
+		p_extension = "";
 		flag = 0;
 	} else {
 		flag = _A_SUBDIR;
 	}
 
-	sprintf( search, "%s\\*%s", directory, extension );
+	sprintf( search, "%s\\*%s", p_directory, p_extension );
 
 	// search
 	list.Clear();
@@ -185,14 +199,15 @@ int Sys_ListFiles( const char *directory, const char *extension, idStrList &list
 const char *	Sys_DefaultCDPath( void ) { return ""; }
 const char *	Sys_DefaultBasePath( void ) { return ""; }
 const char *	Sys_DefaultSavePath( void ) { return ""; }
-int				Sys_ListFiles( const char *directory, const char *extension, idStrList &list ) { return 0; }
+static idStr	BuildSourceCodePath( const char *p_relativePath ) { return p_relativePath; }
+int				Sys_ListFiles( const char *p_directory, const char *p_extension, idStrList &list ) { return 0; }
 
 #endif
 
 xthreadInfo *	g_threads[MAX_THREADS];
 int				g_thread_count;
 
-void			Sys_CreateThread( xthread_t function, void *parms, xthreadPriority priority, xthreadInfo &info, const char *name, xthreadInfo *threads[MAX_THREADS], int *thread_count ) {}
+void			Sys_CreateThread( xthread_t p_function, void *p_parms, xthreadPriority priority, xthreadInfo &info, const char *p_name, xthreadInfo *p_threads[MAX_THREADS], int *p_thread_count ) {}
 void			Sys_DestroyThread( xthreadInfo& info ) {}
 
 void			Sys_EnterCriticalSection( int index ) {}
@@ -218,24 +233,24 @@ bool			idSysLocal::FPU_StackIsEmpty( void ) { return true; }
 void			idSysLocal::FPU_SetFTZ( bool enable ) {}
 void			idSysLocal::FPU_SetDAZ( bool enable ) {}
 
-bool			idSysLocal::LockMemory( void *ptr, int bytes ) { return false; }
-bool			idSysLocal::UnlockMemory( void *ptr, int bytes ) { return false; }
+bool			idSysLocal::LockMemory( void *p_ptr, int bytes ) { return false; }
+bool			idSysLocal::UnlockMemory( void *p_ptr, int bytes ) { return false; }
 
-void			idSysLocal::GetCallStack( address_t *callStack, const int callStackSize ) { memset( callStack, 0, callStackSize * sizeof( callStack[0] ) ); }
-const char *	idSysLocal::GetCallStackStr( const address_t *callStack, const int callStackSize ) { return ""; }
+void			idSysLocal::GetCallStack( address_t *p_callStack, const int callStackSize ) { memset( p_callStack, 0, callStackSize * sizeof( p_callStack[0] ) ); }
+const char *	idSysLocal::GetCallStackStr( const address_t *p_callStack, const int callStackSize ) { return ""; }
 const char *	idSysLocal::GetCallStackCurStr( int depth ) { return ""; }
 void			idSysLocal::ShutdownSymbols( void ) {}
 
-int				idSysLocal::DLL_Load( const char *dllName ) { return 0; }
-void *			idSysLocal::DLL_GetProcAddress( int dllHandle, const char *procName ) { return NULL; }
-void			idSysLocal::DLL_Unload( int dllHandle ) { }
-void			idSysLocal::DLL_GetFileName( const char *baseName, char *dllName, int maxLength ) { }
+sysHandle_t		idSysLocal::DLL_Load( const char *p_dllName ) { return 0; }
+void *			idSysLocal::DLL_GetProcAddress( sysHandle_t p_dllHandle, const char *p_procName ) { return NULL; }
+void			idSysLocal::DLL_Unload( sysHandle_t p_dllHandle ) { }
+void			idSysLocal::DLL_GetFileName( const char *p_baseName, char *p_dllName, int maxLength ) { }
 
 sysEvent_t		idSysLocal::GenerateMouseButtonEvent( int button, bool down ) { sysEvent_t ev; memset( &ev, 0, sizeof( ev ) ); return ev; }
 sysEvent_t		idSysLocal::GenerateMouseMoveEvent( int deltax, int deltay ) { sysEvent_t ev; memset( &ev, 0, sizeof( ev ) ); return ev; }
 
-void			idSysLocal::OpenURL( const char *url, bool quit ) { }
-void			idSysLocal::StartProcess( const char *exeName, bool quit ) { }
+void			idSysLocal::OpenURL( const char *p_url, bool quit ) { }
+void			idSysLocal::StartProcess( const char *p_exeName, bool quit ) { }
 
 void			idSysLocal::FPU_EnableExceptions( int exceptions ) { }
 
@@ -251,9 +266,9 @@ idSys *			sys = &sysLocal;
 ==============================================================
 */
 
-int main( int argc, char** argv ) {
+int main( int argc, char** p_argv ) {
 	idStr fileName, sourcePath;
-	idTypeInfoGen *generator;
+	idTypeInfoGen *p_generator;
 
 	idLib::common = common;
 	idLib::cvarSystem = cvarSystem;
@@ -264,41 +279,60 @@ int main( int argc, char** argv ) {
 	cmdSystem->Init();
 	cvarSystem->Init();
 	idCVar::RegisterStaticVars();
-	fileSystem->Init();
 
-	generator = new idTypeInfoGen;
+	p_generator = new idTypeInfoGen;
 
 	if ( argc > 1 ) {
-		sourcePath = idStr( "../"SOURCE_CODE_BASE_FOLDER"/" ) + argv[1];
+		sourcePath = BuildSourceCodePath( p_argv[1] );
 	} else {
-		sourcePath = "../"SOURCE_CODE_BASE_FOLDER"/game";
+		sourcePath = BuildSourceCodePath( "game" );
 	}
 
 	if ( argc > 2 ) {
-		fileName = idStr( "../"SOURCE_CODE_BASE_FOLDER"/" ) + argv[2];
+		fileName = BuildSourceCodePath( p_argv[2] );
 	} else {
-		fileName = "../"SOURCE_CODE_BASE_FOLDER"/game/gamesys/GameTypeInfo.h";
+		fileName = BuildSourceCodePath( "game/gamesys/GameTypeInfo.h" );
 	}
 
 	if ( argc > 3 ) {
 		for ( int i = 3; i < argc; i++ ) {
-			generator->AddDefine( argv[i] );
+			p_generator->AddDefine( p_argv[i] );
 		}
 	} else {
-		generator->AddDefine( "__cplusplus" );
-		generator->AddDefine( "GAME_DLL" );
-		generator->AddDefine( "ID_TYPEINFO" );
+		p_generator->AddDefine( "__cplusplus" );
+		p_generator->AddDefine( "GAME_DLL" );
+		p_generator->AddDefine( "ID_TYPEINFO" );
+		p_generator->AddDefine( "CPU_EASYARGS 1" );
+		p_generator->AddDefine( "_WIN32 1" );
+		p_generator->AddDefine( "_WIN64 1" );
+		p_generator->AddDefine( "_MSC_VER 1800" );
+		p_generator->AddDefine( "__MWERKS__ 0" );
+		p_generator->AddDefine( "__GNUC__ 0" );
+		p_generator->AddDefine( "__linux__ 0" );
+		p_generator->AddDefine( "MACOS_X 0" );
+		p_generator->AddDefine( "__ppc__ 0" );
+		p_generator->AddDefine( "__i386__ 0" );
+		p_generator->AddDefine( "ASYNC_WRITE_PVS 0" );
+		p_generator->AddDefine( "ASYNC_WRITE_TAGS 0" );
+#ifdef _DEBUG
+		p_generator->AddDefine( "_DEBUG 1" );
+#else
+		p_generator->AddDefine( "_DEBUG 0" );
+		p_generator->AddDefine( "NDEBUG 1" );
+#endif
+		p_generator->AddDefine( "NULL 0" );
+		p_generator->AddDefine( "false 0" );
+		p_generator->AddDefine( "true 1" );
 	}
 
-	generator->CreateTypeInfo( sourcePath );
-	generator->WriteTypeInfo( fileName );
+	p_generator->CreateTypeInfo( sourcePath );
+	p_generator->WriteTypeInfo( fileName );
 
-	delete generator;
+	delete p_generator;
 
 	fileName.Clear();
 	sourcePath.Clear();
 
-	fileSystem->Shutdown( false );
 	cvarSystem->Shutdown();
 	cmdSystem->Shutdown();
 	idLib::ShutDown();

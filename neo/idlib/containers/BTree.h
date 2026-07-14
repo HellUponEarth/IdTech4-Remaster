@@ -43,13 +43,13 @@ template< class objType, class keyType >
 class idBTreeNode {
 public:
 	keyType							key;			// key used for sorting
-	objType *						object;			// if != NULL pointer to object stored in leaf node
-	idBTreeNode *					parent;			// parent node
-	idBTreeNode *					next;			// next sibling
-	idBTreeNode *					prev;			// prev sibling
+	objType *						p_object;			// if != NULL pointer to object stored in leaf node
+	idBTreeNode *					p_parent;			// parent node
+	idBTreeNode *					p_next;				// next sibling
+	idBTreeNode *					p_prev;				// previous sibling
 	int								numChildren;	// number of children
-	idBTreeNode *					firstChild;		// first child
-	idBTreeNode *					lastChild;		// last child
+	idBTreeNode *					p_firstChild;		// first child
+	idBTreeNode *					p_lastChild;		// last child
 };
 
 
@@ -62,8 +62,8 @@ public:
 	void							Init( void );
 	void							Shutdown( void );
 
-	idBTreeNode<objType,keyType> *	Add( objType *object, keyType key );						// add an object to the tree
-	void							Remove( idBTreeNode<objType,keyType> *node );				// remove an object node from the tree
+	idBTreeNode<objType,keyType> *	Add( objType *p_object, keyType key );						// add an object to the tree
+	void							Remove( idBTreeNode<objType,keyType> *p_node );				// remove an object node from the tree
 
 	objType *						Find( keyType key ) const;									// find an object using the given key
 	objType *						FindSmallestLargerEqual( keyType key ) const;				// find an object with the smallest key larger equal the given key
@@ -71,19 +71,19 @@ public:
 
 	idBTreeNode<objType,keyType> *	GetRoot( void ) const;										// returns the root node of the tree
 	int								GetNodeCount( void ) const;									// returns the total number of nodes in the tree
-	idBTreeNode<objType,keyType> *	GetNext( idBTreeNode<objType,keyType> *node ) const;		// goes through all nodes of the tree
-	idBTreeNode<objType,keyType> *	GetNextLeaf( idBTreeNode<objType,keyType> *node ) const;	// goes through all leaf nodes of the tree
+	idBTreeNode<objType,keyType> *	GetNext( idBTreeNode<objType,keyType> *p_node ) const;		// goes through all nodes of the tree
+	idBTreeNode<objType,keyType> *	GetNextLeaf( idBTreeNode<objType,keyType> *p_node ) const;	// goes through all leaf nodes of the tree
 
 private:
-	idBTreeNode<objType,keyType> *	root;
+	idBTreeNode<objType,keyType> *	p_root;
 	idBlockAlloc<idBTreeNode<objType,keyType>,128>	nodeAllocator;
 
 	idBTreeNode<objType,keyType> *	AllocNode( void );
-	void							FreeNode( idBTreeNode<objType,keyType> *node );
-	void							SplitNode( idBTreeNode<objType,keyType> *node );
-	idBTreeNode<objType,keyType> *	MergeNodes( idBTreeNode<objType,keyType> *node1, idBTreeNode<objType,keyType> *node2 );
+	void							FreeNode( idBTreeNode<objType,keyType> *p_node );
+	void							SplitNode( idBTreeNode<objType,keyType> *p_node );
+	idBTreeNode<objType,keyType> *	MergeNodes( idBTreeNode<objType,keyType> *p_node1, idBTreeNode<objType,keyType> *p_node2 );
 
-	void							CheckTree_r( idBTreeNode<objType,keyType> *node, int &numNodes ) const;
+	void							CheckTree_r( idBTreeNode<objType,keyType> *p_node, int &numNodes ) const;
 	void							CheckTree( void ) const;
 };
 
@@ -91,7 +91,7 @@ private:
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE idBTree<objType,keyType,maxChildrenPerNode>::idBTree( void ) {
 	assert( maxChildrenPerNode >= 4 );
-	root = NULL;
+	p_root = NULL;
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
@@ -101,158 +101,158 @@ ID_INLINE idBTree<objType,keyType,maxChildrenPerNode>::~idBTree( void ) {
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::Init( void ) {
-	root = AllocNode();
+	p_root = AllocNode();
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::Shutdown( void ) {
 	nodeAllocator.Shutdown();
-	root = NULL;
+	p_root = NULL;
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::Add( objType *object, keyType key ) {
-	idBTreeNode<objType,keyType> *node, *child, *newNode;
+ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::Add( objType *p_object, keyType key ) {
+	idBTreeNode<objType,keyType> *p_node, *p_child, *p_newNode;
 
-	if ( root->numChildren >= maxChildrenPerNode ) {
-		newNode = AllocNode();
-		newNode->key = root->key;
-		newNode->firstChild = root;
-		newNode->lastChild = root;
-		newNode->numChildren = 1;
-		root->parent = newNode;
-		SplitNode( root );
-		root = newNode;
+	if ( p_root->numChildren >= maxChildrenPerNode ) {
+		p_newNode = AllocNode();
+		p_newNode->key = p_root->key;
+		p_newNode->p_firstChild = p_root;
+		p_newNode->p_lastChild = p_root;
+		p_newNode->numChildren = 1;
+		p_root->p_parent = p_newNode;
+		SplitNode( p_root );
+		p_root = p_newNode;
 	}
 
-	newNode = AllocNode();
-	newNode->key = key;
-	newNode->object = object;
+	p_newNode = AllocNode();
+	p_newNode->key = key;
+	p_newNode->p_object = p_object;
 
-	for ( node = root; node->firstChild != NULL; node = child ) {
+	for ( p_node = p_root; p_node->p_firstChild != NULL; p_node = p_child ) {
 
-		if ( key > node->key ) {
-			node->key = key;
+		if ( key > p_node->key ) {
+			p_node->key = key;
 		}
 
 		// find the first child with a key larger equal to the key of the new node
-		for( child = node->firstChild; child->next; child = child->next ) {
-			if ( key <= child->key ) {
+		for( p_child = p_node->p_firstChild; p_child->p_next; p_child = p_child->p_next ) {
+			if ( key <= p_child->key ) {
 				break;
 			}
 		}
 
-		if ( child->object ) {
+		if ( p_child->p_object ) {
 
-			if ( key <= child->key ) {
+			if ( key <= p_child->key ) {
 				// insert new node before child
-				if ( child->prev ) {
-					child->prev->next = newNode;
+				if ( p_child->p_prev ) {
+					p_child->p_prev->p_next = p_newNode;
 				} else {
-					node->firstChild = newNode;
+					p_node->p_firstChild = p_newNode;
 				}
-				newNode->prev = child->prev;
-				newNode->next = child;
-				child->prev = newNode;
+				p_newNode->p_prev = p_child->p_prev;
+				p_newNode->p_next = p_child;
+				p_child->p_prev = p_newNode;
 			} else {
 				// insert new node after child
-				if ( child->next ) {
-					child->next->prev = newNode;
+				if ( p_child->p_next ) {
+					p_child->p_next->p_prev = p_newNode;
 				} else {
-					node->lastChild = newNode;
+					p_node->p_lastChild = p_newNode;
 				}
-				newNode->prev = child;
-				newNode->next = child->next;
-				child->next = newNode;
+				p_newNode->p_prev = p_child;
+				p_newNode->p_next = p_child->p_next;
+				p_child->p_next = p_newNode;
 			}
 
-			newNode->parent = node;
-			node->numChildren++;
+			p_newNode->p_parent = p_node;
+			p_node->numChildren++;
 
 #ifdef BTREE_CHECK
 			CheckTree();
 #endif
 
-			return newNode;
+			return p_newNode;
 		}
 
 		// make sure the child has room to store another node
-		if ( child->numChildren >= maxChildrenPerNode ) {
-			SplitNode( child );
-			if ( key <= child->prev->key ) {
-				child = child->prev;
+		if ( p_child->numChildren >= maxChildrenPerNode ) {
+			SplitNode( p_child );
+			if ( key <= p_child->p_prev->key ) {
+				p_child = p_child->p_prev;
 			}
 		}
 	}
 
 	// we only end up here if the root node is empty
-	newNode->parent = root;
-	root->key = key;
-	root->firstChild = newNode;
-	root->lastChild = newNode;
-	root->numChildren++;
+	p_newNode->p_parent = p_root;
+	p_root->key = key;
+	p_root->p_firstChild = p_newNode;
+	p_root->p_lastChild = p_newNode;
+	p_root->numChildren++;
 
 #ifdef BTREE_CHECK
 	CheckTree();
 #endif
 
-	return newNode;
+	return p_newNode;
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::Remove( idBTreeNode<objType,keyType> *node ) {
-	idBTreeNode<objType,keyType> *parent;
+ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::Remove( idBTreeNode<objType,keyType> *p_node ) {
+	idBTreeNode<objType,keyType> *p_parent;
 
-	assert( node->object != NULL );
+	assert( p_node->p_object != NULL );
 
-	// unlink the node from it's parent
-	if ( node->prev ) {
-		node->prev->next = node->next;
+	// unlink the node from its parent
+	if ( p_node->p_prev ) {
+		p_node->p_prev->p_next = p_node->p_next;
 	} else {
-		node->parent->firstChild = node->next;
+		p_node->p_parent->p_firstChild = p_node->p_next;
 	}
-	if ( node->next ) {
-		node->next->prev = node->prev;
+	if ( p_node->p_next ) {
+		p_node->p_next->p_prev = p_node->p_prev;
 	} else {
-		node->parent->lastChild = node->prev;
+		p_node->p_parent->p_lastChild = p_node->p_prev;
 	}
-	node->parent->numChildren--;
+	p_node->p_parent->numChildren--;
 
 	// make sure there are no parent nodes with a single child
-	for ( parent = node->parent; parent != root && parent->numChildren <= 1; parent = parent->parent ) {
+	for ( p_parent = p_node->p_parent; p_parent != p_root && p_parent->numChildren <= 1; p_parent = p_parent->p_parent ) {
 
-		if ( parent->next ) {
-			parent = MergeNodes( parent, parent->next );
-		} else if ( parent->prev ) {
-			parent = MergeNodes( parent->prev, parent );
+		if ( p_parent->p_next ) {
+			p_parent = MergeNodes( p_parent, p_parent->p_next );
+		} else if ( p_parent->p_prev ) {
+			p_parent = MergeNodes( p_parent->p_prev, p_parent );
 		}
 
-		// a parent may not use a key higher than the key of it's last child
-		if ( parent->key > parent->lastChild->key ) {
-			parent->key = parent->lastChild->key;
+		// a parent may not use a key higher than the key of its last child
+		if ( p_parent->key > p_parent->p_lastChild->key ) {
+			p_parent->key = p_parent->p_lastChild->key;
 		}
 
-		if ( parent->numChildren > maxChildrenPerNode ) {
-			SplitNode( parent );
+		if ( p_parent->numChildren > maxChildrenPerNode ) {
+			SplitNode( p_parent );
 			break;
 		}
 	}
-	for ( ; parent != NULL && parent->lastChild != NULL; parent = parent->parent ) {
-		// a parent may not use a key higher than the key of it's last child
-		if ( parent->key > parent->lastChild->key ) {
-			parent->key = parent->lastChild->key;
+	for ( ; p_parent != NULL && p_parent->p_lastChild != NULL; p_parent = p_parent->p_parent ) {
+		// a parent may not use a key higher than the key of its last child
+		if ( p_parent->key > p_parent->p_lastChild->key ) {
+			p_parent->key = p_parent->p_lastChild->key;
 		}
 	}
 
 	// free the node
-	FreeNode( node );
+	FreeNode( p_node );
 
 	// remove the root node if it has a single internal node as child
-	if ( root->numChildren == 1 && root->firstChild->object == NULL ) {
-		idBTreeNode<objType,keyType> *oldRoot = root;
-		root->firstChild->parent = NULL;
-		root = root->firstChild;
-		FreeNode( oldRoot );
+	if ( p_root->numChildren == 1 && p_root->p_firstChild->p_object == NULL ) {
+		idBTreeNode<objType,keyType> *p_oldRoot = p_root;
+		p_root->p_firstChild->p_parent = NULL;
+		p_root = p_root->p_firstChild;
+		FreeNode( p_oldRoot );
 	}
 
 #ifdef BTREE_CHECK
@@ -262,18 +262,18 @@ ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::Remove( idBTreeNode<
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE objType *idBTree<objType,keyType,maxChildrenPerNode>::Find( keyType key ) const {
-	idBTreeNode<objType,keyType> *node;
+	idBTreeNode<objType,keyType> *p_node;
 
-	for ( node = root->firstChild; node != NULL; node = node->firstChild ) {
-		while( node->next ) {
-			if ( node->key >= key ) {
+	for ( p_node = p_root->p_firstChild; p_node != NULL; p_node = p_node->p_firstChild ) {
+		while( p_node->p_next ) {
+			if ( p_node->key >= key ) {
 				break;
 			}
-			node = node->next;
+			p_node = p_node->p_next;
 		}
-		if ( node->object ) {
-			if ( node->key == key ) {
-				return node->object;
+		if ( p_node->p_object ) {
+			if ( p_node->key == key ) {
+				return p_node->p_object;
 			} else {
 				return NULL;
 			}
@@ -284,18 +284,18 @@ ID_INLINE objType *idBTree<objType,keyType,maxChildrenPerNode>::Find( keyType ke
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE objType *idBTree<objType,keyType,maxChildrenPerNode>::FindSmallestLargerEqual( keyType key ) const {
-	idBTreeNode<objType,keyType> *node;
+	idBTreeNode<objType,keyType> *p_node;
 
-	for ( node = root->firstChild; node != NULL; node = node->firstChild ) {
-		while( node->next ) {
-			if ( node->key >= key ) {
+	for ( p_node = p_root->p_firstChild; p_node != NULL; p_node = p_node->p_firstChild ) {
+		while( p_node->p_next ) {
+			if ( p_node->key >= key ) {
 				break;
 			}
-			node = node->next;
+			p_node = p_node->p_next;
 		}
-		if ( node->object ) {
-			if ( node->key >= key ) {
-				return node->object;
+		if ( p_node->p_object ) {
+			if ( p_node->key >= key ) {
+				return p_node->p_object;
 			} else {
 				return NULL;
 			}
@@ -306,18 +306,18 @@ ID_INLINE objType *idBTree<objType,keyType,maxChildrenPerNode>::FindSmallestLarg
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE objType *idBTree<objType,keyType,maxChildrenPerNode>::FindLargestSmallerEqual( keyType key ) const {
-	idBTreeNode<objType,keyType> *node;
+	idBTreeNode<objType,keyType> *p_node;
 
-	for ( node = root->lastChild; node != NULL; node = node->lastChild ) {
-		while( node->prev ) {
-			if ( node->key <= key ) {
+	for ( p_node = p_root->p_lastChild; p_node != NULL; p_node = p_node->p_lastChild ) {
+		while( p_node->p_prev ) {
+			if ( p_node->key <= key ) {
 				break;
 			}
-			node = node->prev;
+			p_node = p_node->p_prev;
 		}
-		if ( node->object ) {
-			if ( node->key <= key ) {
-				return node->object;
+		if ( p_node->p_object ) {
+			if ( p_node->key <= key ) {
+				return p_node->p_object;
 			} else {
 				return NULL;
 			}
@@ -328,7 +328,7 @@ ID_INLINE objType *idBTree<objType,keyType,maxChildrenPerNode>::FindLargestSmall
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::GetRoot( void ) const {
-	return root;
+	return p_root;
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
@@ -337,34 +337,34 @@ ID_INLINE int idBTree<objType,keyType,maxChildrenPerNode>::GetNodeCount( void ) 
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::GetNext( idBTreeNode<objType,keyType> *node ) const {
-	if ( node->firstChild ) {
-		return node->firstChild;
+ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::GetNext( idBTreeNode<objType,keyType> *p_node ) const {
+	if ( p_node->p_firstChild ) {
+		return p_node->p_firstChild;
 	} else {
-		while( node && node->next == NULL ) {
-			node = node->parent;
+		while( p_node && p_node->p_next == NULL ) {
+			p_node = p_node->p_parent;
 		}
-		return node;
+		return p_node;
 	}
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::GetNextLeaf( idBTreeNode<objType,keyType> *node ) const {
-	if ( node->firstChild ) {
-		while ( node->firstChild ) {
-			node = node->firstChild;
+ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::GetNextLeaf( idBTreeNode<objType,keyType> *p_node ) const {
+	if ( p_node->p_firstChild ) {
+		while ( p_node->p_firstChild ) {
+			p_node = p_node->p_firstChild;
 		}
-		return node;
+		return p_node;
 	} else {
-		while( node && node->next == NULL ) {
-			node = node->parent;
+		while( p_node && p_node->p_next == NULL ) {
+			p_node = p_node->p_parent;
 		}
-		if ( node ) {
-			node = node->next;
-			while ( node->firstChild ) {
-				node = node->firstChild;
+		if ( p_node ) {
+			p_node = p_node->p_next;
+			while ( p_node->p_firstChild ) {
+				p_node = p_node->p_firstChild;
 			}
-			return node;
+			return p_node;
 		} else {
 			return NULL;
 		}
@@ -373,146 +373,146 @@ ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNo
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::AllocNode( void ) {
-	idBTreeNode<objType,keyType> *node = nodeAllocator.Alloc();
-	node->key = 0;
-	node->parent = NULL;
-	node->next = NULL;
-	node->prev = NULL;
-	node->numChildren = 0;
-	node->firstChild = NULL;
-	node->lastChild = NULL;
-	node->object = NULL;
-	return node;
+	idBTreeNode<objType,keyType> *p_node = nodeAllocator.Alloc();
+	p_node->key = 0;
+	p_node->p_parent = NULL;
+	p_node->p_next = NULL;
+	p_node->p_prev = NULL;
+	p_node->numChildren = 0;
+	p_node->p_firstChild = NULL;
+	p_node->p_lastChild = NULL;
+	p_node->p_object = NULL;
+	return p_node;
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::FreeNode( idBTreeNode<objType,keyType> *node ) {
-	nodeAllocator.Free( node );
+ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::FreeNode( idBTreeNode<objType,keyType> *p_node ) {
+	nodeAllocator.Free( p_node );
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::SplitNode( idBTreeNode<objType,keyType> *node ) {
+ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::SplitNode( idBTreeNode<objType,keyType> *p_node ) {
 	int i;
-	idBTreeNode<objType,keyType> *child, *newNode;
+	idBTreeNode<objType,keyType> *p_child, *p_newNode;
 
 	// allocate a new node
-	newNode = AllocNode();
-	newNode->parent = node->parent;
+	p_newNode = AllocNode();
+	p_newNode->p_parent = p_node->p_parent;
 
 	// divide the children over the two nodes
-	child = node->firstChild;
-	child->parent = newNode;
-	for ( i = 3; i < node->numChildren; i += 2 ) {
-		child = child->next;
-		child->parent = newNode;
+	p_child = p_node->p_firstChild;
+	p_child->p_parent = p_newNode;
+	for ( i = 3; i < p_node->numChildren; i += 2 ) {
+		p_child = p_child->p_next;
+		p_child->p_parent = p_newNode;
 	}
 
-	newNode->key = child->key;
-	newNode->numChildren = node->numChildren / 2;
-	newNode->firstChild = node->firstChild;
-	newNode->lastChild = child;
+	p_newNode->key = p_child->key;
+	p_newNode->numChildren = p_node->numChildren / 2;
+	p_newNode->p_firstChild = p_node->p_firstChild;
+	p_newNode->p_lastChild = p_child;
 
-	node->numChildren -= newNode->numChildren;
-	node->firstChild = child->next;
+	p_node->numChildren -= p_newNode->numChildren;
+	p_node->p_firstChild = p_child->p_next;
 
-	child->next->prev = NULL;
-	child->next = NULL;
+	p_child->p_next->p_prev = NULL;
+	p_child->p_next = NULL;
 
 	// add the new child to the parent before the split node
-	assert( node->parent->numChildren < maxChildrenPerNode );
+	assert( p_node->p_parent->numChildren < maxChildrenPerNode );
 
-	if ( node->prev ) {
-		node->prev->next = newNode;
+	if ( p_node->p_prev ) {
+		p_node->p_prev->p_next = p_newNode;
 	} else {
-		node->parent->firstChild = newNode;
+		p_node->p_parent->p_firstChild = p_newNode;
 	}
-	newNode->prev = node->prev;
-	newNode->next = node;
-	node->prev = newNode;
+	p_newNode->p_prev = p_node->p_prev;
+	p_newNode->p_next = p_node;
+	p_node->p_prev = p_newNode;
 
-	node->parent->numChildren++;
+	p_node->p_parent->numChildren++;
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::MergeNodes( idBTreeNode<objType,keyType> *node1, idBTreeNode<objType,keyType> *node2 ) {
-	idBTreeNode<objType,keyType> *child;
+ID_INLINE idBTreeNode<objType,keyType> *idBTree<objType,keyType,maxChildrenPerNode>::MergeNodes( idBTreeNode<objType,keyType> *p_node1, idBTreeNode<objType,keyType> *p_node2 ) {
+	idBTreeNode<objType,keyType> *p_child;
 
-	assert( node1->parent == node2->parent );
-	assert( node1->next == node2 && node2->prev == node1 );
-	assert( node1->object == NULL && node2->object == NULL );
-	assert( node1->numChildren >= 1 && node2->numChildren >= 1 );
+	assert( p_node1->p_parent == p_node2->p_parent );
+	assert( p_node1->p_next == p_node2 && p_node2->p_prev == p_node1 );
+	assert( p_node1->p_object == NULL && p_node2->p_object == NULL );
+	assert( p_node1->numChildren >= 1 && p_node2->numChildren >= 1 );
 
-	for ( child = node1->firstChild; child->next; child = child->next ) {
-		child->parent = node2;
+	for ( p_child = p_node1->p_firstChild; p_child->p_next; p_child = p_child->p_next ) {
+		p_child->p_parent = p_node2;
 	}
-	child->parent = node2;
-	child->next = node2->firstChild;
-	node2->firstChild->prev = child;
-	node2->firstChild = node1->firstChild;
-	node2->numChildren += node1->numChildren;
+	p_child->p_parent = p_node2;
+	p_child->p_next = p_node2->p_firstChild;
+	p_node2->p_firstChild->p_prev = p_child;
+	p_node2->p_firstChild = p_node1->p_firstChild;
+	p_node2->numChildren += p_node1->numChildren;
 
 	// unlink the first node from the parent
-	if ( node1->prev ) {
-		node1->prev->next = node2;
+	if ( p_node1->p_prev ) {
+		p_node1->p_prev->p_next = p_node2;
 	} else {
-		node1->parent->firstChild = node2;
+		p_node1->p_parent->p_firstChild = p_node2;
 	}
-	node2->prev = node1->prev;
-	node2->parent->numChildren--;
+	p_node2->p_prev = p_node1->p_prev;
+	p_node2->p_parent->numChildren--;
 
-	FreeNode( node1 );
+	FreeNode( p_node1 );
 
-	return node2;
+	return p_node2;
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
-ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::CheckTree_r( idBTreeNode<objType,keyType> *node, int &numNodes ) const {
+ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::CheckTree_r( idBTreeNode<objType,keyType> *p_node, int &numNodes ) const {
 	int numChildren;
-	idBTreeNode<objType,keyType> *child;
+	idBTreeNode<objType,keyType> *p_child;
 
 	numNodes++;
 
 	// the root node may have zero children and leaf nodes always have zero children, all other nodes should have at least 2 and at most maxChildrenPerNode children
-	assert( ( node == root ) || ( node->object != NULL && node->numChildren == 0 ) || ( node->numChildren >= 2 && node->numChildren <= maxChildrenPerNode ) );
-	// the key of a node may never be larger than the key of it's last child
-	assert( ( node->lastChild == NULL ) || ( node->key <= node->lastChild->key ) );
+	assert( ( p_node == p_root ) || ( p_node->p_object != NULL && p_node->numChildren == 0 ) || ( p_node->numChildren >= 2 && p_node->numChildren <= maxChildrenPerNode ) );
+	// the key of a node may never be larger than the key of its last child
+	assert( ( p_node->p_lastChild == NULL ) || ( p_node->key <= p_node->p_lastChild->key ) );
 
 	numChildren = 0;
-	for ( child = node->firstChild; child; child = child->next ) {
+	for ( p_child = p_node->p_firstChild; p_child; p_child = p_child->p_next ) {
 		numChildren++;
 		// make sure the children are properly linked
-		if ( child->prev == NULL ) {
-			assert( node->firstChild == child );
+		if ( p_child->p_prev == NULL ) {
+			assert( p_node->p_firstChild == p_child );
 		} else {
-			assert( child->prev->next == child );
+			assert( p_child->p_prev->p_next == p_child );
 		}
-		if ( child->next == NULL ) {
-			assert( node->lastChild == child );
+		if ( p_child->p_next == NULL ) {
+			assert( p_node->p_lastChild == p_child );
 		} else {
-			assert( child->next->prev == child );
+			assert( p_child->p_next->p_prev == p_child );
 		}
 		// recurse down the tree
-		CheckTree_r( child, numNodes );
+		CheckTree_r( p_child, numNodes );
 	}
 	// the number of children should equal the number of linked children
-	assert( numChildren == node->numChildren );
+	assert( numChildren == p_node->numChildren );
 }
 
 template< class objType, class keyType, int maxChildrenPerNode >
 ID_INLINE void idBTree<objType,keyType,maxChildrenPerNode>::CheckTree( void ) const {
 	int numNodes = 0;
-	idBTreeNode<objType,keyType> *node, *lastNode;
+	idBTreeNode<objType,keyType> *p_node, *p_lastNode;
 
-	CheckTree_r( root, numNodes );
+	CheckTree_r( p_root, numNodes );
 
 	// the number of nodes in the tree should equal the number of allocated nodes
 	assert( numNodes == nodeAllocator.GetAllocCount() );
 
 	// all the leaf nodes should be ordered
-	lastNode = GetNextLeaf( GetRoot() );
-	if ( lastNode ) {
-		for ( node = GetNextLeaf( lastNode ); node; lastNode = node, node = GetNextLeaf( node ) ) {
-			assert( lastNode->key <= node->key );
+	p_lastNode = GetNextLeaf( GetRoot() );
+	if ( p_lastNode ) {
+		for ( p_node = GetNextLeaf( p_lastNode ); p_node; p_lastNode = p_node, p_node = GetNextLeaf( p_node ) ) {
+			assert( p_lastNode->key <= p_node->key );
 		}
 	}
 }

@@ -151,7 +151,7 @@ public:
 					// returns a pointer to the punctuation with the given id
 	const char *	GetPunctuationFromId( int id );
 					// get the id for the given punctuation
-	int				GetPunctuationId( const char *p );
+	int				GetPunctuationId( const char *p_punctuation );
 					// set lexer flags
 	void			SetFlags( int flags );
 					// get lexer flags

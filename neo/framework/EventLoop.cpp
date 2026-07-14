@@ -70,8 +70,8 @@ sysEvent_t	idEventLoop::GetRealEvent( void ) {
 			common->FatalError( "Error reading from journal file" );
 		}
 		if ( ev.evPtrLength ) {
-			ev.evPtr = Mem_ClearedAlloc( ev.evPtrLength );
-			r = com_journalFile->Read( ev.evPtr, ev.evPtrLength );
+			ev.p_evPtr = Mem_ClearedAlloc( ev.evPtrLength );
+			r = com_journalFile->Read( ev.p_evPtr, ev.evPtrLength );
 			if ( r != ev.evPtrLength ) {
 				common->FatalError( "Error reading from journal file" );
 			}
@@ -86,7 +86,7 @@ sysEvent_t	idEventLoop::GetRealEvent( void ) {
 				common->FatalError( "Error writing to journal file" );
 			}
 			if ( ev.evPtrLength ) {
-				r = com_journalFile->Write( ev.evPtr, ev.evPtrLength );
+				r = com_journalFile->Write( ev.p_evPtr, ev.evPtrLength );
 				if ( r != ev.evPtrLength ) {
 					common->FatalError( "Error writing to journal file" );
 				}
@@ -102,11 +102,11 @@ sysEvent_t	idEventLoop::GetRealEvent( void ) {
 idEventLoop::PushEvent
 =================
 */
-void idEventLoop::PushEvent( sysEvent_t *event ) {
-	sysEvent_t		*ev;
+void idEventLoop::PushEvent( sysEvent_t *p_event ) {
+	sysEvent_t		*p_ev;
 	static			bool printedWarning;
 
-	ev = &com_pushedEvents[ com_pushedEventsHead & (MAX_PUSHED_EVENTS-1) ];
+	p_ev = &com_pushedEvents[ com_pushedEventsHead & (MAX_PUSHED_EVENTS-1) ];
 
 	if ( com_pushedEventsHead - com_pushedEventsTail >= MAX_PUSHED_EVENTS ) {
 
@@ -116,15 +116,15 @@ void idEventLoop::PushEvent( sysEvent_t *event ) {
 			common->Printf( "WARNING: Com_PushEvent overflow\n" );
 		}
 
-		if ( ev->evPtr ) {
-			Mem_Free( ev->evPtr );
+		if ( p_ev->p_evPtr ) {
+			Mem_Free( p_ev->p_evPtr );
 		}
 		com_pushedEventsTail++;
 	} else {
 		printedWarning = false;
 	}
 
-	*ev = *event;
+	*p_ev = *p_event;
 	com_pushedEventsHead++;
 }
 
@@ -154,15 +154,15 @@ void idEventLoop::ProcessEvent( sysEvent_t ev ) {
 
 	if ( ev.evType == SE_CONSOLE ) {
 		// from a text console outside the game window
-		cmdSystem->BufferCommandText( CMD_EXEC_APPEND, (char *)ev.evPtr );
+		cmdSystem->BufferCommandText( CMD_EXEC_APPEND, (char *)ev.p_evPtr );
 		cmdSystem->BufferCommandText( CMD_EXEC_APPEND, "\n" );
 	} else {
 		session->ProcessEvent( &ev );
 	}
 
 	// free any block data
-	if ( ev.evPtr ) {
-		Mem_Free( ev.evPtr );
+	if ( ev.p_evPtr ) {
+		Mem_Free( ev.p_evPtr );
 	}
 }
 

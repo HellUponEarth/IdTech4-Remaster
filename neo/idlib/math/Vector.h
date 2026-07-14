@@ -1465,7 +1465,7 @@ public:
 	void			SetSize( int size );
 	void			ChangeSize( int size, bool makeZero = false );
 	int				GetSize( void ) const { return size; }
-	void			SetData( int length, float *data );
+	void			SetData( int length, float *p_data );
 	void			Zero( void );
 	void			Zero( int length );
 	void			Random( int seed, float l = 0.0f, float u = 1.0f );
@@ -1753,12 +1753,12 @@ ID_INLINE void idVecX::SetTempSize( int newSize ) {
 	VECX_CLEAREND();
 }
 
-ID_INLINE void idVecX::SetData( int length, float *data ) {
+ID_INLINE void idVecX::SetData( int length, float *p_data ) {
 	if ( p && ( p < idVecX::tempPtr || p >= idVecX::tempPtr + VECX_MAX_TEMP ) && alloced != -1 ) {
 		Mem_Free16( p );
 	}
-	assert( ( ( (int) data ) & 15 ) == 0 ); // data must be 16 byte aligned
-	p = data;
+	assert( ( reinterpret_cast<uintptr_t>( p_data ) & 15 ) == 0 ); // data must be 16 byte aligned
+	p = p_data;
 	size = length;
 	alloced = -1;
 	VECX_CLEAREND();

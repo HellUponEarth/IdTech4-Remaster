@@ -31,7 +31,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <signal.h>
 
-void		Posix_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *ptr );
+void		Posix_QueEvent( sysEventType_t type, int value, int value2, int ptrLength, void *p_ptr );
 const char*	Posix_Cwd( void );
 
 // called first thing. does InitSigs and various things
@@ -63,4 +63,3 @@ void		Sys_DoStartProcess( const char *exeName, bool dofork = true ); // if not f
 void		Sys_AsyncThread( void );
 
 #endif
-

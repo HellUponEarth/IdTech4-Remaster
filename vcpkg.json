@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "idtech4-remaster",
+  "version-string": "0.1.0",
+  "builtin-baseline": "f7410a9e287d8aea1aab44d948c453aa29018321",
+  "description": "Manifest for large optional IdTech4 Remaster dependencies that should come from vcpkg rather than ad hoc source fetches.",
+  "dependencies": [],
+  "features": {
+    "large-audio": {
+      "description": "Large audio/runtime libraries for future platform integration.",
+      "dependencies": [
+        "openal-soft"
+      ]
+    }
+  }
+}

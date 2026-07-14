@@ -30,11 +30,13 @@ If you have questions concerning this license or the applicable additional terms
 #pragma hdrstop
 
 #include "Simd_Generic.h"
+#if !defined(_MSC_VER) || defined(_M_IX86)
 #include "Simd_MMX.h"
 #include "Simd_3DNow.h"
 #include "Simd_SSE.h"
 #include "Simd_SSE2.h"
 #include "Simd_SSE3.h"
+#endif
 #include "Simd_AltiVec.h"
 
 
@@ -73,8 +75,12 @@ void idSIMD::InitProcessor( const char *module, bool forceGeneric ) {
 	} else {
 
 		if ( !processor ) {
+#if ( defined(_MSC_VER) && defined(_M_X64) ) || ( defined(_WIN32) && ( defined(__GNUC__) || defined(__clang__) ) )
+			processor = generic;
+#else
 			if ( ( cpuid & CPUID_ALTIVEC ) ) {
 				processor = new idSIMD_AltiVec;
+#if !defined(_MSC_VER) || defined(_M_IX86)
 			} else if ( ( cpuid & CPUID_MMX ) && ( cpuid & CPUID_SSE ) && ( cpuid & CPUID_SSE2 ) && ( cpuid & CPUID_SSE3 ) ) {
 				processor = new idSIMD_SSE3;
 			} else if ( ( cpuid & CPUID_MMX ) && ( cpuid & CPUID_SSE ) && ( cpuid & CPUID_SSE2 ) ) {
@@ -85,9 +91,11 @@ void idSIMD::InitProcessor( const char *module, bool forceGeneric ) {
 				processor = new idSIMD_3DNow;
 			} else if ( ( cpuid & CPUID_MMX ) ) {
 				processor = new idSIMD_MMX;
+#endif
 			} else {
 				processor = generic;
 			}
+#endif
 			processor->cpuid = cpuid;
 		}
 
@@ -141,7 +149,17 @@ idSIMDProcessor *p_simd;
 idSIMDProcessor *p_generic;
 long baseClocks = 0;
 
-#ifdef _WIN32
+#if defined(_MSC_VER) && defined(_M_X64)
+
+#define TIME_TYPE double
+
+#define StartRecordTime( start )			\
+	start = idLib::sys->GetClockTicks()
+
+#define StopRecordTime( end )				\
+	end = idLib::sys->GetClockTicks()
+
+#elif defined(_WIN32) && !defined(__GNUC__) && !defined(__clang__)
 
 #define TIME_TYPE int
 
@@ -166,6 +184,16 @@ long saved_ebx = 0;
 	__asm mov ebx, saved_ebx				\
 	__asm xor eax, eax						\
 	__asm cpuid
+
+#elif defined(_WIN32)
+
+#define TIME_TYPE double
+
+#define StartRecordTime( start )			\
+	start = idLib::sys->GetClockTicks()
+
+#define StopRecordTime( end )				\
+	end = idLib::sys->GetClockTicks()
 
 #elif MACOS_X
 
@@ -1498,7 +1526,7 @@ void TestMemcpy( void ) {
 		p_simd->Memcpy( test1, test0, 8192 );
 		for ( j = 0; j < i; j++ ) {
 			if ( test1[j] != test0[j] ) {
-				idLib::common->Printf( "   simd->Memcpy() "S_COLOR_RED"X\n" );
+				idLib::common->Printf( "   simd->Memcpy() " S_COLOR_RED "X\n" );
 				return;
 			}
 		}
@@ -1524,7 +1552,7 @@ void TestMemset( void ) {
 			p_simd->Memset( test, j, i );
 			for ( k = 0; k < i; k++ ) {
 				if ( test[k] != (byte)j ) {
-					idLib::common->Printf( "   simd->Memset() "S_COLOR_RED"X\n" );
+					idLib::common->Printf( "   simd->Memset() " S_COLOR_RED "X\n" );
 					return;
 				}
 			}
@@ -4114,7 +4142,9 @@ void idSIMD::Test_f( const idCmdArgs &args ) {
 
 		argString.Replace( " ", "" );
 
-		if ( idStr::Icmp( argString, "MMX" ) == 0 ) {
+		if ( false ) {
+#if ( !defined(_MSC_VER) || defined(_M_IX86) ) && !( defined(_WIN32) && ( defined(__GNUC__) || defined(__clang__) ) )
+		} else if ( idStr::Icmp( argString, "MMX" ) == 0 ) {
 			if ( !( cpuid & CPUID_MMX ) ) {
 				common->Printf( "CPU does not support MMX\n" );
 				return;
@@ -4144,12 +4174,15 @@ void idSIMD::Test_f( const idCmdArgs &args ) {
 				return;
 			}
 			p_simd = new idSIMD_SSE3();
+#endif
+#if !( defined(_WIN32) && ( defined(__GNUC__) || defined(__clang__) ) )
 		} else if ( idStr::Icmp( argString, "AltiVec" ) == 0 ) {
 			if ( !( cpuid & CPUID_ALTIVEC ) ) {
 				common->Printf( "CPU does not support AltiVec\n" );
 				return;
 			}
 			p_simd = new idSIMD_AltiVec();
+#endif
 		} else {
 			common->Printf( "invalid argument, use: MMX, 3DNow, SSE, SSE2, SSE3, AltiVec\n" );
 			return;

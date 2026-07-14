@@ -556,7 +556,8 @@ cm_model_t *idCollisionModelManagerLocal::AllocModel( void ) {
 	model->numPolygons = model->polygonMemory =
 	model->numBrushes = model->brushMemory =
 	model->numNodes = model->numBrushRefs =
-	model->numPolygonRefs = model->numInternalEdges =
+	model->numPolygonRefs = model->nextPolygonId =
+	model->numInternalEdges =
 	model->numSharpEdges = model->numRemovedPolys =
 	model->numMergedPolys = model->usedMemory = 0;
 
@@ -670,6 +671,7 @@ cm_polygon_t *idCollisionModelManagerLocal::AllocPolygon( cm_model_t *model, int
 	} else {
 		poly = (cm_polygon_t *) Mem_Alloc( size );
 	}
+	poly->polygonId = model->nextPolygonId++;
 	return poly;
 }
 
@@ -1302,6 +1304,7 @@ cm_polygon_t *idCollisionModelManagerLocal::TryMergePolygons( cm_model_t *model,
 	int edgeNum, edgeNum1, edgeNum2, newEdgeNum1, newEdgeNum2;
 	cm_edge_t *edge;
 	cm_polygon_t *newp;
+	int newPolygonId;
 	idVec3 delta, normal;
 	float dot;
 	bool keep1, keep2;
@@ -1450,7 +1453,9 @@ cm_polygon_t *idCollisionModelManagerLocal::TryMergePolygons( cm_model_t *model,
 	}
 
 	newp = AllocPolygon( model, newNumEdges );
+	newPolygonId = newp->polygonId;
 	memcpy( newp, p1, sizeof(cm_polygon_t) );
+	newp->polygonId = newPolygonId;
 	memcpy( newp->edges, newEdges, newNumEdges * sizeof(int) );
 	newp->numEdges = newNumEdges;
 	newp->checkcount = 0;
@@ -3476,19 +3481,50 @@ bool idCollisionModelManagerLocal::GetModelEdge( cmHandle_t model, int edgeNum, 
 idCollisionModelManagerLocal::GetModelPolygon
 ===================
 */
+const cm_polygon_t *idCollisionModelManagerLocal::FindPolygonById_r( const cm_node_t *p_node, int polygonId ) const {
+	const cm_polygonRef_t *p_ref;
+	const cm_polygon_t *p_poly;
+
+	if ( p_node == NULL ) {
+		return NULL;
+	}
+
+	for ( p_ref = p_node->polygons; p_ref != NULL; p_ref = p_ref->next ) {
+		if ( p_ref->p != NULL && p_ref->p->polygonId == polygonId ) {
+			return p_ref->p;
+		}
+	}
+
+	if ( p_node->planeType == -1 ) {
+		return NULL;
+	}
+
+	p_poly = FindPolygonById_r( p_node->children[0], polygonId );
+	if ( p_poly != NULL ) {
+		return p_poly;
+	}
+
+	return FindPolygonById_r( p_node->children[1], polygonId );
+}
+
 bool idCollisionModelManagerLocal::GetModelPolygon( cmHandle_t model, int polygonNum, idFixedWinding &winding ) const {
 	int i, edgeNum;
-	cm_polygon_t *poly;
+	const cm_polygon_t *p_poly;
 
 	if ( model < 0 || model > MAX_SUBMODELS || model >= numModels || !models[model] ) {
 		common->Printf( "idCollisionModelManagerLocal::GetModelPolygon: invalid model handle\n" );
 		return false;
 	}
 
-	poly = *reinterpret_cast<cm_polygon_t **>(&polygonNum);
+	p_poly = FindPolygonById_r( models[model]->node, polygonNum );
+	if ( p_poly == NULL ) {
+		common->Printf( "idCollisionModelManagerLocal::GetModelPolygon: invalid polygon number\n" );
+		return false;
+	}
+
 	winding.Clear();
-	for ( i = 0; i < poly->numEdges; i++ ) {
-		edgeNum = poly->edges[i];
+	for ( i = 0; i < p_poly->numEdges; i++ ) {
+		edgeNum = p_poly->edges[i];
 		winding += models[model]->vertices[ models[model]->edges[abs(edgeNum)].vertexNum[INTSIGNBITSET(edgeNum)] ].p;
 	}
 

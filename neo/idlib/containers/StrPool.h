@@ -51,10 +51,10 @@ public:
 						// returns total size of allocated memory including size of string pool type
 	size_t				Size( void ) const { return sizeof( *this ) + Allocated(); }
 						// returns a pointer to the pool this string was allocated from
-	const idStrPool *	GetPool( void ) const { return pool; }
+	const idStrPool *	GetPool( void ) const { return p_pool; }
 
 private:
-	idStrPool *			pool;
+	idStrPool *			p_pool;
 	mutable int			numUsers;
 };
 
@@ -70,9 +70,9 @@ public:
 
 	const idPoolStr *	operator[]( int index ) const { return pool[index]; }
 
-	const idPoolStr *	AllocString( const char *string );
-	void				FreeString( const idPoolStr *poolStr );
-	const idPoolStr *	CopyString( const idPoolStr *poolStr );
+	const idPoolStr *	AllocString( const char *p_string );
+	void				FreeString( const idPoolStr *p_poolStr );
+	const idPoolStr *	CopyString( const idPoolStr *p_poolStr );
 	void				Clear( void );
 
 private:
@@ -95,33 +95,33 @@ ID_INLINE void idStrPool::SetCaseSensitive( bool caseSensitive ) {
 idStrPool::AllocString
 ================
 */
-ID_INLINE const idPoolStr *idStrPool::AllocString( const char *string ) {
+ID_INLINE const idPoolStr *idStrPool::AllocString( const char *p_string ) {
 	int i, hash;
-	idPoolStr *poolStr;
+	idPoolStr *p_poolStr;
 
-	hash = poolHash.GenerateKey( string, caseSensitive );
+	hash = poolHash.GenerateKey( p_string, caseSensitive );
 	if ( caseSensitive ) {
 		for ( i = poolHash.First( hash ); i != -1; i = poolHash.Next( i ) ) {
-			if ( pool[i]->Cmp( string ) == 0 ) {
+			if ( pool[i]->Cmp( p_string ) == 0 ) {
 				pool[i]->numUsers++;
 				return pool[i];
 			}
 		}
 	} else {
 		for ( i = poolHash.First( hash ); i != -1; i = poolHash.Next( i ) ) {
-			if ( pool[i]->Icmp( string ) == 0 ) {
+			if ( pool[i]->Icmp( p_string ) == 0 ) {
 				pool[i]->numUsers++;
 				return pool[i];
 			}
 		}
 	}
 
-	poolStr = new idPoolStr;
-	*static_cast<idStr *>(poolStr) = string;
-	poolStr->pool = this;
-	poolStr->numUsers = 1;
-	poolHash.Add( hash, pool.Append( poolStr ) );
-	return poolStr;
+	p_poolStr = new idPoolStr;
+	*static_cast<idStr *>(p_poolStr) = p_string;
+	p_poolStr->p_pool = this;
+	p_poolStr->numUsers = 1;
+	poolHash.Add( hash, pool.Append( p_poolStr ) );
+	return p_poolStr;
 }
 
 /*
@@ -129,30 +129,30 @@ ID_INLINE const idPoolStr *idStrPool::AllocString( const char *string ) {
 idStrPool::FreeString
 ================
 */
-ID_INLINE void idStrPool::FreeString( const idPoolStr *poolStr ) {
+ID_INLINE void idStrPool::FreeString( const idPoolStr *p_poolStr ) {
 	int i, hash;
 
-	assert( poolStr->numUsers >= 1 );
-	assert( poolStr->pool == this );
+	assert( p_poolStr->numUsers >= 1 );
+	assert( p_poolStr->p_pool == this );
 
-	poolStr->numUsers--;
-	if ( poolStr->numUsers <= 0 ) {
-		hash = poolHash.GenerateKey( poolStr->c_str(), caseSensitive );
+	p_poolStr->numUsers--;
+	if ( p_poolStr->numUsers <= 0 ) {
+		hash = poolHash.GenerateKey( p_poolStr->c_str(), caseSensitive );
 		if ( caseSensitive ) { 
 			for ( i = poolHash.First( hash ); i != -1; i = poolHash.Next( i ) ) {
-				if ( pool[i]->Cmp( poolStr->c_str() ) == 0 ) {
+				if ( pool[i]->Cmp( p_poolStr->c_str() ) == 0 ) {
 					break;
 				}
 			}
 		} else {
 			for ( i = poolHash.First( hash ); i != -1; i = poolHash.Next( i ) ) {
-				if ( pool[i]->Icmp( poolStr->c_str() ) == 0 ) {
+				if ( pool[i]->Icmp( p_poolStr->c_str() ) == 0 ) {
 					break;
 				}
 			}
 		}
 		assert( i != -1 );
-		assert( pool[i] == poolStr );
+		assert( pool[i] == p_poolStr );
 		delete pool[i];
 		pool.RemoveIndex( i );
 		poolHash.RemoveIndex( hash, i );
@@ -164,17 +164,17 @@ ID_INLINE void idStrPool::FreeString( const idPoolStr *poolStr ) {
 idStrPool::CopyString
 ================
 */
-ID_INLINE const idPoolStr *idStrPool::CopyString( const idPoolStr *poolStr ) {
+ID_INLINE const idPoolStr *idStrPool::CopyString( const idPoolStr *p_poolStr ) {
 
-	assert( poolStr->numUsers >= 1 );
+	assert( p_poolStr->numUsers >= 1 );
 
-	if ( poolStr->pool == this ) {
+	if ( p_poolStr->p_pool == this ) {
 		// the string is from this pool so just increase the user count
-		poolStr->numUsers++;
-		return poolStr;
+		p_poolStr->numUsers++;
+		return p_poolStr;
 	} else {
 		// the string is from another pool so it needs to be re-allocated from this pool.
-		return AllocString( poolStr->c_str() );
+		return AllocString( p_poolStr->c_str() );
 	}
 }
 

@@ -3,6 +3,8 @@
   <PropertyGroup>
     <_ProjectFileVersion>10.0.40219.1</_ProjectFileVersion>
     <_PropertySheetDisplayName>Game d3xp Library</_PropertySheetDisplayName>
+    <GameDllName Condition="'$(Platform)'=='x64'">gamex64.dll</GameDllName>
+    <GameDllName Condition="'$(Platform)'!='x64'">gamex86.dll</GameDllName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -10,11 +12,11 @@
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
-      <OutputFile>$(OutDir)gamex86.dll</OutputFile>
+      <OutputFile>$(OutDir)$(GameDllName)</OutputFile>
       <ModuleDefinitionFile>.\d3xp\game.def</ModuleDefinitionFile>
     </Link>
     <PreBuildEvent>
-      <Command>..\build\Win32\"$(Configuration)"\TypeInfo.exe</Command>
+      <Command>..\build\$(PlatformName)\"$(Configuration)"\TypeInfo.exe</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
 </Project>

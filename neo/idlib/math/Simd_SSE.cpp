@@ -3274,10 +3274,10 @@ void VPCALL idSIMD_SSE::Dot( float &dot, const float *src1, const float *src2, c
 
 #define COMPARECONSTANT( DST, SRC0, CONSTANT, COUNT, CMP, CMPSIMD, DOFLIP )				\
 	int i, cnt, pre, post;																\
-	float *aligned;																		\
+	const float *p_aligned;																\
 																						\
 	/* if the float array is not aligned on a 4 byte boundary */						\
-	if ( ((int) SRC0) & 3 ) {															\
+	if ( reinterpret_cast<uintptr_t>( SRC0 ) & 3 ) {									\
 		/* unaligned memory access */													\
 		pre = 0;																		\
 		cnt = COUNT >> 2;																\
@@ -3314,13 +3314,13 @@ void VPCALL idSIMD_SSE::Dot( float &dot, const float *src1, const float *src2, c
 	}																					\
 	else {																				\
 		/* aligned memory access */														\
-		aligned = (float *) ((((int) SRC0) + 15) & ~15);								\
-		if ( (int)aligned > ((int)src0) + COUNT ) {										\
+		p_aligned = reinterpret_cast<const float *>( ( reinterpret_cast<uintptr_t>( SRC0 ) + 15 ) & ~static_cast<uintptr_t>( 15 ) ); \
+		if ( p_aligned > SRC0 + COUNT ) {												\
 			pre = COUNT;																\
 			post = 0;																	\
 		}																				\
 		else {																			\
-			pre = aligned - SRC0;														\
+			pre = p_aligned - SRC0;														\
 			cnt = (COUNT - pre) >> 2;													\
 			post = COUNT - pre - (cnt<<2);												\
 			__asm	mov			edx, cnt												\
@@ -3328,7 +3328,7 @@ void VPCALL idSIMD_SSE::Dot( float &dot, const float *src1, const float *src2, c
 			__asm	je			doneCmp													\
 			__asm	push		ebx														\
 			__asm	neg			edx														\
-			__asm	mov			esi, aligned											\
+			__asm	mov			esi, p_aligned											\
 			__asm	prefetchnta	[esi+64]												\
 			__asm	movss		xmm1, CONSTANT											\
 			__asm	shufps		xmm1, xmm1, R_SHUFFLEPS( 0, 0, 0, 0 )					\
@@ -3366,10 +3366,10 @@ void VPCALL idSIMD_SSE::Dot( float &dot, const float *src1, const float *src2, c
 
 #define COMPAREBITCONSTANT( DST, BITNUM, SRC0, CONSTANT, COUNT, CMP, CMPSIMD, DOFLIP )	\
 	int i, cnt, pre, post;																\
-	float *aligned;																		\
+	const float *p_aligned;																\
 																						\
 	/* if the float array is not aligned on a 4 byte boundary */						\
-	if ( ((int) SRC0) & 3 ) {															\
+	if ( reinterpret_cast<uintptr_t>( SRC0 ) & 3 ) {									\
 		/* unaligned memory access */													\
 		pre = 0;																		\
 		cnt = COUNT >> 2;																\
@@ -3408,13 +3408,13 @@ void VPCALL idSIMD_SSE::Dot( float &dot, const float *src1, const float *src2, c
 	}																					\
 	else {																				\
 		/* aligned memory access */														\
-		aligned = (float *) ((((int) SRC0) + 15) & ~15);								\
-		if ( (int)aligned > ((int)src0) + COUNT ) {										\
+		p_aligned = reinterpret_cast<const float *>( ( reinterpret_cast<uintptr_t>( SRC0 ) + 15 ) & ~static_cast<uintptr_t>( 15 ) ); \
+		if ( p_aligned > SRC0 + COUNT ) {												\
 			pre = COUNT;																\
 			post = 0;																	\
 		}																				\
 		else {																			\
-			pre = aligned - SRC0;														\
+			pre = p_aligned - SRC0;														\
 			cnt = (COUNT - pre) >> 2;													\
 			post = COUNT - pre - (cnt<<2);												\
 			__asm	mov			edx, cnt												\
@@ -3422,7 +3422,7 @@ void VPCALL idSIMD_SSE::Dot( float &dot, const float *src1, const float *src2, c
 			__asm	je			doneCmp													\
 			__asm	push		ebx														\
 			__asm	neg			edx														\
-			__asm	mov			esi, aligned											\
+			__asm	mov			esi, p_aligned											\
 			__asm	prefetchnta	[esi+64]												\
 			__asm	movss		xmm1, CONSTANT											\
 			__asm	shufps		xmm1, xmm1, R_SHUFFLEPS( 0, 0, 0, 0 )					\

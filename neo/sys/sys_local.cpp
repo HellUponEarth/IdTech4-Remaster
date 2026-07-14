@@ -84,12 +84,12 @@ void idSysLocal::FPU_SetDAZ( bool enable ) {
 	Sys_FPU_SetDAZ( enable );
 }
 
-bool idSysLocal::LockMemory( void *ptr, int bytes ) {
-	return Sys_LockMemory( ptr, bytes );
+bool idSysLocal::LockMemory( void *p_ptr, int bytes ) {
+	return Sys_LockMemory( p_ptr, bytes );
 }
 
-bool idSysLocal::UnlockMemory( void *ptr, int bytes ) {
-	return Sys_UnlockMemory( ptr, bytes );
+bool idSysLocal::UnlockMemory( void *p_ptr, int bytes ) {
+	return Sys_UnlockMemory( p_ptr, bytes );
 }
 
 void idSysLocal::GetCallStack( address_t *callStack, const int callStackSize ) {
@@ -108,16 +108,16 @@ void idSysLocal::ShutdownSymbols( void ) {
 	Sys_ShutdownSymbols();
 }
 
-int idSysLocal::DLL_Load( const char *dllName ) {
-	return Sys_DLL_Load( dllName );
+sysHandle_t idSysLocal::DLL_Load( const char *p_dllName ) {
+	return Sys_DLL_Load( p_dllName );
 }
 
-void *idSysLocal::DLL_GetProcAddress( int dllHandle, const char *procName ) {
-	return Sys_DLL_GetProcAddress( dllHandle, procName );
+void *idSysLocal::DLL_GetProcAddress( sysHandle_t p_dllHandle, const char *p_procName ) {
+	return Sys_DLL_GetProcAddress( p_dllHandle, p_procName );
 }
 
-void idSysLocal::DLL_Unload( int dllHandle ) {
-	Sys_DLL_Unload( dllHandle );
+void idSysLocal::DLL_Unload( sysHandle_t p_dllHandle ) {
+	Sys_DLL_Unload( p_dllHandle );
 }
 
 void idSysLocal::DLL_GetFileName( const char *baseName, char *dllName, int maxLength ) {
@@ -138,7 +138,7 @@ sysEvent_t idSysLocal::GenerateMouseButtonEvent( int button, bool down ) {
 	ev.evValue = K_MOUSE1 + button - 1;
 	ev.evValue2 = down;
 	ev.evPtrLength = 0;
-	ev.evPtr = NULL;
+	ev.p_evPtr = NULL;
 	return ev;
 }
 
@@ -148,7 +148,7 @@ sysEvent_t idSysLocal::GenerateMouseMoveEvent( int deltax, int deltay ) {
 	ev.evValue = deltax;
 	ev.evValue2 = deltay;
 	ev.evPtrLength = 0;
-	ev.evPtr = NULL;
+	ev.p_evPtr = NULL;
 	return ev;
 }
 
@@ -207,4 +207,3 @@ const char *Sys_TimeStampToStr( ID_TIME_T timeStamp ) {
 
 	return timeString;
 }
-

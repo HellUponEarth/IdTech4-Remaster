@@ -1,0 +1,1313 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 26,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vs2026-base",
+      "hidden": true,
+      "generator": "Visual Studio 18 2026",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Debug with inlines;Debug with inlines and memory log;Dedicated Debug;Dedicated Debug with inlines;Dedicated Release;RelWithDebInfo;Release"
+      }
+    },
+    {
+      "name": "vs2026-x64",
+      "displayName": "Visual Studio 2026 x64",
+      "inherits": "vs2026-base",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "vs2026-x64-vcpkg",
+      "displayName": "Visual Studio 2026 x64 + vcpkg manifest",
+      "inherits": "vs2026-x64",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "IDTECH4_LARGE_DEPENDENCY_PROVIDER": "vcpkg",
+        "VCPKG_FEATURE_FLAGS": "manifests"
+      }
+    },
+    {
+      "name": "vs2026-x64-vcpkg-tests",
+      "displayName": "Visual Studio 2026 x64 + tests + vcpkg manifest",
+      "inherits": "vs2026-x64-vcpkg",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_CONFIGURATION_TYPES": "Debug",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "vs2026-x64-vcpkg-large-audio",
+      "displayName": "Visual Studio 2026 x64 + vcpkg large audio",
+      "inherits": "vs2026-x64-vcpkg",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_FEATURES": "large-audio"
+      }
+    },
+    {
+      "name": "vs2026-x64-asan",
+      "displayName": "Visual Studio 2026 x64 + AddressSanitizer",
+      "inherits": "vs2026-x64",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug",
+        "IDTECH4_ENABLE_ASAN": "ON"
+      }
+    },
+    {
+      "name": "vs2026-x64-editor",
+      "displayName": "Visual Studio 2026 x64 + editor CVars",
+      "inherits": "vs2026-x64",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;RelWithDebInfo;Release",
+        "IDTECH4_ENABLE_EDITOR_CVARS": "ON"
+      }
+    },
+    {
+      "name": "vs2026-x64-dedicated",
+      "displayName": "Visual Studio 2026 x64 + dedicated server",
+      "inherits": "vs2026-x64",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Dedicated Debug;Dedicated Debug with inlines;Dedicated Release",
+        "IDTECH4_BUILD_DEDICATED_SERVER": "ON"
+      }
+    },
+    {
+      "name": "vs2026-x64-tests",
+      "displayName": "Visual Studio 2026 x64 + tests",
+      "inherits": "vs2026-x64",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug",
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "vs2026-x64-fast-iteration",
+      "displayName": "Visual Studio 2026 x64 + fast iteration",
+      "inherits": "vs2026-x64-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_FAST_ITERATION": "ON",
+        "IDTECH4_ENABLE_SCCACHE": "ON"
+      }
+    },
+    {
+      "name": "vs2026-x64-lto-release",
+      "displayName": "Visual Studio 2026 x64 Release + LTO",
+      "inherits": "vs2026-x64",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Release",
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON",
+        "IDTECH4_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "vs2026-x64-size-analysis",
+      "displayName": "Visual Studio 2026 x64 + binary size analysis",
+      "inherits": "vs2026-x64-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_BINARY_SIZE_REPORT": "${sourceDir}/build/cmake/${presetName}/reports/binary-size.md"
+      }
+    },
+    {
+      "name": "vs2026-win32",
+      "displayName": "Visual Studio 2026 Win32",
+      "inherits": "vs2026-base",
+      "architecture": {
+        "value": "Win32",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "ninja-debug",
+      "displayName": "Ninja Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "ninja-release",
+      "displayName": "Ninja Release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ninja-relwithdebinfo",
+      "displayName": "Ninja RelWithDebInfo",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "ninja-benchmark",
+      "displayName": "Ninja Benchmark",
+      "inherits": "ninja-relwithdebinfo",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-editor",
+      "displayName": "Ninja Debug + editor CVars",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_ENABLE_EDITOR_CVARS": "ON"
+      }
+    },
+    {
+      "name": "ninja-dedicated-debug",
+      "displayName": "Ninja Dedicated Server Debug",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_DEDICATED_SERVER": "ON"
+      }
+    },
+    {
+      "name": "ninja-dedicated-release",
+      "displayName": "Ninja Dedicated Server Release",
+      "inherits": "ninja-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_DEDICATED_SERVER": "ON"
+      }
+    },
+    {
+      "name": "ninja-gcc-debug",
+      "displayName": "Ninja GCC Debug",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "ninja-gcc-release",
+      "displayName": "Ninja GCC Release",
+      "inherits": "ninja-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "ninja-gcc-tests",
+      "displayName": "Ninja GCC Debug + tests",
+      "inherits": "ninja-gcc-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-gcc-release-tests",
+      "displayName": "Ninja GCC Release + tests",
+      "inherits": "ninja-gcc-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-clang-debug",
+      "displayName": "Ninja Clang Debug",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "IDTECH4_ENABLE_CLANG_BEST_DIAGNOSTICS": "ON"
+      }
+    },
+    {
+      "name": "ninja-clang-release",
+      "displayName": "Ninja Clang Release",
+      "inherits": "ninja-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "IDTECH4_ENABLE_CLANG_BEST_DIAGNOSTICS": "ON"
+      }
+    },
+    {
+      "name": "ninja-clang-tests",
+      "displayName": "Ninja Clang Debug + tests",
+      "inherits": "ninja-clang-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-clang-release-tests",
+      "displayName": "Ninja Clang Release + tests",
+      "inherits": "ninja-clang-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-install-sdk",
+      "displayName": "Ninja Release + installable SDK",
+      "inherits": "ninja-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install/idtech4-sdk",
+        "IDTECH4_INSTALL_RUNTIME_TARGETS": "OFF"
+      }
+    },
+    {
+      "name": "ninja-vcpkg-debug",
+      "displayName": "Ninja Debug + vcpkg manifest",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "IDTECH4_LARGE_DEPENDENCY_PROVIDER": "vcpkg",
+        "VCPKG_FEATURE_FLAGS": "manifests"
+      }
+    },
+    {
+      "name": "ninja-vcpkg-release",
+      "displayName": "Ninja Release + vcpkg manifest",
+      "inherits": "ninja-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "IDTECH4_LARGE_DEPENDENCY_PROVIDER": "vcpkg",
+        "VCPKG_FEATURE_FLAGS": "manifests"
+      }
+    },
+    {
+      "name": "ninja-vcpkg-tests",
+      "displayName": "Ninja Debug + tests + vcpkg manifest",
+      "inherits": "ninja-vcpkg-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-vcpkg-large-audio",
+      "displayName": "Ninja Debug + vcpkg large audio",
+      "inherits": "ninja-vcpkg-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "VCPKG_MANIFEST_FEATURES": "large-audio"
+      }
+    },
+    {
+      "name": "ninja-analysis-base",
+      "hidden": true,
+      "inherits": "ninja-debug",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "ninja-cppcheck",
+      "displayName": "Ninja Debug + cppcheck",
+      "inherits": "ninja-analysis-base",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_CPPCHECK": "ON"
+      }
+    },
+    {
+      "name": "ninja-cppcheck-tests",
+      "displayName": "Ninja Debug + tests + cppcheck",
+      "inherits": "ninja-cppcheck",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-clang-tidy",
+      "displayName": "Ninja Debug + clang-tidy",
+      "inherits": "ninja-analysis-base",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_CLANG_TIDY": "ON"
+      }
+    },
+    {
+      "name": "ninja-clang-tidy-tests",
+      "displayName": "Ninja Debug + tests + clang-tidy",
+      "inherits": "ninja-clang-tidy",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-iwyu",
+      "displayName": "Ninja Debug + include-what-you-use",
+      "inherits": "ninja-analysis-base",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_IWYU": "ON"
+      }
+    },
+    {
+      "name": "ninja-analysis",
+      "displayName": "Ninja Debug + all static analysis",
+      "inherits": "ninja-analysis-base",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_CLANG_TIDY": "ON",
+        "IDTECH4_ENABLE_CPPCHECK": "ON",
+        "IDTECH4_ENABLE_IWYU": "ON"
+      }
+    },
+    {
+      "name": "ninja-tests",
+      "displayName": "Ninja Debug + tests",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-docs-site",
+      "displayName": "Ninja documentation site + Doxygen API reference",
+      "inherits": "ninja-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_ENABLE_DOXYGEN": "ON",
+        "IDTECH4_REQUIRE_DOXYGEN": "ON"
+      }
+    },
+    {
+      "name": "ninja-release-tests",
+      "displayName": "Ninja Release + tests",
+      "inherits": "ninja-release",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-unity-tests",
+      "displayName": "Ninja Debug + tests + unity builds",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_UNITY_BUILDS": "ON"
+      }
+    },
+    {
+      "name": "ninja-pch-tests",
+      "displayName": "Ninja Debug + tests + precompiled headers",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_PRECOMPILED_HEADERS": "ON"
+      }
+    },
+    {
+      "name": "ninja-build-cache-tests",
+      "displayName": "Ninja Debug + tests + compiler cache",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_BUILD_CACHE": "ON"
+      }
+    },
+    {
+      "name": "ninja-ccache-tests",
+      "displayName": "Ninja Debug + tests + ccache",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_CCACHE": "ON"
+      }
+    },
+    {
+      "name": "ninja-fast-iteration",
+      "displayName": "Ninja Debug + tests + fast iteration",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_FAST_ITERATION": "ON",
+        "IDTECH4_ENABLE_CCACHE": "ON"
+      }
+    },
+    {
+      "name": "ninja-lto-release",
+      "displayName": "Ninja Release + tests + LTO",
+      "inherits": "ninja-release-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_LTO": "ON"
+      }
+    },
+    {
+      "name": "ninja-size-analysis",
+      "displayName": "Ninja Debug + tests + binary size analysis",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_BINARY_SIZE_REPORT": "${sourceDir}/build/cmake/${presetName}/reports/binary-size.md"
+      }
+    },
+    {
+      "name": "ninja-coverage-gcov",
+      "displayName": "Ninja Debug + tests + gcov coverage",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_COVERAGE": "ON",
+        "IDTECH4_COVERAGE_FORMAT": "gcov"
+      }
+    },
+    {
+      "name": "ninja-coverage-llvm-cov",
+      "displayName": "Ninja Debug + tests + llvm-cov coverage",
+      "inherits": "ninja-tests",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "IDTECH4_ENABLE_COVERAGE": "ON",
+        "IDTECH4_COVERAGE_FORMAT": "llvm-cov"
+      }
+    },
+    {
+      "name": "ninja-sanitizer-base",
+      "hidden": true,
+      "inherits": "ninja-debug",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "ninja-asan",
+      "displayName": "Ninja Debug + AddressSanitizer",
+      "inherits": "ninja-sanitizer-base",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_ASAN": "ON"
+      }
+    },
+    {
+      "name": "ninja-asan-tests",
+      "displayName": "Ninja Debug + tests + AddressSanitizer",
+      "inherits": "ninja-asan",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-ubsan",
+      "displayName": "Ninja Debug + UndefinedBehaviorSanitizer",
+      "inherits": "ninja-sanitizer-base",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_UBSAN": "ON"
+      }
+    },
+    {
+      "name": "ninja-ubsan-tests",
+      "displayName": "Ninja Debug + tests + UndefinedBehaviorSanitizer",
+      "inherits": "ninja-ubsan",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "ninja-tsan",
+      "displayName": "Ninja Debug + ThreadSanitizer",
+      "inherits": "ninja-sanitizer-base",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "IDTECH4_ENABLE_TSAN": "ON"
+      }
+    },
+    {
+      "name": "ninja-tsan-tests",
+      "displayName": "Ninja Debug + tests + ThreadSanitizer",
+      "inherits": "ninja-tsan",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "IDTECH4_BUILD_TESTS": "ON"
+      }
+    },
+    {
+      "name": "emscripten-debug",
+      "displayName": "Emscripten Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "IDTECH4_BUILD_ENGINE_TARGETS": "OFF",
+        "IDTECH4_INSTALL_RUNTIME_TARGETS": "OFF"
+      }
+    },
+    {
+      "name": "emscripten-smoke",
+      "displayName": "Emscripten WebAssembly smoke",
+      "inherits": "emscripten-debug",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}"
+    },
+    {
+      "name": "android-arm64-debug",
+      "displayName": "Android arm64 Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/android.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_ANDROID_ARCH_ABI": "arm64-v8a"
+      }
+    },
+    {
+      "name": "ios-debug",
+      "displayName": "iOS Debug",
+      "generator": "Xcode",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/ios.cmake"
+    },
+    {
+      "name": "console-generic-debug",
+      "displayName": "Console Generic Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/console-generic.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "vs2026-x64-debug",
+      "configurePreset": "vs2026-x64",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026-x64-relwithdebinfo",
+      "configurePreset": "vs2026-x64",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "vs2026-x64-asan-debug",
+      "configurePreset": "vs2026-x64-asan",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026-x64-editor-debug",
+      "configurePreset": "vs2026-x64-editor",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026-x64-editor-relwithdebinfo",
+      "configurePreset": "vs2026-x64-editor",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "vs2026-x64-dedicated-debug",
+      "configurePreset": "vs2026-x64-dedicated",
+      "configuration": "Dedicated Debug"
+    },
+    {
+      "name": "vs2026-x64-dedicated-release",
+      "configurePreset": "vs2026-x64-dedicated",
+      "configuration": "Dedicated Release"
+    },
+    {
+      "name": "vs2026-x64-tests-debug",
+      "configurePreset": "vs2026-x64-tests",
+      "configuration": "Debug",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "vs2026-x64-fast-iteration-debug",
+      "configurePreset": "vs2026-x64-fast-iteration",
+      "configuration": "Debug",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "vs2026-x64-lto-release",
+      "configurePreset": "vs2026-x64-lto-release",
+      "configuration": "Release",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "vs2026-x64-size-analysis-debug",
+      "configurePreset": "vs2026-x64-size-analysis",
+      "configuration": "Debug",
+      "targets": [
+        "idtech4_binary_size"
+      ]
+    },
+    {
+      "name": "vs2026-x64-release",
+      "configurePreset": "vs2026-x64",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2026-x64-vcpkg-debug",
+      "configurePreset": "vs2026-x64-vcpkg",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026-x64-vcpkg-release",
+      "configurePreset": "vs2026-x64-vcpkg",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2026-x64-vcpkg-large-audio-debug",
+      "configurePreset": "vs2026-x64-vcpkg-large-audio",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026-x64-vcpkg-tests-debug",
+      "configurePreset": "vs2026-x64-vcpkg-tests",
+      "configuration": "Debug",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "vs2026-win32-debug",
+      "configurePreset": "vs2026-win32",
+      "configuration": "Debug"
+    },
+    {
+      "name": "vs2026-win32-release",
+      "configurePreset": "vs2026-win32",
+      "configuration": "Release"
+    },
+    {
+      "name": "vs2026-win32-dedicated-debug",
+      "configurePreset": "vs2026-win32",
+      "configuration": "Dedicated Debug"
+    },
+    {
+      "name": "vs2026-win32-dedicated-release",
+      "configurePreset": "vs2026-win32",
+      "configuration": "Dedicated Release"
+    },
+    {
+      "name": "ninja-debug",
+      "configurePreset": "ninja-debug"
+    },
+    {
+      "name": "ninja-release",
+      "configurePreset": "ninja-release"
+    },
+    {
+      "name": "ninja-relwithdebinfo",
+      "configurePreset": "ninja-relwithdebinfo"
+    },
+    {
+      "name": "ninja-benchmark",
+      "configurePreset": "ninja-benchmark",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-editor",
+      "configurePreset": "ninja-editor"
+    },
+    {
+      "name": "ninja-dedicated-debug",
+      "configurePreset": "ninja-dedicated-debug"
+    },
+    {
+      "name": "ninja-dedicated-release",
+      "configurePreset": "ninja-dedicated-release"
+    },
+    {
+      "name": "ninja-gcc-debug",
+      "configurePreset": "ninja-gcc-debug"
+    },
+    {
+      "name": "ninja-gcc-release",
+      "configurePreset": "ninja-gcc-release"
+    },
+    {
+      "name": "ninja-gcc-tests",
+      "configurePreset": "ninja-gcc-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-gcc-ci-package",
+      "configurePreset": "ninja-gcc-tests",
+      "targets": [
+        "idtech4_ci_package"
+      ]
+    },
+    {
+      "name": "ninja-gcc-release-tests",
+      "configurePreset": "ninja-gcc-release-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-gcc-release-ci-package",
+      "configurePreset": "ninja-gcc-release-tests",
+      "targets": [
+        "idtech4_ci_package"
+      ]
+    },
+    {
+      "name": "ninja-clang-debug",
+      "configurePreset": "ninja-clang-debug"
+    },
+    {
+      "name": "ninja-clang-release",
+      "configurePreset": "ninja-clang-release"
+    },
+    {
+      "name": "ninja-clang-tests",
+      "configurePreset": "ninja-clang-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-clang-ci-package",
+      "configurePreset": "ninja-clang-tests",
+      "targets": [
+        "idtech4_ci_package"
+      ]
+    },
+    {
+      "name": "ninja-clang-release-tests",
+      "configurePreset": "ninja-clang-release-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-clang-release-ci-package",
+      "configurePreset": "ninja-clang-release-tests",
+      "targets": [
+        "idtech4_ci_package"
+      ]
+    },
+    {
+      "name": "ninja-format-check",
+      "configurePreset": "ninja-debug",
+      "targets": [
+        "idtech4_format_check"
+      ]
+    },
+    {
+      "name": "ninja-format",
+      "configurePreset": "ninja-debug",
+      "targets": [
+        "idtech4_format"
+      ]
+    },
+    {
+      "name": "ninja-lint",
+      "configurePreset": "ninja-debug",
+      "targets": [
+        "idtech4_lint"
+      ]
+    },
+    {
+      "name": "ninja-install-sdk",
+      "configurePreset": "ninja-install-sdk",
+      "targets": [
+        "idtech4_generate_docs"
+      ]
+    },
+    {
+      "name": "ninja-vcpkg-debug",
+      "configurePreset": "ninja-vcpkg-debug"
+    },
+    {
+      "name": "ninja-vcpkg-release",
+      "configurePreset": "ninja-vcpkg-release"
+    },
+    {
+      "name": "ninja-vcpkg-tests",
+      "configurePreset": "ninja-vcpkg-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-vcpkg-large-audio",
+      "configurePreset": "ninja-vcpkg-large-audio"
+    },
+    {
+      "name": "ninja-cppcheck",
+      "configurePreset": "ninja-cppcheck"
+    },
+    {
+      "name": "ninja-cppcheck-tests",
+      "configurePreset": "ninja-cppcheck-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-clang-tidy",
+      "configurePreset": "ninja-clang-tidy"
+    },
+    {
+      "name": "ninja-clang-tidy-tests",
+      "configurePreset": "ninja-clang-tidy-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-iwyu",
+      "configurePreset": "ninja-iwyu"
+    },
+    {
+      "name": "ninja-analysis",
+      "configurePreset": "ninja-analysis"
+    },
+    {
+      "name": "ninja-tests",
+      "configurePreset": "ninja-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-docs",
+      "configurePreset": "ninja-tests",
+      "targets": [
+        "idtech4_generate_docs"
+      ]
+    },
+    {
+      "name": "ninja-api-reference",
+      "configurePreset": "ninja-docs-site",
+      "targets": [
+        "idtech4_api_reference"
+      ]
+    },
+    {
+      "name": "ninja-docs-site",
+      "configurePreset": "ninja-docs-site",
+      "targets": [
+        "idtech4_docs_site"
+      ]
+    },
+    {
+      "name": "ninja-ci-package",
+      "configurePreset": "ninja-tests",
+      "targets": [
+        "idtech4_ci_package"
+      ]
+    },
+    {
+      "name": "ninja-release-tests",
+      "configurePreset": "ninja-release-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-release-ci-package",
+      "configurePreset": "ninja-release-tests",
+      "targets": [
+        "idtech4_ci_package"
+      ]
+    },
+    {
+      "name": "ninja-unity-tests",
+      "configurePreset": "ninja-unity-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-pch-tests",
+      "configurePreset": "ninja-pch-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-build-cache-tests",
+      "configurePreset": "ninja-build-cache-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-ccache-tests",
+      "configurePreset": "ninja-ccache-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-fast-iteration",
+      "configurePreset": "ninja-fast-iteration",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-lto-release",
+      "configurePreset": "ninja-lto-release",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-size-analysis",
+      "configurePreset": "ninja-size-analysis",
+      "targets": [
+        "idtech4_binary_size"
+      ]
+    },
+    {
+      "name": "ninja-coverage-gcov",
+      "configurePreset": "ninja-coverage-gcov",
+      "targets": [
+        "idtech4_coverage"
+      ]
+    },
+    {
+      "name": "ninja-coverage-llvm-cov",
+      "configurePreset": "ninja-coverage-llvm-cov",
+      "targets": [
+        "idtech4_coverage"
+      ]
+    },
+    {
+      "name": "ninja-asan",
+      "configurePreset": "ninja-asan"
+    },
+    {
+      "name": "ninja-asan-tests",
+      "configurePreset": "ninja-asan-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-ubsan",
+      "configurePreset": "ninja-ubsan"
+    },
+    {
+      "name": "ninja-ubsan-tests",
+      "configurePreset": "ninja-ubsan-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "ninja-tsan",
+      "configurePreset": "ninja-tsan"
+    },
+    {
+      "name": "ninja-tsan-tests",
+      "configurePreset": "ninja-tsan-tests",
+      "targets": [
+        "idtech4_tests"
+      ]
+    },
+    {
+      "name": "emscripten-smoke",
+      "configurePreset": "emscripten-smoke",
+      "targets": [
+        "idtech4_emscripten_smoke"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "ninja-tests",
+      "configurePreset": "ninja-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-vcpkg-tests",
+      "configurePreset": "ninja-vcpkg-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-gcc-tests",
+      "configurePreset": "ninja-gcc-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-gcc-release-tests",
+      "configurePreset": "ninja-gcc-release-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-clang-tests",
+      "configurePreset": "ninja-clang-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-clang-release-tests",
+      "configurePreset": "ninja-clang-release-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-release-tests",
+      "configurePreset": "ninja-release-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-benchmark",
+      "configurePreset": "ninja-benchmark",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-unity-tests",
+      "configurePreset": "ninja-unity-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-pch-tests",
+      "configurePreset": "ninja-pch-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-build-cache-tests",
+      "configurePreset": "ninja-build-cache-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-ccache-tests",
+      "configurePreset": "ninja-ccache-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-fast-iteration",
+      "configurePreset": "ninja-fast-iteration",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-lto-release",
+      "configurePreset": "ninja-lto-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-coverage-gcov",
+      "configurePreset": "ninja-coverage-gcov",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-asan-tests",
+      "configurePreset": "ninja-asan-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-ubsan-tests",
+      "configurePreset": "ninja-ubsan-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ninja-tsan-tests",
+      "configurePreset": "ninja-tsan-tests",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vs2026-x64-tests-debug",
+      "configurePreset": "vs2026-x64-tests",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vs2026-x64-fast-iteration-debug",
+      "configurePreset": "vs2026-x64-fast-iteration",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vs2026-x64-lto-release",
+      "configurePreset": "vs2026-x64-lto-release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "vs2026-x64-vcpkg-tests-debug",
+      "configurePreset": "vs2026-x64-vcpkg-tests",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ],
+  "packagePresets": [
+    {
+      "name": "ninja-sdk-zip",
+      "configurePreset": "ninja-install-sdk",
+      "generators": [
+        "ZIP"
+      ],
+      "variables": {
+        "CPACK_COMPONENTS_ALL": "sdk;docs"
+      }
+    },
+    {
+      "name": "ninja-sdk-stgz",
+      "configurePreset": "ninja-install-sdk",
+      "generators": [
+        "STGZ"
+      ],
+      "variables": {
+        "CPACK_COMPONENTS_ALL": "sdk;docs"
+      }
+    },
+    {
+      "name": "ninja-sdk-deb",
+      "configurePreset": "ninja-install-sdk",
+      "generators": [
+        "DEB"
+      ],
+      "variables": {
+        "CPACK_COMPONENTS_ALL": "sdk;docs"
+      }
+    },
+    {
+      "name": "ninja-sdk-rpm",
+      "configurePreset": "ninja-install-sdk",
+      "generators": [
+        "RPM"
+      ],
+      "variables": {
+        "CPACK_COMPONENTS_ALL": "sdk;docs"
+      }
+    },
+    {
+      "name": "ninja-sdk-nsis",
+      "configurePreset": "ninja-install-sdk",
+      "generators": [
+        "NSIS"
+      ],
+      "variables": {
+        "CPACK_COMPONENTS_ALL": "sdk;docs"
+      }
+    },
+    {
+      "name": "ninja-sdk-wix",
+      "configurePreset": "ninja-install-sdk",
+      "generators": [
+        "WIX"
+      ],
+      "variables": {
+        "CPACK_COMPONENTS_ALL": "sdk;docs"
+      }
+    }
+  ]
+}

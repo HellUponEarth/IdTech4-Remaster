@@ -29,6 +29,8 @@ If you have questions concerning this license or the applicable additional terms
 #ifndef __GAMETYPEINFO_H__
 #define __GAMETYPEINFO_H__
 
+#include <stddef.h>
+
 /*
 ===================================================================================
 
@@ -56,14 +58,14 @@ typedef struct {
 typedef struct {
 	const char * type;
 	const char * name;
-	int offset;
-	int size;
+	size_t offset;
+	size_t size;
 } classVariableInfo_t;
 
 typedef struct {
 	const char * typeName;
 	const char * superType;
-	int size;
+	size_t size;
 	const classVariableInfo_t * variables;
 } classTypeInfo_t;
 

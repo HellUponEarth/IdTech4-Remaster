@@ -376,7 +376,7 @@ public:
 	virtual idFile *		OpenExplicitFileRead( const char *OSPath );
 	virtual idFile *		OpenExplicitFileWrite( const char *OSPath );
 	virtual void			CloseFile( idFile *f );
-	virtual void			BackgroundDownload( backgroundDownload_t *bgl );
+	virtual void			BackgroundDownload( backgroundDownload_t *p_bgl );
 	virtual void			ResetReadCount( void ) { readCount = 0; }
 	virtual void			AddToReadCount( int c ) { readCount += c; }
 	virtual int				GetReadCount( void ) { return readCount; }
@@ -475,9 +475,9 @@ private:
 	addonInfo_t *			ParseAddonDef( const char *buf, const int len );
 	void					FollowAddonDependencies( pack_t *pak );
 
-	static size_t			CurlWriteFunction( void *ptr, size_t size, size_t nmemb, void *stream );
+	static size_t			CurlWriteFunction( void *p_ptr, size_t size, size_t nmemb, void *p_stream );
 							// curl_progress_callback in curl.h
-	static int				CurlProgressFunction( void *clientp, double dltotal, double dlnow, double ultotal, double ulnow );
+	static int				CurlProgressFunction( void *p_clientp, double dltotal, double dlnow, double ultotal, double ulnow );
 };
 
 idCVar	idFileSystemLocal::fs_restrict( "fs_restrict", "", CVAR_SYSTEM | CVAR_INIT | CVAR_BOOL, "" );
@@ -3589,15 +3589,15 @@ back ground loading
 idFileSystemLocal::CurlWriteFunction
 =================
 */
-size_t idFileSystemLocal::CurlWriteFunction( void *ptr, size_t size, size_t nmemb, void *stream ) {
-	backgroundDownload_t *bgl = (backgroundDownload_t *)stream;
-	if ( !bgl->f ) {
+size_t idFileSystemLocal::CurlWriteFunction( void *p_ptr, size_t size, size_t nmemb, void *p_stream ) {
+	backgroundDownload_t *p_bgl = (backgroundDownload_t *)p_stream;
+	if ( !p_bgl->f ) {
 		return size * nmemb;
 	}
 	#ifdef _WIN32
-		return _write( static_cast<idFile_Permanent*>(bgl->f)->GetFilePtr()->_file, ptr, size * nmemb );
+		return _write( _fileno( static_cast<idFile_Permanent*>(p_bgl->f)->GetFilePtr() ), p_ptr, size * nmemb );
 	#else
-		return fwrite( ptr, size, nmemb, static_cast<idFile_Permanent*>(bgl->f)->GetFilePtr() );
+		return fwrite( p_ptr, size, nmemb, static_cast<idFile_Permanent*>(p_bgl->f)->GetFilePtr() );
 	#endif
 }
 
@@ -3606,13 +3606,13 @@ size_t idFileSystemLocal::CurlWriteFunction( void *ptr, size_t size, size_t nmem
 idFileSystemLocal::CurlProgressFunction
 =================
 */
-int idFileSystemLocal::CurlProgressFunction( void *clientp, double dltotal, double dlnow, double ultotal, double ulnow ) {
-	backgroundDownload_t *bgl = (backgroundDownload_t *)clientp;
-	if ( bgl->url.status == DL_ABORTING ) {
+int idFileSystemLocal::CurlProgressFunction( void *p_clientp, double dltotal, double dlnow, double ultotal, double ulnow ) {
+	backgroundDownload_t *p_bgl = (backgroundDownload_t *)p_clientp;
+	if ( p_bgl->url.status == DL_ABORTING ) {
 		return 1;
 	}
-	bgl->url.dltotal = dltotal;
-	bgl->url.dlnow = dlnow;
+	p_bgl->url.dltotal = dltotal;
+	p_bgl->url.dlnow = dlnow;
 	return 0;
 }
 
@@ -3623,116 +3623,116 @@ BackgroundDownload
 Reads part of a file from a background thread.
 ===================
 */
-dword BackgroundDownloadThread( void *parms ) {
+dword BackgroundDownloadThread( void *p_parms ) {
 	while( 1 ) {
 		Sys_EnterCriticalSection();
-		backgroundDownload_t	*bgl = fileSystemLocal.backgroundDownloads;
-		if ( !bgl ) {
+		backgroundDownload_t	*p_bgl = fileSystemLocal.backgroundDownloads;
+		if ( !p_bgl ) {
 			Sys_LeaveCriticalSection();
 			Sys_WaitForEvent();
 			continue;
 		}
 		// remove this from the list
-		fileSystemLocal.backgroundDownloads = bgl->next;
+		fileSystemLocal.backgroundDownloads = p_bgl->next;
 		Sys_LeaveCriticalSection();
 
-		bgl->next = NULL;
+		p_bgl->next = NULL;
 
-		if ( bgl->opcode == DLTYPE_FILE ) {
+		if ( p_bgl->opcode == DLTYPE_FILE ) {
 			// use the low level read function, because fread may allocate memory
 			#if defined(WIN32)
-				_read( static_cast<idFile_Permanent*>(bgl->f)->GetFilePtr()->_file, bgl->file.buffer, bgl->file.length );
+				_read( _fileno( static_cast<idFile_Permanent*>(p_bgl->f)->GetFilePtr() ), p_bgl->file.buffer, p_bgl->file.length );
 			#else
-				fread(  bgl->file.buffer, bgl->file.length, 1, static_cast<idFile_Permanent*>(bgl->f)->GetFilePtr() );
+				fread(  p_bgl->file.buffer, p_bgl->file.length, 1, static_cast<idFile_Permanent*>(p_bgl->f)->GetFilePtr() );
 			#endif
-			bgl->completed = true;
+			p_bgl->completed = true;
 		} else {
 #if ID_ENABLE_CURL
 			// DLTYPE_URL
 			// use a local buffer for curl error since the size define is local
 			char error_buf[ CURL_ERROR_SIZE ];
-			bgl->url.dlerror[ 0 ] = '\0';
-			CURL *session = curl_easy_init();
+			p_bgl->url.dlerror[ 0 ] = '\0';
+			CURL *p_session = curl_easy_init();
 			CURLcode ret;
-			if ( !session ) {
-				bgl->url.dlstatus = CURLE_FAILED_INIT;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+			if ( !p_session ) {
+				p_bgl->url.dlstatus = CURLE_FAILED_INIT;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_ERRORBUFFER, error_buf );
+			ret = curl_easy_setopt( p_session, CURLOPT_ERRORBUFFER, error_buf );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_URL, bgl->url.url.c_str() );
+			ret = curl_easy_setopt( p_session, CURLOPT_URL, p_bgl->url.url.c_str() );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_FAILONERROR, 1 );
+			ret = curl_easy_setopt( p_session, CURLOPT_FAILONERROR, 1 );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_WRITEFUNCTION, idFileSystemLocal::CurlWriteFunction );
+			ret = curl_easy_setopt( p_session, CURLOPT_WRITEFUNCTION, idFileSystemLocal::CurlWriteFunction );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_WRITEDATA, bgl );
+			ret = curl_easy_setopt( p_session, CURLOPT_WRITEDATA, p_bgl );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_NOPROGRESS, 0 );
+			ret = curl_easy_setopt( p_session, CURLOPT_NOPROGRESS, 0 );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_PROGRESSFUNCTION, idFileSystemLocal::CurlProgressFunction );
+			ret = curl_easy_setopt( p_session, CURLOPT_PROGRESSFUNCTION, idFileSystemLocal::CurlProgressFunction );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			ret = curl_easy_setopt( session, CURLOPT_PROGRESSDATA, bgl );
+			ret = curl_easy_setopt( p_session, CURLOPT_PROGRESSDATA, p_bgl );
 			if ( ret ) {
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			bgl->url.dlnow = 0;
-			bgl->url.dltotal = 0;
-			bgl->url.status = DL_INPROGRESS;
-			ret = curl_easy_perform( session );
+			p_bgl->url.dlnow = 0;
+			p_bgl->url.dltotal = 0;
+			p_bgl->url.status = DL_INPROGRESS;
+			ret = curl_easy_perform( p_session );
 			if ( ret ) {
 				Sys_Printf( "curl_easy_perform failed: %s\n", error_buf );
-				idStr::Copynz( bgl->url.dlerror, error_buf, MAX_STRING_CHARS );
-				bgl->url.dlstatus = ret;
-				bgl->url.status = DL_FAILED;
-				bgl->completed = true;
+				idStr::Copynz( p_bgl->url.dlerror, error_buf, MAX_STRING_CHARS );
+				p_bgl->url.dlstatus = ret;
+				p_bgl->url.status = DL_FAILED;
+				p_bgl->completed = true;
 				continue;
 			}
-			bgl->url.status = DL_DONE;
-			bgl->completed = true;
+			p_bgl->url.status = DL_DONE;
+			p_bgl->completed = true;
 #else
-			bgl->url.status = DL_FAILED;
-			bgl->completed = true;
+			p_bgl->url.status = DL_FAILED;
+			p_bgl->completed = true;
 #endif
 		}
 	}
@@ -3745,9 +3745,9 @@ idFileSystemLocal::StartBackgroundReadThread
 =================
 */
 void idFileSystemLocal::StartBackgroundDownloadThread() {
-	if ( !backgroundThread.threadHandle ) {
+	if ( !backgroundThread.p_threadHandle ) {
 		Sys_CreateThread( (xthread_t)BackgroundDownloadThread, NULL, THREAD_NORMAL, backgroundThread, "backgroundDownload", g_threads, &g_thread_count );
-		if ( !backgroundThread.threadHandle ) {
+		if ( !backgroundThread.p_threadHandle ) {
 			common->Warning( "idFileSystemLocal::StartBackgroundDownloadThread: failed" );
 		}
 	} else {
@@ -3760,25 +3760,25 @@ void idFileSystemLocal::StartBackgroundDownloadThread() {
 idFileSystemLocal::BackgroundDownload
 =================
 */
-void idFileSystemLocal::BackgroundDownload( backgroundDownload_t *bgl ) {
-	if ( bgl->opcode == DLTYPE_FILE ) {
-		if ( dynamic_cast<idFile_Permanent *>(bgl->f) ) {
-			// add the bgl to the background download list
+void idFileSystemLocal::BackgroundDownload( backgroundDownload_t *p_bgl ) {
+	if ( p_bgl->opcode == DLTYPE_FILE ) {
+		if ( dynamic_cast<idFile_Permanent *>(p_bgl->f) ) {
+			// add the download request to the background download list
 			Sys_EnterCriticalSection();
-			bgl->next = backgroundDownloads;
-			backgroundDownloads = bgl;
+			p_bgl->next = backgroundDownloads;
+			backgroundDownloads = p_bgl;
 			Sys_TriggerEvent();
 			Sys_LeaveCriticalSection();
 		} else {
 			// read zipped file directly
-			bgl->f->Seek( bgl->file.position, FS_SEEK_SET );
-			bgl->f->Read( bgl->file.buffer, bgl->file.length );
-			bgl->completed = true;
+			p_bgl->f->Seek( p_bgl->file.position, FS_SEEK_SET );
+			p_bgl->f->Read( p_bgl->file.buffer, p_bgl->file.length );
+			p_bgl->completed = true;
 		}
 	} else {
 		Sys_EnterCriticalSection();
-		bgl->next = backgroundDownloads;
-		backgroundDownloads = bgl;
+		p_bgl->next = backgroundDownloads;
+		backgroundDownloads = p_bgl;
 		Sys_TriggerEvent();
 		Sys_LeaveCriticalSection();
 	}

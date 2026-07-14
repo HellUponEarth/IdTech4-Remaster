@@ -196,11 +196,11 @@ const char *idLexer::GetPunctuationFromId( int id ) {
 idLexer::GetPunctuationId
 ================
 */
-int idLexer::GetPunctuationId( const char *p ) {
+int idLexer::GetPunctuationId( const char *p_punctuation ) {
 	int i;
 
 	for (i = 0; idLexer::punctuations[i].p; i++) {
-		if ( !strcmp(idLexer::punctuations[i].p, p) ) {
+		if ( !strcmp(idLexer::punctuations[i].p, p_punctuation) ) {
 			return idLexer::punctuations[i].n;
 		}
 	}
@@ -1794,4 +1794,3 @@ idLexer::HadError
 bool idLexer::HadError( void ) const {
 	return hadError;
 }
-

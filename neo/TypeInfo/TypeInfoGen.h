@@ -86,8 +86,8 @@ public:
 								~idTypeInfoGen( void );
 
 	void						AddDefine( const char *define );
-	void						CreateTypeInfo( const char *path );
-	void						WriteTypeInfo( const char *fileName ) const;
+	void						CreateTypeInfo( const char *p_path );
+	void						WriteTypeInfo( const char *p_fileName ) const;
 
 private:
 	idStrList					defines;

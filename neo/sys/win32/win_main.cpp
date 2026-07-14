@@ -90,22 +90,22 @@ void Sys_GetExeLaunchMemoryStatus( sysMemoryStats_t &stats ) {
 Sys_Createthread
 ==================
 */
-void Sys_CreateThread(  xthread_t function, void *parms, xthreadPriority priority, xthreadInfo &info, const char *name, xthreadInfo *threads[MAX_THREADS], int *thread_count ) {
-	HANDLE temp = CreateThread(	NULL,	// LPSECURITY_ATTRIBUTES lpsa,
+void Sys_CreateThread(  xthread_t p_function, void *p_parms, xthreadPriority priority, xthreadInfo &info, const char *p_name, xthreadInfo *p_threads[MAX_THREADS], int *p_thread_count ) {
+	HANDLE p_threadHandle = CreateThread(	NULL,	// LPSECURITY_ATTRIBUTES lpsa,
 									0,		// DWORD cbStack,
-									(LPTHREAD_START_ROUTINE)function,	// LPTHREAD_START_ROUTINE lpStartAddr,
-									parms,	// LPVOID lpvThreadParm,
+									(LPTHREAD_START_ROUTINE)p_function,	// LPTHREAD_START_ROUTINE lpStartAddr,
+									p_parms,	// LPVOID lpvThreadParm,
 									0,		//   DWORD fdwCreate,
 									&info.threadId);
-	info.threadHandle = (int) temp;
+	info.p_threadHandle = reinterpret_cast<sysHandle_t>( p_threadHandle );
 	if (priority == THREAD_HIGHEST) {
-		SetThreadPriority( (HANDLE)info.threadHandle, THREAD_PRIORITY_HIGHEST );		//  we better sleep enough to do this
+		SetThreadPriority( reinterpret_cast<HANDLE>( info.p_threadHandle ), THREAD_PRIORITY_HIGHEST );		//  we better sleep enough to do this
 	} else if (priority == THREAD_ABOVE_NORMAL ) {
-		SetThreadPriority( (HANDLE)info.threadHandle, THREAD_PRIORITY_ABOVE_NORMAL );
+		SetThreadPriority( reinterpret_cast<HANDLE>( info.p_threadHandle ), THREAD_PRIORITY_ABOVE_NORMAL );
 	}
-	info.name = name;
-	if ( *thread_count < MAX_THREADS ) {
-		threads[(*thread_count)++] = &info;
+	info.name = p_name;
+	if ( *p_thread_count < MAX_THREADS ) {
+		p_threads[(*p_thread_count)++] = &info;
 	} else {
 		common->DPrintf("WARNING: MAX_THREADS reached\n");
 	}
@@ -117,9 +117,9 @@ Sys_DestroyThread
 ==================
 */
 void Sys_DestroyThread( xthreadInfo& info ) {
-	WaitForSingleObject( (HANDLE)info.threadHandle, INFINITE);
-	CloseHandle( (HANDLE)info.threadHandle );
-	info.threadHandle = 0;
+	WaitForSingleObject( reinterpret_cast<HANDLE>( info.p_threadHandle ), INFINITE);
+	CloseHandle( reinterpret_cast<HANDLE>( info.p_threadHandle ) );
+	info.p_threadHandle = 0;
 }
 
 /*
@@ -655,20 +655,20 @@ DLL Loading
 Sys_DLL_Load
 =====================
 */
-int Sys_DLL_Load( const char *dllName ) {
-	HINSTANCE	libHandle;
-	libHandle = LoadLibrary( dllName );
-	if ( libHandle ) {
+sysHandle_t Sys_DLL_Load( const char *p_dllName ) {
+	HINSTANCE	p_libHandle;
+	p_libHandle = LoadLibrary( p_dllName );
+	if ( p_libHandle ) {
 		// since we can't have LoadLibrary load only from the specified path, check it did the right thing
 		char loadedPath[ MAX_OSPATH ];
-		GetModuleFileName( libHandle, loadedPath, sizeof( loadedPath ) - 1 );
-		if ( idStr::IcmpPath( dllName, loadedPath ) ) {
-			Sys_Printf( "ERROR: LoadLibrary '%s' wants to load '%s'\n", dllName, loadedPath );
-			Sys_DLL_Unload( (int)libHandle );
+		GetModuleFileName( p_libHandle, loadedPath, sizeof( loadedPath ) - 1 );
+		if ( idStr::IcmpPath( p_dllName, loadedPath ) ) {
+			Sys_Printf( "ERROR: LoadLibrary '%s' wants to load '%s'\n", p_dllName, loadedPath );
+			Sys_DLL_Unload( reinterpret_cast<sysHandle_t>( p_libHandle ) );
 			return 0;
 		}
 	}
-	return (int)libHandle;
+	return reinterpret_cast<sysHandle_t>( p_libHandle );
 }
 
 /*
@@ -676,8 +676,8 @@ int Sys_DLL_Load( const char *dllName ) {
 Sys_DLL_GetProcAddress
 =====================
 */
-void *Sys_DLL_GetProcAddress( int dllHandle, const char *procName ) {
-	return GetProcAddress( (HINSTANCE)dllHandle, procName ); 
+void *Sys_DLL_GetProcAddress( sysHandle_t p_dllHandle, const char *p_procName ) {
+	return reinterpret_cast<void *>( GetProcAddress( reinterpret_cast<HINSTANCE>( p_dllHandle ), p_procName ) );
 }
 
 /*
@@ -685,11 +685,11 @@ void *Sys_DLL_GetProcAddress( int dllHandle, const char *procName ) {
 Sys_DLL_Unload
 =====================
 */
-void Sys_DLL_Unload( int dllHandle ) {
-	if ( !dllHandle ) {
+void Sys_DLL_Unload( sysHandle_t p_dllHandle ) {
+	if ( !p_dllHandle ) {
 		return;
 	}
-	if ( FreeLibrary( (HINSTANCE)dllHandle ) == 0 ) {
+	if ( FreeLibrary( reinterpret_cast<HINSTANCE>( p_dllHandle ) ) == 0 ) {
 		int lastError = GetLastError();
 		LPVOID lpMsgBuf;
 		FormatMessage(
@@ -728,27 +728,27 @@ Ptr should either be null, or point to a block of data that can
 be freed by the game later.
 ================
 */
-void Sys_QueEvent( int time, sysEventType_t type, int value, int value2, int ptrLength, void *ptr ) {
-	sysEvent_t	*ev;
+void Sys_QueEvent( int time, sysEventType_t type, int value, int value2, int ptrLength, void *p_ptr ) {
+	sysEvent_t	*p_ev;
 
-	ev = &eventQue[ eventHead & MASK_QUED_EVENTS ];
+	p_ev = &eventQue[ eventHead & MASK_QUED_EVENTS ];
 
 	if ( eventHead - eventTail >= MAX_QUED_EVENTS ) {
 		common->Printf("Sys_QueEvent: overflow\n");
 		// we are discarding an event, but don't leak memory
-		if ( ev->evPtr ) {
-			Mem_Free( ev->evPtr );
+		if ( p_ev->p_evPtr ) {
+			Mem_Free( p_ev->p_evPtr );
 		}
 		eventTail++;
 	}
 
 	eventHead++;
 
-	ev->evType = type;
-	ev->evValue = value;
-	ev->evValue2 = value2;
-	ev->evPtrLength = ptrLength;
-	ev->evPtr = ptr;
+	p_ev->evType = type;
+	p_ev->evValue = value;
+	p_ev->evValue2 = value2;
+	p_ev->evPtrLength = ptrLength;
+	p_ev->p_evPtr = p_ptr;
 }
 
 /*
@@ -924,10 +924,10 @@ void Sys_StartAsyncThread( void ) {
 
 #ifdef SET_THREAD_AFFINITY 
 	// give the async thread an affinity for the second cpu
-	SetThreadAffinityMask( (HANDLE)threadInfo.threadHandle, 2 );
+	SetThreadAffinityMask( reinterpret_cast<HANDLE>( threadInfo.p_threadHandle ), 2 );
 #endif
 
-	if ( !threadInfo.threadHandle ) {
+	if ( !threadInfo.p_threadHandle ) {
 		common->Error( "Sys_StartAsyncThread: failed" );
 	}
 }
@@ -1167,8 +1167,10 @@ void Win_Frame( void ) {
 	}
 }
 
-extern "C" { void _chkstk( int size ); };
 void clrstk( void );
+
+#if !defined(_M_X64)
+extern "C" { void _chkstk( int size ); };
 
 /*
 ====================
@@ -1194,6 +1196,12 @@ void HackChkStk( void ) {
 
 	TestChkStk();
 }
+#endif
+
+#if defined(_M_X64) || defined(_WIN64)
+void DisableTaskKeys( BOOL bDisable, BOOL bBeep, BOOL bTaskMgr ) {
+}
+#endif
 
 /*
 ====================
@@ -1289,6 +1297,53 @@ EXCEPTION_DISPOSITION __cdecl _except_handler( struct _EXCEPTION_RECORD *Excepti
 	static char msg[ 8192 ];
 	char FPUFlags[2048];
 
+#if defined( _M_X64 )
+	idStr::snPrintf( FPUFlags, sizeof( FPUFlags ), "FPU state is not available from the x64 exception context.\n" );
+
+	sprintf( msg,
+		"Please describe what you were doing when DOOM 3 crashed!\n"
+		"If this text did not pop into your email client please copy and email it to programmers@idsoftware.com\n"
+			"\n"
+			"-= FATAL EXCEPTION =-\n"
+			"\n"
+			"%s\n"
+			"\n"
+			"0x%x at address 0x%p\n"
+			"\n"
+			"%s\n"
+			"\n"
+			"RAX = 0x%016llx RBX = 0x%016llx\n"
+			"RCX = 0x%016llx RDX = 0x%016llx\n"
+			"RSI = 0x%016llx RDI = 0x%016llx\n"
+			"RIP = 0x%016llx RSP = 0x%016llx\n"
+			"RBP = 0x%016llx EFL = 0x%08x\n"
+			"\n"
+			"CS = 0x%04x\n"
+			"SS = 0x%04x\n"
+			"DS = 0x%04x\n"
+			"ES = 0x%04x\n"
+			"FS = 0x%04x\n"
+			"GS = 0x%04x\n"
+			"\n"
+			"%s\n",
+			com_version.GetString(),
+			ExceptionRecord->ExceptionCode,
+			ExceptionRecord->ExceptionAddress,
+			GetExceptionCodeInfo( ExceptionRecord->ExceptionCode ),
+			static_cast<unsigned long long>( ContextRecord->Rax ), static_cast<unsigned long long>( ContextRecord->Rbx ),
+			static_cast<unsigned long long>( ContextRecord->Rcx ), static_cast<unsigned long long>( ContextRecord->Rdx ),
+			static_cast<unsigned long long>( ContextRecord->Rsi ), static_cast<unsigned long long>( ContextRecord->Rdi ),
+			static_cast<unsigned long long>( ContextRecord->Rip ), static_cast<unsigned long long>( ContextRecord->Rsp ),
+			static_cast<unsigned long long>( ContextRecord->Rbp ), ContextRecord->EFlags,
+			ContextRecord->SegCs,
+			ContextRecord->SegSs,
+			ContextRecord->SegDs,
+			ContextRecord->SegEs,
+			ContextRecord->SegFs,
+			ContextRecord->SegGs,
+			FPUFlags
+		);
+#else
 	Sys_FPU_PrintStateFlags( FPUFlags, ContextRecord->FloatSave.ControlWord,
 										ContextRecord->FloatSave.StatusWord,
 										ContextRecord->FloatSave.TagWord,
@@ -1341,6 +1396,7 @@ EXCEPTION_DISPOSITION __cdecl _except_handler( struct _EXCEPTION_RECORD *Excepti
 			ContextRecord->SegGs,
 			FPUFlags
 		);
+#endif
 
 	EmailCrashReport( msg );
 	common->FatalError( msg );
@@ -1513,6 +1569,10 @@ I tried to get the run time to call this at every function entry, but
 ====================
 */
 static int	parmBytes;
+#if defined( _M_X64 )
+void clrstk( void ) {
+}
+#else
 __declspec( naked ) void clrstk( void ) {
 	// eax = bytes to add to stack
 	__asm {
@@ -1540,6 +1600,7 @@ __declspec( naked ) void clrstk( void ) {
         ret
 	}
 }
+#endif
 
 /*
 ==================

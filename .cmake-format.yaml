@@ -1,0 +1,31 @@
+format:
+  autosort: false
+  command_case: canonical
+  dangle_align: prefix
+  dangle_parens: true
+  line_width: 120
+  max_pargs_hwrap: 4
+  separate_ctrl_name_with_space: false
+  separate_fn_name_with_space: false
+  tab_size: 4
+
+markup:
+  enable_markup: false
+
+parse:
+  additional_commands:
+    CPMAddPackage:
+      kwargs:
+        NAME: 1
+        URL: 1
+        URL_HASH: 1
+        VERSION: 1
+
+lint:
+  disabled_codes:
+    - C0103
+    - C0111
+    - C0113
+    - C0301
+    - E1120
+    - W0106

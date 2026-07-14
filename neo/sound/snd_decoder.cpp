@@ -360,7 +360,7 @@ int idSampleDecoder::GetNumUsedBlocks( void ) {
 idSampleDecoder::GetUsedBlockMemory
 ====================
 */
-int idSampleDecoder::GetUsedBlockMemory( void ) {
+size_t idSampleDecoder::GetUsedBlockMemory( void ) {
 	return decoderMemoryAllocator.GetUsedBlockMemory();
 }
 

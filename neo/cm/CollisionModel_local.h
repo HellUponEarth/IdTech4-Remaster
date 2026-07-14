@@ -102,6 +102,7 @@ typedef struct cm_polygonBlock_s {
 
 typedef struct cm_polygon_s {
 	idBounds				bounds;				// polygon bounds
+	int						polygonId;			// stable per-model polygon id
 	int						checkcount;			// for multi-check avoidance
 	int						contents;			// contents behind polygon
 	const idMaterial *		material;			// material
@@ -186,6 +187,7 @@ typedef struct cm_model_s {
 	int						numNodes;
 	int						numBrushRefs;
 	int						numPolygonRefs;
+	int						nextPolygonId;
 	int						numInternalEdges;
 	int						numSharpEdges;
 	int						numRemovedPolys;
@@ -446,6 +448,7 @@ private:			// CollisionMap_load.cpp
 	void			R_FilterBrushIntoTree( cm_model_t *model, cm_node_t *node, cm_brushRef_t *pref, cm_brush_t *b );
 	cm_node_t *		R_CreateAxialBSPTree( cm_model_t *model, cm_node_t *node, const idBounds &bounds );
 	cm_node_t *		CreateAxialBSPTree( cm_model_t *model, cm_node_t *node );
+	const cm_polygon_t *FindPolygonById_r( const cm_node_t *p_node, int polygonId ) const;
 					// creation of raw polygons
 	void			SetupHash(void);
 	void			ShutdownHash(void);

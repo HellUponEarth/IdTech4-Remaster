@@ -115,49 +115,86 @@ int Sys_GetVideoRam( void ) {
 #else
 	unsigned int retSize = 64;
 
-	CComPtr<IWbemLocator> spLoc = NULL;
-	HRESULT hr = CoCreateInstance( CLSID_WbemLocator, 0, CLSCTX_SERVER, IID_IWbemLocator, ( LPVOID * ) &spLoc );
-	if ( hr != S_OK || spLoc == NULL ) {
+	IWbemLocator *p_locator = NULL;
+	IWbemServices *p_services = NULL;
+	IEnumWbemClassObject *p_enumInstances = NULL;
+	IWbemClassObject *p_instance = NULL;
+	BSTR p_namespace = NULL;
+	BSTR p_className = NULL;
+	BSTR p_adapterRam = NULL;
+	VARIANT varSize;
+	ULONG numInstances = 0;
+	HRESULT hr;
+
+	VariantInit( &varSize );
+
+	hr = CoCreateInstance( CLSID_WbemLocator, 0, CLSCTX_SERVER, IID_IWbemLocator, reinterpret_cast<LPVOID *>( &p_locator ) );
+	if ( hr != S_OK || p_locator == NULL ) {
 		return retSize;
 	}
 
-	CComBSTR bstrNamespace( _T( "\\\\.\\root\\CIMV2" ) );
-	CComPtr<IWbemServices> spServices;
+	p_namespace = SysAllocString( L"\\\\.\\root\\CIMV2" );
+	if ( p_namespace == NULL ) {
+		p_locator->Release();
+		return retSize;
+	}
 
 	// Connect to CIM
-	hr = spLoc->ConnectServer( bstrNamespace, NULL, NULL, 0, NULL, 0, 0, &spServices );
+	hr = p_locator->ConnectServer( p_namespace, NULL, NULL, 0, NULL, 0, 0, &p_services );
+	SysFreeString( p_namespace );
+	p_namespace = NULL;
 	if ( hr != WBEM_S_NO_ERROR ) {
+		p_locator->Release();
 		return retSize;
 	}
 
 	// Switch the security level to IMPERSONATE so that provider will grant access to system-level objects.  
-	hr = CoSetProxyBlanket( spServices, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, EOAC_NONE );
+	hr = CoSetProxyBlanket( p_services, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, EOAC_NONE );
 	if ( hr != S_OK ) {
+		p_services->Release();
+		p_locator->Release();
 		return retSize;
 	}
 
 	// Get the vid controller
-	CComPtr<IEnumWbemClassObject> spEnumInst = NULL;
-	hr = spServices->CreateInstanceEnum( CComBSTR( "Win32_VideoController" ), WBEM_FLAG_SHALLOW, NULL, &spEnumInst ); 
-	if ( hr != WBEM_S_NO_ERROR || spEnumInst == NULL ) {
+	p_className = SysAllocString( L"Win32_VideoController" );
+	if ( p_className == NULL ) {
+		p_services->Release();
+		p_locator->Release();
+		return retSize;
+	}
+	hr = p_services->CreateInstanceEnum( p_className, WBEM_FLAG_SHALLOW, NULL, &p_enumInstances );
+	SysFreeString( p_className );
+	p_className = NULL;
+	if ( hr != WBEM_S_NO_ERROR || p_enumInstances == NULL ) {
+		p_services->Release();
+		p_locator->Release();
 		return retSize;
 	}
 
-	ULONG uNumOfInstances = 0;
-	CComPtr<IWbemClassObject> spInstance = NULL;
-	hr = spEnumInst->Next( 10000, 1, &spInstance, &uNumOfInstances );
+	hr = p_enumInstances->Next( 10000, 1, &p_instance, &numInstances );
 
-	if ( hr == S_OK && spInstance ) {
+	if ( hr == S_OK && p_instance != NULL ) {
 		// Get properties from the object
-		CComVariant varSize;
-		hr = spInstance->Get( CComBSTR( _T( "AdapterRAM" ) ), 0, &varSize, 0, 0 );
+		p_adapterRam = SysAllocString( L"AdapterRAM" );
+		hr = p_adapterRam != NULL ? p_instance->Get( p_adapterRam, 0, &varSize, 0, 0 ) : E_OUTOFMEMORY;
+		if ( p_adapterRam != NULL ) {
+			SysFreeString( p_adapterRam );
+		}
 		if ( hr == S_OK ) {
-			retSize = varSize.intVal / ( 1024 * 1024 );
+			retSize = varSize.ulVal / ( 1024 * 1024 );
 			if ( retSize == 0 ) {
 				retSize = 64;
 			}
 		}
 	}
+	VariantClear( &varSize );
+	if ( p_instance != NULL ) {
+		p_instance->Release();
+	}
+	p_enumInstances->Release();
+	p_services->Release();
+	p_locator->Release();
 	return retSize;
 #endif
 }
@@ -209,8 +246,8 @@ void Sys_GetCurrentMemoryStatus( sysMemoryStats_t &stats ) {
 Sys_LockMemory
 ================
 */
-bool Sys_LockMemory( void *ptr, int bytes ) {
-	return ( VirtualLock( ptr, (SIZE_T)bytes ) != FALSE );
+bool Sys_LockMemory( void *p_ptr, int bytes ) {
+	return ( VirtualLock( p_ptr, (SIZE_T)bytes ) != FALSE );
 }
 
 /*
@@ -218,8 +255,8 @@ bool Sys_LockMemory( void *ptr, int bytes ) {
 Sys_UnlockMemory
 ================
 */
-bool Sys_UnlockMemory( void *ptr, int bytes ) {
-	return ( VirtualUnlock( ptr, (SIZE_T)bytes ) != FALSE );
+bool Sys_UnlockMemory( void *p_ptr, int bytes ) {
+	return ( VirtualUnlock( p_ptr, (SIZE_T)bytes ) != FALSE );
 }
 
 /*
@@ -276,13 +313,13 @@ const int UNDECORATE_FLAGS =	UNDNAME_NO_MS_KEYWORDS |
 #if defined(_DEBUG) && 1
 
 typedef struct symbol_s {
-	int					address;
+	address_t			address;
 	char *				name;
 	struct symbol_s *	next;
 } symbol_t;
 
 typedef struct module_s {
-	int					address;
+	address_t			address;
 	char *				name;
 	symbol_t *			symbols;
 	struct module_s *	next;
@@ -339,11 +376,11 @@ int ParseHexNumber( const char **ptr ) {
 Sym_Init
 ==================
 */
-void Sym_Init( long addr ) {
+void Sym_Init( address_t addr ) {
 	TCHAR moduleName[MAX_STRING_CHARS];
 	MEMORY_BASIC_INFORMATION mbi;
 
-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+	VirtualQuery( reinterpret_cast<void *>( addr ), &mbi, sizeof(mbi) );
 
 	GetModuleFileName( (HMODULE)mbi.AllocationBase, moduleName, sizeof( moduleName ) );
 
@@ -360,7 +397,7 @@ void Sym_Init( long addr ) {
 	module_t *module = (module_t *) malloc( sizeof( module_t ) );
 	module->name = (char *) malloc( strlen( moduleName ) + 1 );
 	strcpy( module->name, moduleName );
-	module->address = (int)mbi.AllocationBase;
+	module->address = reinterpret_cast<address_t>( mbi.AllocationBase );
 	module->symbols = NULL;
 	module->next = modules;
 	modules = module;
@@ -467,15 +504,15 @@ void Sym_Shutdown( void ) {
 Sym_GetFuncInfo
 ==================
 */
-void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
+void Sym_GetFuncInfo( address_t addr, idStr &module, idStr &funcName ) {
 	MEMORY_BASIC_INFORMATION mbi;
 	module_t *m;
 	symbol_t *s;
 
-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+	VirtualQuery( reinterpret_cast<void *>( addr ), &mbi, sizeof(mbi) );
 
 	for ( m = modules; m != NULL; m = m->next ) {
-		if ( m->address == (int) mbi.AllocationBase ) {
+		if ( m->address == reinterpret_cast<address_t>( mbi.AllocationBase ) ) {
 			break;
 		}
 	}
@@ -504,13 +541,13 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
 		}
 	}
 
-	sprintf( funcName, "0x%08x", addr );
+	funcName = va( "0x%p", reinterpret_cast<void *>( addr ) );
 	module = "";
 }
 
 #elif defined(_DEBUG)
 
-DWORD lastAllocationBase = -1;
+address_t lastAllocationBase = static_cast<address_t>( -1 );
 HANDLE processHandle;
 idStr lastModule;
 
@@ -519,16 +556,16 @@ idStr lastModule;
 Sym_Init
 ==================
 */
-void Sym_Init( long addr ) {
+void Sym_Init( address_t addr ) {
 	TCHAR moduleName[MAX_STRING_CHARS];
 	TCHAR modShortNameBuf[MAX_STRING_CHARS];
 	MEMORY_BASIC_INFORMATION mbi;
 
-	if ( lastAllocationBase != -1 ) {
+	if ( lastAllocationBase != static_cast<address_t>( -1 ) ) {
 		Sym_Shutdown();
 	}
 
-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+	VirtualQuery( reinterpret_cast<void *>( addr ), &mbi, sizeof(mbi) );
 
 	GetModuleFileName( (HMODULE)mbi.AllocationBase, moduleName, sizeof( moduleName ) );
 	_splitpath( moduleName, NULL, NULL, modShortNameBuf, NULL );
@@ -538,14 +575,14 @@ void Sym_Init( long addr ) {
 	if ( !SymInitialize( processHandle, NULL, FALSE ) ) {
 		return;
 	}
-	if ( !SymLoadModule( processHandle, NULL, moduleName, NULL, (DWORD)mbi.AllocationBase, 0 ) ) {
+	if ( !SymLoadModule64( processHandle, NULL, moduleName, NULL, reinterpret_cast<DWORD64>( mbi.AllocationBase ), 0 ) ) {
 		SymCleanup( processHandle );
 		return;
 	}
 
 	SymSetOptions( SymGetOptions() & ~SYMOPT_UNDNAME );
 
-	lastAllocationBase = (DWORD) mbi.AllocationBase;
+	lastAllocationBase = reinterpret_cast<address_t>( mbi.AllocationBase );
 }
 
 /*
@@ -554,9 +591,9 @@ Sym_Shutdown
 ==================
 */
 void Sym_Shutdown( void ) {
-	SymUnloadModule( GetCurrentProcess(), lastAllocationBase );
+	SymUnloadModule64( GetCurrentProcess(), static_cast<DWORD64>( lastAllocationBase ) );
 	SymCleanup( GetCurrentProcess() );
-	lastAllocationBase = -1;
+	lastAllocationBase = static_cast<address_t>( -1 );
 }
 
 /*
@@ -564,25 +601,25 @@ void Sym_Shutdown( void ) {
 Sym_GetFuncInfo
 ==================
 */
-void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
+void Sym_GetFuncInfo( address_t addr, idStr &module, idStr &funcName ) {
 	MEMORY_BASIC_INFORMATION mbi;
 
-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+	VirtualQuery( reinterpret_cast<void *>( addr ), &mbi, sizeof(mbi) );
 
-	if ( (DWORD) mbi.AllocationBase != lastAllocationBase ) {
+	if ( reinterpret_cast<address_t>( mbi.AllocationBase ) != lastAllocationBase ) {
 		Sym_Init( addr );
 	}
 
-	BYTE symbolBuffer[ sizeof(IMAGEHLP_SYMBOL) + MAX_STRING_CHARS ];
-	PIMAGEHLP_SYMBOL pSymbol = (PIMAGEHLP_SYMBOL)&symbolBuffer[0];
-	pSymbol->SizeOfStruct = sizeof(symbolBuffer);
-	pSymbol->MaxNameLength = 1023;
+	BYTE symbolBuffer[ sizeof(IMAGEHLP_SYMBOL64) + MAX_STRING_CHARS ];
+	PIMAGEHLP_SYMBOL64 pSymbol = reinterpret_cast<PIMAGEHLP_SYMBOL64>( &symbolBuffer[0] );
+	pSymbol->SizeOfStruct = sizeof(IMAGEHLP_SYMBOL64);
+	pSymbol->MaxNameLength = MAX_STRING_CHARS - 1;
 	pSymbol->Address = 0;
 	pSymbol->Flags = 0;
 	pSymbol->Size =0;
 
-	DWORD symDisplacement = 0;
-	if ( SymGetSymFromAddr( processHandle, addr, &symDisplacement, pSymbol ) ) {
+	DWORD64 symDisplacement = 0;
+	if ( SymGetSymFromAddr64( processHandle, static_cast<DWORD64>( addr ), &symDisplacement, pSymbol ) ) {
 		// clean up name, throwing away decorations that don't affect uniqueness
 	    char undName[MAX_STRING_CHARS];
 		if ( UnDecorateSymbolName( pSymbol->Name, undName, sizeof(undName), UNDECORATE_FLAGS ) ) {
@@ -605,7 +642,7 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
 		LocalFree( lpMsgBuf );
 
 		// Couldn't retrieve symbol (no debug info?, can't load dbghelp.dll?)
-		sprintf( funcName, "0x%08x", addr );
+		funcName = va( "0x%p", reinterpret_cast<void *>( addr ) );
 		module = "";
     }
 }
@@ -617,7 +654,7 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
 Sym_Init
 ==================
 */
-void Sym_Init( long addr ) {
+void Sym_Init( address_t addr ) {
 }
 
 /*
@@ -633,9 +670,9 @@ void Sym_Shutdown( void ) {
 Sym_GetFuncInfo
 ==================
 */
-void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
+void Sym_GetFuncInfo( address_t addr, idStr &module, idStr &funcName ) {
 	module = "";
-	sprintf( funcName, "0x%08x", addr );
+	funcName = va( "0x%p", reinterpret_cast<void *>( addr ) );
 }
 
 #endif
@@ -646,6 +683,9 @@ GetFuncAddr
 ==================
 */
 address_t GetFuncAddr( address_t midPtPtr ) {
+#if defined( _M_X64 )
+	return midPtPtr;
+#else
 	long temp;
 	do {
 		temp = (long)(*(long*)midPtPtr);
@@ -656,6 +696,7 @@ address_t GetFuncAddr( address_t midPtPtr ) {
 	} while(true);
 
 	return midPtPtr;
+#endif
 }
 
 /*
@@ -663,7 +704,10 @@ address_t GetFuncAddr( address_t midPtPtr ) {
 GetCallerAddr
 ==================
 */
-address_t GetCallerAddr( long _ebp ) {
+address_t GetCallerAddr( address_t _ebp ) {
+#if defined( _M_X64 )
+	return 0;
+#else
 	long midPtPtr;
 	long res = 0;
 
@@ -680,6 +724,7 @@ address_t GetCallerAddr( long _ebp ) {
 	res = GetFuncAddr( midPtPtr );
 label:
 	return res;
+#endif
 }
 
 /*
@@ -689,7 +734,22 @@ Sys_GetCallStack
  use /Oy option
 ==================
 */
-void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
+void Sys_GetCallStack( address_t *p_callStack, const int callStackSize ) {
+#if defined( _M_X64 )
+	USHORT capturedFrames;
+	void *p_backTrace[64];
+	int i;
+	int framesToCapture;
+
+	framesToCapture = Min( callStackSize, static_cast<int>( sizeof( p_backTrace ) / sizeof( p_backTrace[0] ) ) );
+	capturedFrames = CaptureStackBackTrace( 2, framesToCapture, p_backTrace, NULL );
+	for ( i = 0; i < capturedFrames; i++ ) {
+		p_callStack[i] = reinterpret_cast<address_t>( p_backTrace[i] );
+	}
+	while ( i < callStackSize ) {
+		p_callStack[i++] = 0;
+	}
+#else
 #if 1 //def _DEBUG
 	int i;
 	long m_ebp;
@@ -703,8 +763,8 @@ void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
 	m_ebp = *((long*)m_ebp);
 	// list functions
 	for ( i = 0; i < callStackSize; i++ ) {
-		callStack[i] = GetCallerAddr( m_ebp );
-		if ( callStack[i] == 0 ) {
+		p_callStack[i] = GetCallerAddr( m_ebp );
+		if ( p_callStack[i] == 0 ) {
 			break;
 		}
 		m_ebp = *((long*)m_ebp);
@@ -713,8 +773,9 @@ void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
 	int i = 0;
 #endif
 	while( i < callStackSize ) {
-		callStack[i++] = 0;
+		p_callStack[i++] = 0;
 	}
+#endif
 }
 
 /*
@@ -722,14 +783,14 @@ void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
 Sys_GetCallStackStr
 ==================
 */
-const char *Sys_GetCallStackStr( const address_t *callStack, const int callStackSize ) {
+const char *Sys_GetCallStackStr( const address_t *p_callStack, const int callStackSize ) {
 	static char string[MAX_STRING_CHARS*2];
 	int index, i;
 	idStr module, funcName;
 
 	index = 0;
 	for ( i = callStackSize-1; i >= 0; i-- ) {
-		Sym_GetFuncInfo( callStack[i], module, funcName );
+		Sym_GetFuncInfo( p_callStack[i], module, funcName );
 		index += sprintf( string+index, " -> %s", funcName.c_str() );
 	}
 	return string;
@@ -763,7 +824,7 @@ const char *Sys_GetCallStackCurAddressStr( int depth ) {
 
 	index = 0;
 	for ( i = depth-1; i >= 0; i-- ) {
-		index += sprintf( string+index, " -> 0x%08x", callStack[i] );
+		index += sprintf( string+index, " -> 0x%p", reinterpret_cast<void *>( callStack[i] ) );
 	}
 	return string;
 }

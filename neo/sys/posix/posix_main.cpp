@@ -86,7 +86,7 @@ void Posix_Exit(int ret) {
 	}
 	// at this point, too late to catch signals
 	Posix_ClearSigs();
-	if ( asyncThread.threadHandle ) {
+	if ( asyncThread.p_threadHandle ) {
 		Sys_DestroyThread( asyncThread );
 	}
 	// process spawning. it's best when it happens after everything has shut down
@@ -269,35 +269,35 @@ static int eventHead, eventTail;
 ================
 Posix_QueEvent
 
-ptr should either be null, or point to a block of data that can be freed later
+p_ptr should either be null, or point to a block of data that can be freed later
 ================
 */
 void Posix_QueEvent( sysEventType_t type, int value, int value2,
-				  int ptrLength, void *ptr ) {
-	sysEvent_t *ev;
+				  int ptrLength, void *p_ptr ) {
+	sysEvent_t *p_ev;
 
-	ev = &eventQue[eventHead & MASK_QUED_EVENTS];
+	p_ev = &eventQue[eventHead & MASK_QUED_EVENTS];
 	if (eventHead - eventTail >= MAX_QUED_EVENTS) {
 		common->Printf( "Posix_QueEvent: overflow\n" );
 		// we are discarding an event, but don't leak memory
 		// TTimo: verbose dropped event types?
-		if (ev->evPtr) {
-			Mem_Free(ev->evPtr);
-			ev->evPtr = NULL;
+		if (p_ev->p_evPtr) {
+			Mem_Free(p_ev->p_evPtr);
+			p_ev->p_evPtr = NULL;
 		}
 		eventTail++;
 	}
 
 	eventHead++;
 
-	ev->evType = type;
-	ev->evValue = value;
-	ev->evValue2 = value2;
-	ev->evPtrLength = ptrLength;
-	ev->evPtr = ptr;
+	p_ev->evType = type;
+	p_ev->evValue = value;
+	p_ev->evValue2 = value2;
+	p_ev->evPtrLength = ptrLength;
+	p_ev->p_evPtr = p_ptr;
 
 #if 0
-	common->Printf( "Event %d: %d %d\n", ev->evType, ev->evValue, ev->evValue2 );
+	common->Printf( "Event %d: %d %d\n", p_ev->evType, p_ev->evValue, p_ev->evValue2 );
 #endif
 }
 
@@ -385,12 +385,12 @@ Sys_DLL_Load
 TODO: OSX - use the native API instead? NSModule
 =================
 */
-int Sys_DLL_Load( const char *path ) {
-	void *handle = dlopen( path, RTLD_NOW );
-	if ( !handle ) {
-		Sys_Printf( "dlopen '%s' failed: %s\n", path, dlerror() );
+sysHandle_t Sys_DLL_Load( const char *p_path ) {
+	void *p_handle = dlopen( p_path, RTLD_NOW );
+	if ( !p_handle ) {
+		Sys_Printf( "dlopen '%s' failed: %s\n", p_path, dlerror() );
 	}
-	return (int)handle;
+	return reinterpret_cast<sysHandle_t>( p_handle );
 }
 
 /*
@@ -398,13 +398,13 @@ int Sys_DLL_Load( const char *path ) {
 Sys_DLL_GetProcAddress
 =================
 */
-void* Sys_DLL_GetProcAddress( int handle, const char *sym ) {
-	const char *error;
-	void *ret = dlsym( (void *)handle, sym );
-	if ((error = dlerror()) != NULL)  {
-		Sys_Printf( "dlsym '%s' failed: %s\n", sym, error );
+void* Sys_DLL_GetProcAddress( sysHandle_t p_handle, const char *p_sym ) {
+	const char *p_error;
+	void *p_ret = dlsym( reinterpret_cast<void *>( p_handle ), p_sym );
+	if ((p_error = dlerror()) != NULL)  {
+		Sys_Printf( "dlsym '%s' failed: %s\n", p_sym, p_error );
 	}
-	return ret;
+	return p_ret;
 }
 
 /*
@@ -412,8 +412,8 @@ void* Sys_DLL_GetProcAddress( int handle, const char *sym ) {
 Sys_DLL_Unload
 =================
 */
-void Sys_DLL_Unload( int handle ) {
-	dlclose( (void *)handle );
+void Sys_DLL_Unload( sysHandle_t p_handle ) {
+	dlclose( reinterpret_cast<void *>( p_handle ) );
 }
 
 /*
@@ -487,7 +487,7 @@ void Sys_FPU_SetPrecision( int precision ) {
 Sys_LockMemory
 ================
 */
-bool Sys_LockMemory( void *ptr, int bytes ) {
+bool Sys_LockMemory( void *p_ptr, int bytes ) {
 	return true;
 }
 
@@ -496,7 +496,7 @@ bool Sys_LockMemory( void *ptr, int bytes ) {
 Sys_UnlockMemory
 ================
 */
-bool Sys_UnlockMemory( void *ptr, int bytes ) {
+bool Sys_UnlockMemory( void *p_ptr, int bytes ) {
 	return true;
 }
 

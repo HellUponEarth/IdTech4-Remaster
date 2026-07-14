@@ -44,7 +44,7 @@ public:
 						idHierarchy();
 						~idHierarchy();
 	
-	void				SetOwner( type *object );
+	void				SetOwner( type *p_object );
 	type *				Owner( void ) const;
 	void				ParentTo( idHierarchy &node );
 	void				MakeSiblingAfter( idHierarchy &node );
@@ -60,10 +60,10 @@ public:
 	type *				GetNextLeaf( void ) const;		// goes through all leaf nodes of the hierarchy
 
 private:
-	idHierarchy *		parent;
-	idHierarchy *		sibling;
-	idHierarchy *		child;
-	type *				owner;
+	idHierarchy *		p_parent;
+	idHierarchy *		p_sibling;
+	idHierarchy *		p_child;
+	type *				p_owner;
 
 	idHierarchy<type>	*GetPriorSiblingNode( void ) const;	// previous node with the same parent
 };
@@ -75,10 +75,10 @@ idHierarchy<type>::idHierarchy
 */
 template< class type >
 idHierarchy<type>::idHierarchy() {
-	owner	= NULL;
-	parent	= NULL;	
-	sibling	= NULL;
-	child	= NULL;
+	p_owner		= NULL;
+	p_parent	= NULL;
+	p_sibling	= NULL;
+	p_child		= NULL;
 }
 
 /*
@@ -100,7 +100,7 @@ Gets the object that is associated with this node.
 */
 template< class type >
 type *idHierarchy<type>::Owner( void ) const {
-	return owner;
+	return p_owner;
 }
 
 /*
@@ -111,8 +111,8 @@ Sets the object that this node is associated with.
 ================
 */
 template< class type >
-void idHierarchy<type>::SetOwner( type *object ) {
-	owner = object;
+void idHierarchy<type>::SetOwner( type *p_object ) {
+	p_owner = p_object;
 }
 
 /*
@@ -122,10 +122,10 @@ idHierarchy<type>::ParentedBy
 */
 template< class type >
 bool idHierarchy<type>::ParentedBy( const idHierarchy &node ) const {
-	if ( parent == &node ) {
+	if ( p_parent == &node ) {
 		return true;
-	} else if ( parent ) {
-		return parent->ParentedBy( node );
+	} else if ( p_parent ) {
+		return p_parent->ParentedBy( node );
 	}
 	return false;
 }
@@ -141,9 +141,9 @@ template< class type >
 void idHierarchy<type>::ParentTo( idHierarchy &node ) {
 	RemoveFromParent();
 
-	parent		= &node;
-	sibling		= node.child;
-	node.child	= this;
+	p_parent		= &node;
+	p_sibling		= node.p_child;
+	node.p_child	= this;
 }
 
 /*
@@ -156,9 +156,9 @@ Makes the given node a sibling after the passed in node.
 template< class type >
 void idHierarchy<type>::MakeSiblingAfter( idHierarchy &node ) {
 	RemoveFromParent();
-	parent	= node.parent;
-	sibling = node.sibling;
-	node.sibling = this;
+	p_parent		= node.p_parent;
+	p_sibling		= node.p_sibling;
+	node.p_sibling	= this;
 }
 
 /*
@@ -168,19 +168,19 @@ idHierarchy<type>::RemoveFromParent
 */
 template< class type >
 void idHierarchy<type>::RemoveFromParent( void ) {
-	idHierarchy<type> *prev;
+	idHierarchy<type> *p_prev;
 
-	if ( parent ) {
-		prev = GetPriorSiblingNode();
-		if ( prev ) {
-			prev->sibling = sibling;
+	if ( p_parent ) {
+		p_prev = GetPriorSiblingNode();
+		if ( p_prev ) {
+			p_prev->p_sibling = p_sibling;
 		} else {
-			parent->child = sibling;
+			p_parent->p_child = p_sibling;
 		}
 	}
 
-	parent = NULL;
-	sibling = NULL;
+	p_parent = NULL;
+	p_sibling = NULL;
 }
 
 /*
@@ -192,21 +192,21 @@ Removes the node from the hierarchy and adds it's children to the parent.
 */
 template< class type >
 void idHierarchy<type>::RemoveFromHierarchy( void ) {
-	idHierarchy<type> *parentNode;
-	idHierarchy<type> *node;
+	idHierarchy<type> *p_parentNode;
+	idHierarchy<type> *p_node;
 
-	parentNode = parent;
+	p_parentNode = p_parent;
 	RemoveFromParent();
 
-	if ( parentNode ) {
-		while( child ) {
-			node = child;
-			node->RemoveFromParent();
-			node->ParentTo( *parentNode );
+	if ( p_parentNode ) {
+		while( p_child ) {
+			p_node = p_child;
+			p_node->RemoveFromParent();
+			p_node->ParentTo( *p_parentNode );
 		}
 	} else {
-		while( child ) {
-			child->RemoveFromParent();
+		while( p_child ) {
+			p_child->RemoveFromParent();
 		}
 	}
 }
@@ -218,8 +218,8 @@ idHierarchy<type>::GetParent
 */
 template< class type >
 type *idHierarchy<type>::GetParent( void ) const {
-	if ( parent ) {
-		return parent->owner;
+	if ( p_parent ) {
+		return p_parent->p_owner;
 	}
 	return NULL;
 }
@@ -231,8 +231,8 @@ idHierarchy<type>::GetChild
 */
 template< class type >
 type *idHierarchy<type>::GetChild( void ) const {
-	if ( child ) {
-		return child->owner;
+	if ( p_child ) {
+		return p_child->p_owner;
 	}
 	return NULL;
 }
@@ -244,8 +244,8 @@ idHierarchy<type>::GetSibling
 */
 template< class type >
 type *idHierarchy<type>::GetSibling( void ) const {
-	if ( sibling ) {
-		return sibling->owner;
+	if ( p_sibling ) {
+		return p_sibling->p_owner;
 	}
 	return NULL;
 }
@@ -259,25 +259,25 @@ Returns NULL if no parent, or if it is the first child.
 */
 template< class type >
 idHierarchy<type> *idHierarchy<type>::GetPriorSiblingNode( void ) const {
-	if ( !parent || ( parent->child == this ) ) {
+	if ( !p_parent || ( p_parent->p_child == this ) ) {
 		return NULL;
 	}
 
-	idHierarchy<type> *prev;
-	idHierarchy<type> *node;
+	idHierarchy<type> *p_prev;
+	idHierarchy<type> *p_node;
 
-	node = parent->child;
-	prev = NULL;
-	while( ( node != this ) && ( node != NULL ) ) {
-		prev = node;
-		node = node->sibling;
+	p_node = p_parent->p_child;
+	p_prev = NULL;
+	while( ( p_node != this ) && ( p_node != NULL ) ) {
+		p_prev = p_node;
+		p_node = p_node->p_sibling;
 	}
 
-	if ( node != this ) {
+	if ( p_node != this ) {
 		idLib::Error( "idHierarchy::GetPriorSibling: could not find node in parent's list of children" );
 	}
 
-	return prev;
+	return p_prev;
 }
 
 /*
@@ -289,11 +289,11 @@ Returns NULL if no parent, or if it is the first child.
 */
 template< class type >
 type *idHierarchy<type>::GetPriorSibling( void ) const {
-	idHierarchy<type> *prior;
+	idHierarchy<type> *p_prior;
 
-	prior = GetPriorSiblingNode();
-	if ( prior ) {
-		return prior->owner;
+	p_prior = GetPriorSiblingNode();
+	if ( p_prior ) {
+		return p_prior->p_owner;
 	}
 
 	return NULL;
@@ -308,17 +308,17 @@ Goes through all nodes of the hierarchy.
 */
 template< class type >
 type *idHierarchy<type>::GetNext( void ) const {
-	const idHierarchy<type> *node;
+	const idHierarchy<type> *p_node;
 
-	if ( child ) {
-		return child->owner;
+	if ( p_child ) {
+		return p_child->p_owner;
 	} else {
-		node = this;
-		while( node && node->sibling == NULL ) {
-			node = node->parent;
+		p_node = this;
+		while( p_node && p_node->p_sibling == NULL ) {
+			p_node = p_node->p_parent;
 		}
-		if ( node ) {
-			return node->sibling->owner;
+		if ( p_node ) {
+			return p_node->p_sibling->p_owner;
 		} else {
 			return NULL;
 		}
@@ -334,25 +334,25 @@ Goes through all leaf nodes of the hierarchy.
 */
 template< class type >
 type *idHierarchy<type>::GetNextLeaf( void ) const {
-	const idHierarchy<type> *node;
+	const idHierarchy<type> *p_node;
 
-	if ( child ) {
-		node = child;
-		while ( node->child ) {
-			node = node->child;
+	if ( p_child ) {
+		p_node = p_child;
+		while ( p_node->p_child ) {
+			p_node = p_node->p_child;
 		}
-		return node->owner;
+		return p_node->p_owner;
 	} else {
-		node = this;
-		while( node && node->sibling == NULL ) {
-			node = node->parent;
+		p_node = this;
+		while( p_node && p_node->p_sibling == NULL ) {
+			p_node = p_node->p_parent;
 		}
-		if ( node ) {
-			node = node->sibling;
-			while ( node->child ) {
-				node = node->child;
+		if ( p_node ) {
+			p_node = p_node->p_sibling;
+			while ( p_node->p_child ) {
+				p_node = p_node->p_child;
 			}
-			return node->owner;
+			return p_node->p_owner;
 		} else {
 			return NULL;
 		}

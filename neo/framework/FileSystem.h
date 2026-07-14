@@ -75,6 +75,10 @@ typedef enum {
 	DLTYPE_FILE
 } dlType_t;
 
+#ifdef FILE_OPEN
+#undef FILE_OPEN
+#endif
+
 typedef enum {
 	DL_WAIT,		// waiting in the list for beginning of the download
 	DL_INPROGRESS,	// in progress
@@ -240,7 +244,7 @@ public:
 							// Closes a file.
 	virtual void			CloseFile( idFile *f ) = 0;
 							// Returns immediately, performing the read from a background thread.
-	virtual void			BackgroundDownload( backgroundDownload_t *bgl ) = 0;
+	virtual void			BackgroundDownload( backgroundDownload_t *p_bgl ) = 0;
 							// resets the bytes read counter
 	virtual void			ResetReadCount( void ) = 0;
 							// retrieves the current read count

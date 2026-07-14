@@ -828,7 +828,7 @@ idClass::ProcessEventArgs
 bool idClass::ProcessEventArgs( const idEventDef *ev, int numargs, ... ) {
 	idTypeInfo	*c;
 	int			num;
-	int			data[ D_EVENT_MAXARGS ];
+	intptr_t	p_data[ D_EVENT_MAXARGS ];
 	va_list		args;
 	
 	assert( ev );
@@ -842,10 +842,10 @@ bool idClass::ProcessEventArgs( const idEventDef *ev, int numargs, ... ) {
 	}
 
 	va_start( args, numargs );
-	idEvent::CopyArgs( ev, numargs, args, data );
+	idEvent::CopyArgs( ev, numargs, args, p_data );
 	va_end( args );
 
-	ProcessEventArgPtr( ev, data );
+	ProcessEventArgPtr( ev, p_data );
 
 	return true;
 }
@@ -936,7 +936,7 @@ bool idClass::ProcessEvent( const idEventDef *ev, idEventArg arg1, idEventArg ar
 idClass::ProcessEventArgPtr
 ================
 */
-bool idClass::ProcessEventArgPtr( const idEventDef *ev, int *data ) {
+bool idClass::ProcessEventArgPtr( const idEventDef *ev, intptr_t *p_data ) {
 	idTypeInfo	*c;
 	int			num;
 	eventCallback_t	callback;
@@ -954,8 +954,8 @@ bool idClass::ProcessEventArgPtr( const idEventDef *ev, int *data ) {
 #endif
 
 	if ( g_debugTriggers.GetBool() && ( ev == &EV_Activate ) && IsType( idEntity::Type ) ) {
-		const idEntity *ent = *reinterpret_cast<idEntity **>( data );
-		gameLocal.Printf( "%d: '%s' activated by '%s'\n", gameLocal.framenum, static_cast<idEntity *>( this )->GetName(), ent ? ent->GetName() : "NULL" );
+		const idEntity *p_ent = reinterpret_cast<idEntity *>( p_data[ 0 ] );
+		gameLocal.Printf( "%d: '%s' activated by '%s'\n", gameLocal.framenum, static_cast<idEntity *>( this )->GetName(), p_ent ? p_ent->GetName() : "NULL" );
 	}
 
 	c = GetType();
@@ -999,43 +999,43 @@ http://developer.apple.com/documentation/DeveloperTools/Conceptual/MachORuntime/
 		break;
 
 	case 1 :
-		typedef void ( idClass::*eventCallback_1_t )( const int );
-		( this->*( eventCallback_1_t )callback )( data[ 0 ] );
+		typedef void ( idClass::*eventCallback_1_t )( const intptr_t );
+		( this->*( eventCallback_1_t )callback )( p_data[ 0 ] );
 		break;
 
 	case 2 :
-		typedef void ( idClass::*eventCallback_2_t )( const int, const int );
-		( this->*( eventCallback_2_t )callback )( data[ 0 ], data[ 1 ] );
+		typedef void ( idClass::*eventCallback_2_t )( const intptr_t, const intptr_t );
+		( this->*( eventCallback_2_t )callback )( p_data[ 0 ], p_data[ 1 ] );
 		break;
 
 	case 3 :
-		typedef void ( idClass::*eventCallback_3_t )( const int, const int, const int );
-		( this->*( eventCallback_3_t )callback )( data[ 0 ], data[ 1 ], data[ 2 ] );
+		typedef void ( idClass::*eventCallback_3_t )( const intptr_t, const intptr_t, const intptr_t );
+		( this->*( eventCallback_3_t )callback )( p_data[ 0 ], p_data[ 1 ], p_data[ 2 ] );
 		break;
 
 	case 4 :
-		typedef void ( idClass::*eventCallback_4_t )( const int, const int, const int, const int );
-		( this->*( eventCallback_4_t )callback )( data[ 0 ], data[ 1 ], data[ 2 ], data[ 3 ] );
+		typedef void ( idClass::*eventCallback_4_t )( const intptr_t, const intptr_t, const intptr_t, const intptr_t );
+		( this->*( eventCallback_4_t )callback )( p_data[ 0 ], p_data[ 1 ], p_data[ 2 ], p_data[ 3 ] );
 		break;
 
 	case 5 :
-		typedef void ( idClass::*eventCallback_5_t )( const int, const int, const int, const int, const int );
-		( this->*( eventCallback_5_t )callback )( data[ 0 ], data[ 1 ], data[ 2 ], data[ 3 ], data[ 4 ] );
+		typedef void ( idClass::*eventCallback_5_t )( const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t );
+		( this->*( eventCallback_5_t )callback )( p_data[ 0 ], p_data[ 1 ], p_data[ 2 ], p_data[ 3 ], p_data[ 4 ] );
 		break;
 
 	case 6 :
-		typedef void ( idClass::*eventCallback_6_t )( const int, const int, const int, const int, const int, const int );
-		( this->*( eventCallback_6_t )callback )( data[ 0 ], data[ 1 ], data[ 2 ], data[ 3 ], data[ 4 ], data[ 5 ] );
+		typedef void ( idClass::*eventCallback_6_t )( const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t );
+		( this->*( eventCallback_6_t )callback )( p_data[ 0 ], p_data[ 1 ], p_data[ 2 ], p_data[ 3 ], p_data[ 4 ], p_data[ 5 ] );
 		break;
 
 	case 7 :
-		typedef void ( idClass::*eventCallback_7_t )( const int, const int, const int, const int, const int, const int, const int );
-		( this->*( eventCallback_7_t )callback )( data[ 0 ], data[ 1 ], data[ 2 ], data[ 3 ], data[ 4 ], data[ 5 ], data[ 6 ] );
+		typedef void ( idClass::*eventCallback_7_t )( const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t );
+		( this->*( eventCallback_7_t )callback )( p_data[ 0 ], p_data[ 1 ], p_data[ 2 ], p_data[ 3 ], p_data[ 4 ], p_data[ 5 ], p_data[ 6 ] );
 		break;
 
 	case 8 :
-		typedef void ( idClass::*eventCallback_8_t )( const int, const int, const int, const int, const int, const int, const int, const int );
-		( this->*( eventCallback_8_t )callback )( data[ 0 ], data[ 1 ], data[ 2 ], data[ 3 ], data[ 4 ], data[ 5 ], data[ 6 ], data[ 7 ] );
+		typedef void ( idClass::*eventCallback_8_t )( const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t, const intptr_t );
+		( this->*( eventCallback_8_t )callback )( p_data[ 0 ], p_data[ 1 ], p_data[ 2 ], p_data[ 3 ], p_data[ 4 ], p_data[ 5 ], p_data[ 6 ], p_data[ 7 ] );
 		break;
 
 	default:

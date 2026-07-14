@@ -29,6 +29,8 @@ If you have questions concerning this license or the applicable additional terms
 #ifndef __SIMPLEWIN_H__
 #define __SIMPLEWIN_H__
 
+#include <stddef.h>
+
 class idUserInterfaceLocal;
 class idDeviceContext;
 class idSimpleWindow;
@@ -49,7 +51,7 @@ public:
 	idStr			name;
 
 	idWinVar *		GetWinVarByName(const char *_name);
-	int				GetWinVarOffset( idWinVar *wv, drawWin_t* owner);
+	ptrdiff_t		GetWinVarOffset( idWinVar *p_wv, drawWin_t* p_owner);
 	size_t			Size();
 
 	idWindow*		GetParent ( void ) { return mParent; }

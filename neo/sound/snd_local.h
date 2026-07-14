@@ -592,10 +592,10 @@ public:
 	virtual void			WriteToSaveGame( idFile *savefile );
 	virtual void			ReadFromSaveGame( idFile *savefile );
 	
-	virtual void			ReadFromSaveGameSoundChannel( idFile *saveGame, idSoundChannel *ch );
-	virtual void			ReadFromSaveGameSoundShaderParams( idFile *saveGame, soundShaderParms_t *params );
-	virtual void			WriteToSaveGameSoundChannel( idFile *saveGame, idSoundChannel *ch );
-	virtual void			WriteToSaveGameSoundShaderParams( idFile *saveGame, soundShaderParms_t *params );
+	virtual bool			ReadFromSaveGameSoundChannel( idFile *p_saveGame, idSoundChannel *p_ch );
+	virtual void			ReadFromSaveGameSoundShaderParams( idFile *p_saveGame, soundShaderParms_t *p_params );
+	virtual void			WriteToSaveGameSoundChannel( idFile *p_saveGame, idSoundChannel *p_ch );
+	virtual void			WriteToSaveGameSoundShaderParams( idFile *p_saveGame, soundShaderParms_t *p_params );
 	
 	virtual void			SetSlowmo( bool active );
 	virtual void			SetSlowmoSpeed( float speed );
@@ -881,7 +881,7 @@ public:
 	static idSampleDecoder *Alloc( void );
 	static void				Free( idSampleDecoder *decoder );
 	static int				GetNumUsedBlocks( void );
-	static int				GetUsedBlockMemory( void );
+	static size_t			GetUsedBlockMemory( void );
 
 	virtual					~idSampleDecoder( void ) {}
 	virtual void			Decode( idSoundSample *sample, int sampleOffset44k, int sampleCount44k, float *dest ) = 0;

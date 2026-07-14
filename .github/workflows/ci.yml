@@ -1,0 +1,337 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: 2
+  CTEST_PARALLEL_LEVEL: 2
+
+jobs:
+  formatting:
+    name: formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install formatting tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format ninja-build python3-pip
+          python3 -m pip install --user cmakelang pre-commit pre-commit-hooks
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Configure formatting preset
+        run: cmake --preset ninja-debug
+
+      - name: CMake formatting check
+        run: cmake --build --preset ninja-format-check
+
+      - name: CMake lint
+        run: cmake --build --preset ninja-lint
+
+      - name: Pre-commit formatting check
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  build-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc-debug
+            os: ubuntu-latest
+            configure: ninja-gcc-tests
+            build: ninja-gcc-tests
+            test: ninja-gcc-tests
+            package: ninja-gcc-ci-package
+          - name: linux-gcc-release
+            os: ubuntu-latest
+            configure: ninja-gcc-release-tests
+            build: ninja-gcc-release-tests
+            test: ninja-gcc-release-tests
+            package: ninja-gcc-release-ci-package
+          - name: linux-clang-debug
+            os: ubuntu-latest
+            configure: ninja-clang-tests
+            build: ninja-clang-tests
+            test: ninja-clang-tests
+            package: ninja-clang-ci-package
+          - name: linux-clang-release
+            os: ubuntu-latest
+            configure: ninja-clang-release-tests
+            build: ninja-clang-release-tests
+            test: ninja-clang-release-tests
+            package: ninja-clang-release-ci-package
+          - name: windows-msvc-debug
+            os: windows-latest
+            configure: ninja-tests
+            build: ninja-tests
+            test: ninja-tests
+            package: ninja-ci-package
+          - name: windows-msvc-release
+            os: windows-latest
+            configure: ninja-release-tests
+            build: ninja-release-tests
+            test: ninja-release-tests
+            package: ninja-release-ci-package
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Linux tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build gcc g++ clang
+
+      - name: Configure MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: cmake --preset "${{ matrix.configure }}"
+
+      - name: Build
+        run: cmake --build --preset "${{ matrix.build }}"
+
+      - name: Test
+        run: ctest --preset "${{ matrix.test }}"
+
+      - name: Package
+        run: cmake --build --preset "${{ matrix.package }}"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-package
+          path: build/cmake/${{ matrix.configure }}/package/*.zip
+          if-no-files-found: error
+
+      - name: Upload generated docs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-docs
+          path: build/cmake/${{ matrix.configure }}/docs/**
+          if-no-files-found: error
+
+  emscripten:
+    name: emscripten-wasm-smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Emscripten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y emscripten ninja-build
+
+      - name: Configure WebAssembly smoke
+        run: cmake --preset emscripten-smoke
+
+      - name: Build WebAssembly smoke
+        run: cmake --build --preset emscripten-smoke
+
+      - name: Upload WebAssembly smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: emscripten-wasm-smoke
+          path: |
+            build/cmake/emscripten-smoke/idtech4_emscripten_smoke.*
+          if-no-files-found: error
+
+  sanitizers:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc-asan
+            cc: gcc
+            cxx: g++
+            configure: ninja-asan-tests
+            build: ninja-asan-tests
+            test: ninja-asan-tests
+          - name: linux-gcc-ubsan
+            cc: gcc
+            cxx: g++
+            configure: ninja-ubsan-tests
+            build: ninja-ubsan-tests
+            test: ninja-ubsan-tests
+          - name: linux-clang-asan
+            cc: clang
+            cxx: clang++
+            configure: ninja-asan-tests
+            build: ninja-asan-tests
+            test: ninja-asan-tests
+          - name: linux-clang-ubsan
+            cc: clang
+            cxx: clang++
+            configure: ninja-ubsan-tests
+            build: ninja-ubsan-tests
+            test: ninja-ubsan-tests
+          - name: linux-clang-tsan
+            cc: clang
+            cxx: clang++
+            configure: ninja-tsan-tests
+            build: ninja-tsan-tests
+            test: ninja-tsan-tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build gcc g++ clang
+
+      - name: Configure
+        run: |
+          export CC="${{ matrix.cc }}"
+          export CXX="${{ matrix.cxx }}"
+          cmake --preset "${{ matrix.configure }}"
+
+      - name: Build
+        run: cmake --build --preset "${{ matrix.build }}"
+
+      - name: Test
+        run: ctest --preset "${{ matrix.test }}"
+
+  static-analysis:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-clang-tidy
+            cc: clang
+            cxx: clang++
+            configure: ninja-clang-tidy-tests
+            build: ninja-clang-tidy-tests
+          - name: linux-cppcheck
+            configure: ninja-cppcheck-tests
+            build: ninja-cppcheck-tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build gcc g++ clang clang-tidy cppcheck
+
+      - name: Configure
+        run: |
+          if [ -n "${{ matrix.cc }}" ]; then
+            export CC="${{ matrix.cc }}"
+            export CXX="${{ matrix.cxx }}"
+          fi
+          cmake --preset "${{ matrix.configure }}"
+
+      - name: Build with analyzer
+        run: cmake --build --preset "${{ matrix.build }}"
+
+  coverage:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc-gcov
+            install: gcc g++ gcovr
+            configure: ninja-coverage-gcov
+            build: ninja-coverage-gcov
+            artifact: linux-gcc-gcov
+            path: build/cmake/ninja-coverage-gcov/coverage/gcov/**
+          - name: linux-clang-llvm-cov
+            install: clang llvm
+            configure: ninja-coverage-llvm-cov
+            build: ninja-coverage-llvm-cov
+            artifact: linux-clang-llvm-cov
+            path: build/cmake/ninja-coverage-llvm-cov/coverage/llvm-cov/**
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ${{ matrix.install }}
+
+      - name: Configure
+        run: cmake --preset "${{ matrix.configure }}"
+
+      - name: Build coverage
+        run: cmake --build --preset "${{ matrix.build }}"
+
+      - name: Upload coverage output
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.path }}
+          if-no-files-found: error
+
+  build-performance:
+    name: build-performance
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build gcc g++ ccache
+
+      - name: Configure fast-iteration build
+        run: cmake --preset ninja-fast-iteration
+
+      - name: Build fast-iteration tests
+        run: cmake --build --preset ninja-fast-iteration
+
+      - name: Test fast-iteration build
+        run: ctest --preset ninja-fast-iteration
+
+      - name: Configure LTO release build
+        run: cmake --preset ninja-lto-release
+
+      - name: Build LTO release tests
+        run: cmake --build --preset ninja-lto-release
+
+      - name: Test LTO release build
+        run: ctest --preset ninja-lto-release
+
+      - name: Configure binary-size analysis
+        run: cmake --preset ninja-size-analysis
+
+      - name: Generate binary-size report
+        run: cmake --build --preset ninja-size-analysis
+
+      - name: Upload binary-size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-size-report
+          path: build/cmake/ninja-size-analysis/reports/binary-size.md
+          if-no-files-found: error

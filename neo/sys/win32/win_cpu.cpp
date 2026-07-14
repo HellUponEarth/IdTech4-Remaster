@@ -31,6 +31,19 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "win_local.h"
 
+#if defined( _MSC_VER )
+#include <intrin.h>
+#elif defined( __GNUC__ ) || defined( __clang__ )
+#include <cpuid.h>
+#include <x86intrin.h>
+#endif
+
+#if defined( _M_X64 ) || defined( __x86_64__ ) || defined( __amd64__ )
+#define ID_WIN_CPU_X64 1
+#else
+#define ID_WIN_CPU_X64 0
+#endif
+
 
 /*
 ==============================================================
@@ -46,6 +59,11 @@ Sys_GetClockTicks
 ================
 */
 double Sys_GetClockTicks( void ) {
+#if ID_WIN_CPU_X64
+
+	return static_cast<double>( __rdtsc() );
+
+#else
 #if 0
 
 	LARGE_INTEGER li;
@@ -69,6 +87,7 @@ double Sys_GetClockTicks( void ) {
 	return (double ) lo + (double) 0xFFFFFFFF * hi;
 
 #endif
+#endif
 }
 
 /*
@@ -90,23 +109,23 @@ double Sys_ClockTicksPerSecond( void ) {
 
 	if ( !ticks ) {
 		HKEY hKey;
-		LPBYTE ProcSpeed;
+		DWORD ProcSpeed;
 		DWORD buflen, ret;
 
 		if ( !RegOpenKeyEx( HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &hKey ) ) {
 			ProcSpeed = 0;
 			buflen = sizeof( ProcSpeed );
-			ret = RegQueryValueEx( hKey, "~MHz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
+			ret = RegQueryValueEx( hKey, "~MHz", NULL, NULL, reinterpret_cast<LPBYTE>( &ProcSpeed ), &buflen );
 			// If we don't succeed, try some other spellings.
 			if ( ret != ERROR_SUCCESS ) {
-				ret = RegQueryValueEx( hKey, "~Mhz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
+				ret = RegQueryValueEx( hKey, "~Mhz", NULL, NULL, reinterpret_cast<LPBYTE>( &ProcSpeed ), &buflen );
 			}
 			if ( ret != ERROR_SUCCESS ) {
-				ret = RegQueryValueEx( hKey, "~mhz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
+				ret = RegQueryValueEx( hKey, "~mhz", NULL, NULL, reinterpret_cast<LPBYTE>( &ProcSpeed ), &buflen );
 			}
 			RegCloseKey( hKey );
 			if ( ret == ERROR_SUCCESS ) {
-				ticks = (double) ((unsigned long)ProcSpeed) * 1000000;
+				ticks = static_cast<double>( ProcSpeed ) * 1000000.0;
 			}
 		}
 	}
@@ -130,6 +149,9 @@ HasCPUID
 ================
 */
 static bool HasCPUID( void ) {
+#if ID_WIN_CPU_X64
+	return true;
+#else
 	__asm 
 	{
 		pushfd						// save eflags
@@ -159,6 +181,7 @@ err:
 	return false;
 good:
 	return true;
+#endif
 }
 
 #define _REG_EAX		0
@@ -172,6 +195,19 @@ CPUID
 ================
 */
 static void CPUID( int func, unsigned regs[4] ) {
+#if ID_WIN_CPU_X64
+#if defined( _MSC_VER )
+	int cpuInfo[4];
+
+	__cpuid( cpuInfo, func );
+	regs[_REG_EAX] = static_cast<unsigned>( cpuInfo[0] );
+	regs[_REG_EBX] = static_cast<unsigned>( cpuInfo[1] );
+	regs[_REG_ECX] = static_cast<unsigned>( cpuInfo[2] );
+	regs[_REG_EDX] = static_cast<unsigned>( cpuInfo[3] );
+#else
+	__cpuid( func, regs[_REG_EAX], regs[_REG_EBX], regs[_REG_ECX], regs[_REG_EDX] );
+#endif
+#else
 	unsigned regEAX, regEBX, regECX, regEDX;
 
 	__asm pusha
@@ -188,6 +224,7 @@ static void CPUID( int func, unsigned regs[4] ) {
 	regs[_REG_EBX] = regEBX;
 	regs[_REG_ECX] = regECX;
 	regs[_REG_EDX] = regEDX;
+#endif
 }
 
 
@@ -345,11 +382,18 @@ LogicalProcPerPhysicalProc
                                           // eax set to 1
 static unsigned char LogicalProcPerPhysicalProc( void ) {
 	unsigned int regebx = 0;
+#if ID_WIN_CPU_X64
+	unsigned regs[4];
+
+	CPUID( 1, regs );
+	regebx = regs[_REG_EBX];
+#else
 	__asm {
 		mov eax, 1
 		cpuid
 		mov regebx, ebx
 	}
+#endif
 	return (unsigned char) ((regebx & NUM_LOGICAL_BITS) >> 16);
 }
 
@@ -363,11 +407,18 @@ GetAPIC_ID
                                           // Default value = 0xff if HT is not supported
 static unsigned char GetAPIC_ID( void ) {
 	unsigned int regebx = 0;
+#if ID_WIN_CPU_X64
+	unsigned regs[4];
+
+	CPUID( 1, regs );
+	regebx = regs[_REG_EBX];
+#else
 	__asm {
 		mov eax, 1
 		cpuid
 		mov regebx, ebx
 	}
+#endif
 	return (unsigned char) ((regebx & INITIAL_APIC_ID_BITS) >> 24);
 }
 
@@ -407,9 +458,9 @@ int CPUCount( int &logicalNum, int &physicalNum ) {
 
 	if ( logicalNum >= 1 ) {	// > 1 doesn't mean HT is enabled in the BIOS
 		HANDLE hCurrentProcessHandle;
-		DWORD  dwProcessAffinity;
-		DWORD  dwSystemAffinity;
-		DWORD  dwAffinityMask;
+		DWORD_PTR dwProcessAffinity;
+		DWORD_PTR dwSystemAffinity;
+		DWORD_PTR dwAffinityMask;
 
 		// Calculate the appropriate  shifts and mask based on the 
 		// number of logical processors.
@@ -517,10 +568,14 @@ static bool HasDAZ( void ) {
 
 	memset( FXArea, 0, sizeof( FXSaveArea ) );
 
+#if ID_WIN_CPU_X64
+	_fxsave( FXArea );
+#else
 	__asm {
 		mov		eax, FXArea
 		FXSAVE	[eax]
 	}
+#endif
 
 	dwMask = *(DWORD *)&FXArea[28];						// Read the MXCSR Mask
 	return ( ( dwMask & ( 1 << 6 ) ) == ( 1 << 6 ) );	// Return if the DAZ bit is set
@@ -681,6 +736,9 @@ Sys_FPU_StackIsEmpty
 ===============
 */
 bool Sys_FPU_StackIsEmpty( void ) {
+#if ID_WIN_CPU_X64
+	return true;
+#else
 	__asm {
 		mov			eax, statePtr
 		fnstenv		[eax]
@@ -692,6 +750,7 @@ bool Sys_FPU_StackIsEmpty( void ) {
 	return false;
 empty:
 	return true;
+#endif
 }
 
 /*
@@ -700,6 +759,9 @@ Sys_FPU_ClearStack
 ===============
 */
 void Sys_FPU_ClearStack( void ) {
+#if ID_WIN_CPU_X64
+	return;
+#else
 	__asm {
 		mov			eax, statePtr
 		fnstenv		[eax]
@@ -715,6 +777,7 @@ void Sys_FPU_ClearStack( void ) {
 		jmp			emptyStack
 	done:
 	}
+#endif
 }
 
 /*
@@ -725,6 +788,10 @@ Sys_FPU_GetState
 ===============
 */
 const char *Sys_FPU_GetState( void ) {
+#if ID_WIN_CPU_X64
+	idStr::snPrintf( fpuString, sizeof( fpuString ), "FPU State:\nlegacy x87 state inspection is unavailable on x64\n" );
+	return fpuString;
+#else
 	double fpuStack[8] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
 	double *fpuStackPtr = fpuStack;
 	int i, numValues;
@@ -821,6 +888,7 @@ const char *Sys_FPU_GetState( void ) {
 	Sys_FPU_PrintStateFlags( ptr, ctrl, stat, tags, inof, inse, opof, opse );
 
 	return fpuString;
+#endif
 }
 
 /*
@@ -829,6 +897,9 @@ Sys_FPU_EnableExceptions
 ===============
 */
 void Sys_FPU_EnableExceptions( int exceptions ) {
+#if ID_WIN_CPU_X64
+	return;
+#else
 	__asm {
 		mov			eax, statePtr
 		mov			ecx, exceptions
@@ -841,6 +912,7 @@ void Sys_FPU_EnableExceptions( int exceptions ) {
 		mov			word ptr [eax], bx
 		fldcw		word ptr [eax]
 	}
+#endif
 }
 
 /*
@@ -849,6 +921,9 @@ Sys_FPU_SetPrecision
 ===============
 */
 void Sys_FPU_SetPrecision( int precision ) {
+#if ID_WIN_CPU_X64
+	return;
+#else
 	short precisionBitTable[4] = { 0, 1, 3, 0 };
 	short precisionBits = precisionBitTable[precision & 3] << 8;
 	short precisionMask = ~( ( 1 << 9 ) | ( 1 << 8 ) );
@@ -863,6 +938,7 @@ void Sys_FPU_SetPrecision( int precision ) {
 		mov			word ptr [eax], bx
 		fldcw		word ptr [eax]
 	}
+#endif
 }
 
 /*
@@ -871,6 +947,9 @@ Sys_FPU_SetRounding
 ================
 */
 void Sys_FPU_SetRounding( int rounding ) {
+#if ID_WIN_CPU_X64
+	return;
+#else
 	short roundingBitTable[4] = { 0, 1, 2, 3 };
 	short roundingBits = roundingBitTable[rounding & 3] << 10;
 	short roundingMask = ~( ( 1 << 11 ) | ( 1 << 10 ) );
@@ -885,6 +964,7 @@ void Sys_FPU_SetRounding( int rounding ) {
 		mov			word ptr [eax], bx
 		fldcw		word ptr [eax]
 	}
+#endif
 }
 
 /*
@@ -893,6 +973,15 @@ Sys_FPU_SetDAZ
 ================
 */
 void Sys_FPU_SetDAZ( bool enable ) {
+#if ID_WIN_CPU_X64
+	unsigned int csr = _mm_getcsr();
+	if ( enable ) {
+		csr |= ( 1 << 6 );
+	} else {
+		csr &= ~( 1 << 6 );
+	}
+	_mm_setcsr( csr );
+#else
 	DWORD dwData;
 
 	_asm {
@@ -906,6 +995,7 @@ void Sys_FPU_SetDAZ( bool enable ) {
 		mov		dwData, eax
 		LDMXCSR	dword ptr dwData
 	}
+#endif
 }
 
 /*
@@ -914,6 +1004,15 @@ Sys_FPU_SetFTZ
 ================
 */
 void Sys_FPU_SetFTZ( bool enable ) {
+#if ID_WIN_CPU_X64
+	unsigned int csr = _mm_getcsr();
+	if ( enable ) {
+		csr |= ( 1 << 15 );
+	} else {
+		csr &= ~( 1 << 15 );
+	}
+	_mm_setcsr( csr );
+#else
 	DWORD dwData;
 
 	_asm {
@@ -927,4 +1026,5 @@ void Sys_FPU_SetFTZ( bool enable ) {
 		mov		dwData, eax
 		LDMXCSR	dword ptr dwData
 	}
+#endif
 }

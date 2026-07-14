@@ -1000,33 +1000,33 @@ void idWindow::Transition() {
 	bool clear = true;
 
 	for ( i = 0; i < c; i++ ) {
-		idTransitionData *data = &transitions[i];
-		idWinRectangle *r = NULL;
-		idWinVec4 *v4 = dynamic_cast<idWinVec4*>(data->data);
-		idWinFloat* val = NULL;
-		if (v4 == NULL) {
-			r = dynamic_cast<idWinRectangle*>(data->data);
-			if ( !r ) {
-				val = dynamic_cast<idWinFloat*>(data->data);
+		idTransitionData *p_transition = &transitions[i];
+		idWinRectangle *p_rect = NULL;
+		idWinVec4 *p_v4 = dynamic_cast<idWinVec4*>(p_transition->p_data);
+		idWinFloat* p_val = NULL;
+		if (p_v4 == NULL) {
+			p_rect = dynamic_cast<idWinRectangle*>(p_transition->p_data);
+			if ( !p_rect ) {
+				p_val = dynamic_cast<idWinFloat*>(p_transition->p_data);
 			}
 		}
-		if ( data->interp.IsDone( gui->GetTime() ) && data->data) {
-			if (v4) {
-				*v4 = data->interp.GetEndValue();
-			} else if ( val ) {
-				*val = data->interp.GetEndValue()[0];
+		if ( p_transition->interp.IsDone( gui->GetTime() ) && p_transition->p_data) {
+			if (p_v4) {
+				*p_v4 = p_transition->interp.GetEndValue();
+			} else if ( p_val ) {
+				*p_val = p_transition->interp.GetEndValue()[0];
 			} else {
-				*r = data->interp.GetEndValue();
+				*p_rect = p_transition->interp.GetEndValue();
 			}
 		} else {
 			clear = false;
-			if (data->data) {
-				if (v4) {
-					*v4 = data->interp.GetCurrentValue( gui->GetTime() );
-				} else if ( val ) {
-					*val = data->interp.GetCurrentValue( gui->GetTime() )[0];
+			if (p_transition->p_data) {
+				if (p_v4) {
+					*p_v4 = p_transition->interp.GetCurrentValue( gui->GetTime() );
+				} else if ( p_val ) {
+					*p_val = p_transition->interp.GetCurrentValue( gui->GetTime() )[0];
 				} else {
-					*r = data->interp.GetCurrentValue( gui->GetTime() );
+					*p_rect = p_transition->interp.GetCurrentValue( gui->GetTime() );
 				}
 			} else {
 				common->Warning("Invalid transitional data for window %s in gui %s", GetName(), gui->GetSourceFile());
@@ -1714,51 +1714,51 @@ void idWindow::PostParse() {
 idWindow::GetWinVarOffset
 ================
 */
-int idWindow::GetWinVarOffset( idWinVar *wv, drawWin_t* owner) {
-	int ret = -1;
+ptrdiff_t idWindow::GetWinVarOffset( idWinVar *p_wv, drawWin_t* p_owner) {
+	ptrdiff_t ret = -1;
 
-	if ( wv == &rect ) {
-		ret = (int)&( ( idWindow * ) 0 )->rect;
+	if ( p_wv == &rect ) {
+		ret = offsetof( idWindow, rect );
 	}
 
-	if ( wv == &backColor ) {
-		ret = (int)&( ( idWindow * ) 0 )->backColor;
+	if ( p_wv == &backColor ) {
+		ret = offsetof( idWindow, backColor );
 	}
 
-	if ( wv == &matColor ) {
-		ret = (int)&( ( idWindow * ) 0 )->matColor;
+	if ( p_wv == &matColor ) {
+		ret = offsetof( idWindow, matColor );
 	}
 
-	if ( wv == &foreColor ) {
-		ret = (int)&( ( idWindow * ) 0 )->foreColor;
+	if ( p_wv == &foreColor ) {
+		ret = offsetof( idWindow, foreColor );
 	}
 
-	if ( wv == &hoverColor ) {
-		ret = (int)&( ( idWindow * ) 0 )->hoverColor;
+	if ( p_wv == &hoverColor ) {
+		ret = offsetof( idWindow, hoverColor );
 	}
 
-	if ( wv == &borderColor ) {
-		ret = (int)&( ( idWindow * ) 0 )->borderColor;
+	if ( p_wv == &borderColor ) {
+		ret = offsetof( idWindow, borderColor );
 	}
 
-	if ( wv == &textScale ) {
-		ret = (int)&( ( idWindow * ) 0 )->textScale;
+	if ( p_wv == &textScale ) {
+		ret = offsetof( idWindow, textScale );
 	}
 
-	if ( wv == &rotate ) {
-		ret = (int)&( ( idWindow * ) 0 )->rotate;
+	if ( p_wv == &rotate ) {
+		ret = offsetof( idWindow, rotate );
 	}
 
 	if ( ret != -1 ) {
-		owner->win = this;
+		p_owner->win = this;
 		return ret;
 	}
 
 	for ( int i = 0; i < drawWindows.Num(); i++ ) {
 		if ( drawWindows[i].win ) {
-			ret = drawWindows[i].win->GetWinVarOffset( wv, owner );
+			ret = drawWindows[i].win->GetWinVarOffset( p_wv, p_owner );
 		} else {
-			ret = drawWindows[i].simp->GetWinVarOffset( wv, owner );
+			ret = drawWindows[i].simp->GetWinVarOffset( p_wv, p_owner );
 		}
 		if ( ret != -1 ) {
 			break;
@@ -2610,11 +2610,11 @@ idStr* idWindow::GetStrPtrByName(const char *_name) {
 idWindow::AddTransition
 ================
 */
-void idWindow::AddTransition(idWinVar *dest, idVec4 from, idVec4 to, int time, float accelTime, float decelTime) {
-	idTransitionData data;
-	data.data = dest;
-	data.interp.Init(gui->GetTime(), accelTime * time, decelTime * time, time, from, to);
-	transitions.Append(data);
+void idWindow::AddTransition(idWinVar *p_dest, idVec4 from, idVec4 to, int time, float accelTime, float decelTime) {
+	idTransitionData transition;
+	transition.p_data = p_dest;
+	transition.interp.Init(gui->GetTime(), accelTime * time, decelTime * time, time, from, to);
+	transitions.Append(transition);
 }
 
 
@@ -2658,8 +2658,8 @@ void idWindow::ResetTime(int t) {
 
 	c = transitions.Num();
 	for ( i = 0; i < c; i++ ) {
-		idTransitionData *data = &transitions[i];
-		if ( data->interp.IsDone( gui->GetTime() ) && data->data ) {
+		idTransitionData *p_transition = &transitions[i];
+		if ( p_transition->interp.IsDone( gui->GetTime() ) && p_transition->p_data ) {
 			transitions.RemoveIndex( i );
 			i--;
 			c--;
@@ -2763,7 +2763,7 @@ idWindow::EmitOp
 ================
 */
 
-int idWindow::EmitOp( int a, int b, wexpOpType_t opType, wexpOp_t **opp ) {
+int idWindow::EmitOp( intptr_t a, int b, wexpOpType_t opType, wexpOp_t **opp ) {
 	wexpOp_t *op;
 /*
 	// optimize away identity operations
@@ -2814,7 +2814,7 @@ int idWindow::EmitOp( int a, int b, wexpOpType_t opType, wexpOp_t **opp ) {
 idWindow::ParseEmitOp
 ================
 */
-int idWindow::ParseEmitOp( idParser *src, int a, wexpOpType_t opType, int priority, wexpOp_t **opp ) {
+int idWindow::ParseEmitOp( idParser *src, intptr_t a, wexpOpType_t opType, int priority, wexpOp_t **opp ) {
 	int b = ParseExpressionPriority( src, priority );
 	return EmitOp( a, b, opType, opp );  
 }
@@ -2827,9 +2827,10 @@ idWindow::ParseTerm
 Returns a register index
 =================
 */
-int idWindow::ParseTerm( idParser *src,	idWinVar *var, int component ) {
+int idWindow::ParseTerm( idParser *src,	idWinVar *p_var, int component ) {
 	idToken token;
-	int		a, b;
+	intptr_t a;
+	int		b;
 
 	src->ReadToken( &token );
 
@@ -2868,15 +2869,15 @@ int idWindow::ParseTerm( idParser *src,	idWinVar *var, int component ) {
 		return EmitOp( a, b, WOP_TYPE_TABLE );
 	}
 	
-	if (var == NULL) {
-		var = GetWinVarByName(token, true);
+	if (p_var == NULL) {
+		p_var = GetWinVarByName(token, true);
 	}
-	if (var) {
-		a = (int)var;
+	if (p_var) {
+		a = reinterpret_cast<intptr_t>( p_var );
 		//assert(dynamic_cast<idWinVec4*>(var));
-		var->Init(token, this);
+		p_var->Init(token, this);
 		b = component;
-		if (dynamic_cast<idWinVec4*>(var)) {
+		if (dynamic_cast<idWinVec4*>(p_var)) {
 			if (src->ReadToken(&token)) {
 				if (token == "[") {
 					b = ParseExpression(src);
@@ -2886,13 +2887,13 @@ int idWindow::ParseTerm( idParser *src,	idWinVar *var, int component ) {
 				}
 			}
 			return EmitOp(a, b, WOP_TYPE_VAR);
-		} else if (dynamic_cast<idWinFloat*>(var)) {
+		} else if (dynamic_cast<idWinFloat*>(p_var)) {
 			return EmitOp(a, b, WOP_TYPE_VARF);
-		} else if (dynamic_cast<idWinInt*>(var)) {
+		} else if (dynamic_cast<idWinInt*>(p_var)) {
 			return EmitOp(a, b, WOP_TYPE_VARI);
-		} else if (dynamic_cast<idWinBool*>(var)) {
+		} else if (dynamic_cast<idWinBool*>(p_var)) {
 			return EmitOp(a, b, WOP_TYPE_VARB);
-		} else if (dynamic_cast<idWinStr*>(var)) {
+		} else if (dynamic_cast<idWinStr*>(p_var)) {
 			return EmitOp(a, b, WOP_TYPE_VARS);
 		} else {
 			src->Warning("Var expression not vec4, float or int '%s'", token.c_str());
@@ -2900,9 +2901,9 @@ int idWindow::ParseTerm( idParser *src,	idWinVar *var, int component ) {
 		return 0;
 	} else {
 		// ugly but used for post parsing to fixup named vars
-		char *p = new char[token.Length()+1];
-		strcpy(p, token);
-		a = (int)p;
+		char *p_name = new char[token.Length()+1];
+		strcpy(p_name, token);
+		a = reinterpret_cast<intptr_t>( p_name );
 		b = -2;
 		return EmitOp(a, b, WOP_TYPE_VAR);
 	}
@@ -2917,15 +2918,15 @@ Returns a register index
 =================
 */
 #define	TOP_PRIORITY 4
-int idWindow::ParseExpressionPriority( idParser *src, int priority, idWinVar *var, int component ) {
+int idWindow::ParseExpressionPriority( idParser *src, int priority, idWinVar *p_var, int component ) {
 	idToken token;
 	int		a;
 
 	if ( priority == 0 ) {
-		return ParseTerm( src, var, component );
+		return ParseTerm( src, p_var, component );
 	}
 
-	a = ParseExpressionPriority( src, priority - 1, var, component );
+	a = ParseExpressionPriority( src, priority - 1, p_var, component );
 
 	if ( !src->ReadToken( &token ) ) {
 		// we won't get EOF in a real file, but we can
@@ -2979,8 +2980,8 @@ int idWindow::ParseExpressionPriority( idParser *src, int priority, idWinVar *va
 			return o;
 		}
 		if (token == ":") {
-			a = ParseExpressionPriority( src, priority - 1, var );
-			oop->d = a;
+			a = ParseExpressionPriority( src, priority - 1, p_var );
+			oop->d = static_cast<int>( a );
 		}
 		return o;
 	}
@@ -3000,8 +3001,8 @@ idWindow::ParseExpression
 Returns a register index
 ================
 */
-int idWindow::ParseExpression(idParser *src, idWinVar *var, int component) {
-	return ParseExpressionPriority( src, TOP_PRIORITY, var );
+int idWindow::ParseExpression(idParser *src, idWinVar *p_var, int component) {
+	return ParseExpressionPriority( src, TOP_PRIORITY, p_var );
 }
 
 /*
@@ -3069,8 +3070,8 @@ void idWindow::EvaluateRegisters(float *registers) {
 			break;
 		case WOP_TYPE_TABLE:
 			{
-				const idDeclTable *table = static_cast<const idDeclTable *>( declManager->DeclByIndex( DECL_TABLE, op->a ) );
-				registers[op->c] = table->TableLookup( registers[op->b] );
+				const idDeclTable *p_table = static_cast<const idDeclTable *>( declManager->DeclByIndex( DECL_TABLE, static_cast<int>( op->a ) ) );
+				registers[op->c] = p_table->TableLookup( registers[op->b] );
 			}
 			break;
 		case WOP_TYPE_GT:
@@ -3107,40 +3108,40 @@ void idWindow::EvaluateRegisters(float *registers) {
 			}
 			if ( op->b >= 0 && registers[op->b] >= 0 && registers[op->b] < 4 ) {
 				// grabs vector components
-				idWinVec4 *var = (idWinVec4 *)( op->a );
-				registers[op->c] = ((idVec4&)var)[registers[op->b]];
+				idWinVec4 *p_var = reinterpret_cast<idWinVec4 *>( op->a );
+				registers[op->c] = static_cast<const idVec4 &>( *p_var )[static_cast<int>( registers[op->b] )];
 			} else {
-				registers[op->c] = ((idWinVar*)(op->a))->x();
+				registers[op->c] = reinterpret_cast<idWinVar *>( op->a )->x();
 			}
 			break;
 		case WOP_TYPE_VARS:
 			if (op->a) {
-				idWinStr *var = (idWinStr*)(op->a);
-				registers[op->c] = atof(var->c_str());
+				idWinStr *p_var = reinterpret_cast<idWinStr *>( op->a );
+				registers[op->c] = atof(p_var->c_str());
 			} else {
 				registers[op->c] = 0;
 			}
 			break;
 		case WOP_TYPE_VARF:
 			if (op->a) {
-				idWinFloat *var = (idWinFloat*)(op->a);
-				registers[op->c] = *var;
+				idWinFloat *p_var = reinterpret_cast<idWinFloat *>( op->a );
+				registers[op->c] = *p_var;
 			} else {
 				registers[op->c] = 0;
 			}
 			break;
 		case WOP_TYPE_VARI:
 			if (op->a) {
-				idWinInt *var = (idWinInt*)(op->a);
-				registers[op->c] = *var;
+				idWinInt *p_var = reinterpret_cast<idWinInt *>( op->a );
+				registers[op->c] = *p_var;
 			} else {
 				registers[op->c] = 0;
 			}
 			break;
 		case WOP_TYPE_VARB:
 			if (op->a) {
-				idWinBool *var = (idWinBool*)(op->a);
-				registers[op->c] = *var;
+				idWinBool *p_var = reinterpret_cast<idWinBool *>( op->a );
+				registers[op->c] = *p_var;
 			} else {
 				registers[op->c] = 0;
 			}
@@ -3235,8 +3236,10 @@ void idWindow::ReadFromDemoFile( class idDemoFile *f, bool rebuild ) {
 	f->ReadInt( c );
 	for (i = 0; i < c; i++) {
 		idTransitionData td;
-		td.data = NULL;
-		f->ReadInt ( td.offset );
+		td.p_data = NULL;
+		int offset32;
+		f->ReadInt ( offset32 );
+		td.offset = offset32;
 
 		float startTime, accelTime, linearTime, decelTime;
 		idVec4 startValue, endValue;	   
@@ -3273,7 +3276,9 @@ void idWindow::ReadFromDemoFile( class idDemoFile *f, bool rebuild ) {
 		for (i = 0; i < c; i++) {
 			wexpOp_t w;
 			f->ReadInt( (int&)w.opType );
-			f->ReadInt( w.a );
+			int a32;
+			f->ReadInt( a32 );
+			w.a = a32;
 			f->ReadInt( w.b );
 			f->ReadInt( w.c );
 			f->ReadInt( w.d );
@@ -3358,7 +3363,7 @@ void idWindow::WriteToDemoFile( class idDemoFile *f ) {
 	f->WriteInt( c );
 	for (i = 0; i < c; i++) {
 		f->WriteInt( 0 );
-		f->WriteInt( transitions[i].offset );
+		f->WriteInt( static_cast<int>( transitions[i].offset ) );
 		
 		f->WriteFloat( transitions[i].interp.GetStartTime() );
 		f->WriteFloat( transitions[i].interp.GetAccelTime() );
@@ -3414,22 +3419,23 @@ idWindow::WriteSaveGameTransition
 ===============
 */
 void idWindow::WriteSaveGameTransition( idTransitionData &trans, idFile *savefile ) {
-	drawWin_t dw, *fdw;
+	drawWin_t dw, *p_foundDrawWin;
 	idStr winName("");
 	dw.simp = NULL;
 	dw.win = NULL;
-	int offset = gui->GetDesktop()->GetWinVarOffset( trans.data, &dw );
+	ptrdiff_t offset = gui->GetDesktop()->GetWinVarOffset( trans.p_data, &dw );
 	if ( dw.win || dw.simp ) {
 		winName = ( dw.win ) ? dw.win->GetName() : dw.simp->name.c_str();
 	}
-	fdw = gui->GetDesktop()->FindChildByName( winName );
-	if ( offset != -1 && fdw && ( fdw->win || fdw->simp ) ) {
-		savefile->Write( &offset, sizeof( offset ) );
+	p_foundDrawWin = gui->GetDesktop()->FindChildByName( winName );
+	if ( offset != -1 && p_foundDrawWin && ( p_foundDrawWin->win || p_foundDrawWin->simp ) ) {
+		const int offset32 = static_cast<int>( offset );
+		savefile->Write( &offset32, sizeof( offset32 ) );
 		WriteSaveGameString( winName, savefile );
 		savefile->Write( &trans.interp, sizeof( trans.interp ) );
 	} else {
-		offset = -1;
-		savefile->Write( &offset, sizeof( offset ) );
+		const int offset32 = -1;
+		savefile->Write( &offset32, sizeof( offset32 ) );
 	}
 }
 
@@ -3439,19 +3445,19 @@ idWindow::ReadSaveGameTransition
 ===============
 */
 void idWindow::ReadSaveGameTransition( idTransitionData &trans, idFile *savefile ) {
-	int offset;
+	int offset32;
 
-	savefile->Read( &offset, sizeof( offset ) );
-	if ( offset != -1 ) {
+	savefile->Read( &offset32, sizeof( offset32 ) );
+	if ( offset32 != -1 ) {
 		idStr winName;
 		ReadSaveGameString( winName, savefile );
 		savefile->Read( &trans.interp, sizeof( trans.interp ) );
-		trans.data = NULL;
-		trans.offset = offset;
+		trans.p_data = NULL;
+		trans.offset = offset32;
 		if ( winName.Length() ) {
-			idWinStr *strVar = new idWinStr();
-			strVar->Set( winName );
-			trans.data = dynamic_cast< idWinVar* >( strVar );
+			idWinStr *p_strVar = new idWinStr();
+			p_strVar->Set( winName );
+			trans.p_data = dynamic_cast< idWinVar* >( p_strVar );
 		}
 	}
 }
@@ -3712,9 +3718,9 @@ void idWindow::ReadFromSaveGame( idFile *savefile ) {
 	savefile->Read( &num, sizeof( num ) );
 	for ( i = 0; i < num; i++ ) {
 		idTransitionData trans;
-		trans.data = NULL;
+		trans.p_data = NULL;
 		ReadSaveGameTransition( trans, savefile );
-		if ( trans.data ) {
+		if ( trans.p_data ) {
 			transitions.Append( trans );
 		}
 	}
@@ -3771,45 +3777,45 @@ idWindow::FixupTransitions
 void idWindow::FixupTransitions() {
 	int i, c = transitions.Num();
 	for ( i = 0; i < c; i++ ) {
-		drawWin_t *dw = gui->GetDesktop()->FindChildByName( ( ( idWinStr* )transitions[i].data )->c_str() );
-		delete transitions[i].data;
-		transitions[i].data = NULL;
-		if ( dw && ( dw->win || dw->simp ) ){
-			if ( dw->win ) {
-				if ( transitions[i].offset == (int)&( ( idWindow * ) 0 )->rect ) {
-					transitions[i].data = &dw->win->rect;
-				} else if ( transitions[i].offset == (int)&( ( idWindow * ) 0 )->backColor ) {
-					transitions[i].data = &dw->win->backColor;
-				} else if ( transitions[i].offset == (int)&( ( idWindow * ) 0 )->matColor ) {
-					transitions[i].data = &dw->win->matColor;
-				} else if ( transitions[i].offset == (int)&( ( idWindow * ) 0 )->foreColor ) {
-					transitions[i].data = &dw->win->foreColor;
-				} else if ( transitions[i].offset == (int)&( ( idWindow * ) 0 )->borderColor ) {
-					transitions[i].data = &dw->win->borderColor;
-				} else if ( transitions[i].offset == (int)&( ( idWindow * ) 0 )->textScale ) {
-					transitions[i].data = &dw->win->textScale;
-				} else if ( transitions[i].offset == (int)&( ( idWindow * ) 0 )->rotate ) {
-					transitions[i].data = &dw->win->rotate;
+		drawWin_t *p_drawWin = gui->GetDesktop()->FindChildByName( ( ( idWinStr* )transitions[i].p_data )->c_str() );
+		delete transitions[i].p_data;
+		transitions[i].p_data = NULL;
+		if ( p_drawWin && ( p_drawWin->win || p_drawWin->simp ) ){
+			if ( p_drawWin->win ) {
+				if ( transitions[i].offset == offsetof( idWindow, rect ) ) {
+					transitions[i].p_data = &p_drawWin->win->rect;
+				} else if ( transitions[i].offset == offsetof( idWindow, backColor ) ) {
+					transitions[i].p_data = &p_drawWin->win->backColor;
+				} else if ( transitions[i].offset == offsetof( idWindow, matColor ) ) {
+					transitions[i].p_data = &p_drawWin->win->matColor;
+				} else if ( transitions[i].offset == offsetof( idWindow, foreColor ) ) {
+					transitions[i].p_data = &p_drawWin->win->foreColor;
+				} else if ( transitions[i].offset == offsetof( idWindow, borderColor ) ) {
+					transitions[i].p_data = &p_drawWin->win->borderColor;
+				} else if ( transitions[i].offset == offsetof( idWindow, textScale ) ) {
+					transitions[i].p_data = &p_drawWin->win->textScale;
+				} else if ( transitions[i].offset == offsetof( idWindow, rotate ) ) {
+					transitions[i].p_data = &p_drawWin->win->rotate;
 				}
 			} else {
-				if ( transitions[i].offset == (int)&( ( idSimpleWindow * ) 0 )->rect ) {
-					transitions[i].data = &dw->simp->rect;
-				} else if ( transitions[i].offset == (int)&( ( idSimpleWindow * ) 0 )->backColor ) {
-					transitions[i].data = &dw->simp->backColor;
-				} else if ( transitions[i].offset == (int)&( ( idSimpleWindow * ) 0 )->matColor ) {
-					transitions[i].data = &dw->simp->matColor;
-				} else if ( transitions[i].offset == (int)&( ( idSimpleWindow * ) 0 )->foreColor ) {
-					transitions[i].data = &dw->simp->foreColor;
-				} else if ( transitions[i].offset == (int)&( ( idSimpleWindow * ) 0 )->borderColor ) {
-					transitions[i].data = &dw->simp->borderColor;
-				} else if ( transitions[i].offset == (int)&( ( idSimpleWindow * ) 0 )->textScale ) {
-					transitions[i].data = &dw->simp->textScale;
-				} else if ( transitions[i].offset == (int)&( ( idSimpleWindow * ) 0 )->rotate ) {
-					transitions[i].data = &dw->simp->rotate;
+				if ( transitions[i].offset == offsetof( idSimpleWindow, rect ) ) {
+					transitions[i].p_data = &p_drawWin->simp->rect;
+				} else if ( transitions[i].offset == offsetof( idSimpleWindow, backColor ) ) {
+					transitions[i].p_data = &p_drawWin->simp->backColor;
+				} else if ( transitions[i].offset == offsetof( idSimpleWindow, matColor ) ) {
+					transitions[i].p_data = &p_drawWin->simp->matColor;
+				} else if ( transitions[i].offset == offsetof( idSimpleWindow, foreColor ) ) {
+					transitions[i].p_data = &p_drawWin->simp->foreColor;
+				} else if ( transitions[i].offset == offsetof( idSimpleWindow, borderColor ) ) {
+					transitions[i].p_data = &p_drawWin->simp->borderColor;
+				} else if ( transitions[i].offset == offsetof( idSimpleWindow, textScale ) ) {
+					transitions[i].p_data = &p_drawWin->simp->textScale;
+				} else if ( transitions[i].offset == offsetof( idSimpleWindow, rotate ) ) {
+					transitions[i].p_data = &p_drawWin->simp->rotate;
 				}
 			}
 		}
-		if ( transitions[i].data == NULL ) {
+		if ( transitions[i].p_data == NULL ) {
 			transitions.RemoveIndex( i );
 			i--;
 			c--;
@@ -3861,10 +3867,10 @@ void idWindow::FixupParms() {
 	for (i = 0; i < c; i++) {
 		if (ops[i].b == -2) {
 			// need to fix this up
-			const char *p = (const char*)(ops[i].a);
-			idWinVar *var = GetWinVarByName(p, true);
-			delete []p;
-			ops[i].a = (int)var;
+			const char *p_name = reinterpret_cast<const char *>( ops[i].a );
+			idWinVar *p_var = GetWinVarByName(p_name, true);
+			delete []p_name;
+			ops[i].a = reinterpret_cast<intptr_t>( p_var );
 			ops[i].b = -1;
 		}
 	}

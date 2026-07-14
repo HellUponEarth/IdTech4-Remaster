@@ -32,6 +32,226 @@ If you have questions concerning this license or the applicable additional terms
 
 #define TYPE_INFO_GEN_VERSION		"1.0"
 
+extern int Sys_ListFiles( const char *p_directory, const char *p_extension, idStrList &list );
+
+static bool IsDirectiveWhitespace( char c ) {
+	return c == ' ' || c == '\t' || c == '\v' || c == '\f';
+}
+
+static bool ShouldSkipSourceFile( const char *p_fileName ) {
+	idStr normalizedName;
+
+	normalizedName = p_fileName;
+	normalizedName.BackSlashesToSlashes();
+
+	return normalizedName.IcmpPath( "neo/game/gamesys/Callbacks.cpp" ) == 0 ||
+			normalizedName.IcmpPath( "neo/d3xp/gamesys/Callbacks.cpp" ) == 0 ||
+			normalizedName.IcmpPath( "game/gamesys/Callbacks.cpp" ) == 0 ||
+			normalizedName.IcmpPath( "d3xp/gamesys/Callbacks.cpp" ) == 0;
+}
+
+static void BlankSourceRange( char *p_begin, char *p_end ) {
+	while ( p_begin < p_end ) {
+		*p_begin++ = ' ';
+	}
+}
+
+static bool SourceLineContains( const char *p_lineStart, const char *p_lineEnd, const char *p_text ) {
+	const char *p_scan;
+	int textLength;
+
+	textLength = static_cast<int>( strlen( p_text ) );
+	if ( textLength <= 0 ) {
+		return false;
+	}
+
+	for ( p_scan = p_lineStart; p_scan + textLength <= p_lineEnd; p_scan++ ) {
+		if ( idStr::Cmpn( p_scan, p_text, textLength ) == 0 ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/*
+================
+StripIncludeDirectives
+================
+*/
+static void StripUnsupportedParserLines( char *p_buffer, int fileLength ) {
+	char *p_lineStart;
+	char *p_lineEnd;
+	char *p_scan;
+	char *p_end;
+
+	p_lineStart = p_buffer;
+	p_end = p_buffer + fileLength;
+
+	while ( p_lineStart < p_end ) {
+		p_lineEnd = p_lineStart;
+		while ( p_lineEnd < p_end && *p_lineEnd != '\n' && *p_lineEnd != '\r' ) {
+			p_lineEnd++;
+		}
+
+		p_scan = p_lineStart;
+		while ( p_scan < p_lineEnd && IsDirectiveWhitespace( *p_scan ) ) {
+			p_scan++;
+		}
+		if ( p_scan < p_lineEnd && *p_scan == '#' ) {
+			p_scan++;
+			while ( p_scan < p_lineEnd && IsDirectiveWhitespace( *p_scan ) ) {
+				p_scan++;
+			}
+			if ( p_scan + 7 <= p_lineEnd && idStr::Cmpn( p_scan, "include", 7 ) == 0 ) {
+				BlankSourceRange( p_lineStart, p_lineEnd );
+			}
+		}
+		if ( SourceLineContains( p_lineStart, p_lineEnd, "idMath::BitsForInteger" ) ||
+				SourceLineContains( p_lineStart, p_lineEnd, "idMath::BitsForFloat" ) ) {
+			BlankSourceRange( p_lineStart, p_lineEnd );
+		}
+
+		p_lineStart = p_lineEnd;
+		while ( p_lineStart < p_end && ( *p_lineStart == '\n' || *p_lineStart == '\r' ) ) {
+			p_lineStart++;
+		}
+	}
+}
+
+/*
+================
+AppendSourceFiles_r
+================
+*/
+static void AppendSourceFiles_r( const char *p_directory, const char *p_extension, idStrList &files ) {
+	idStrList localFiles;
+	idStrList folders;
+	int i;
+
+	if ( Sys_ListFiles( p_directory, p_extension, localFiles ) > 0 ) {
+		for ( i = 0; i < localFiles.Num(); i++ ) {
+			files.Append( idStr( p_directory ) + "/" + localFiles[i] );
+		}
+	}
+
+	if ( Sys_ListFiles( p_directory, "/", folders ) > 0 ) {
+		for ( i = 0; i < folders.Num(); i++ ) {
+			if ( folders[i] == "." || folders[i] == ".." ) {
+				continue;
+			}
+			AppendSourceFiles_r( idStr( p_directory ) + "/" + folders[i], p_extension, files );
+		}
+	}
+}
+
+/*
+================
+LoadSourceFile
+================
+*/
+static bool LoadSourceFile( const char *p_fileName, char *&p_buffer, int &fileLength ) {
+	FILE *p_file;
+	long sourceLength;
+	size_t bytesRead;
+
+	p_buffer = NULL;
+	fileLength = 0;
+
+	p_file = fopen( p_fileName, "rb" );
+	if ( !p_file ) {
+		return false;
+	}
+
+	fseek( p_file, 0, SEEK_END );
+	sourceLength = ftell( p_file );
+	fseek( p_file, 0, SEEK_SET );
+
+	if ( sourceLength < 0 || sourceLength > INT_MAX ) {
+		fclose( p_file );
+		return false;
+	}
+
+	fileLength = static_cast<int>( sourceLength );
+	p_buffer = static_cast<char *>( Mem_Alloc( fileLength + 1 ) );
+	p_buffer[fileLength] = '\0';
+
+	bytesRead = fread( p_buffer, 1, fileLength, p_file );
+	fclose( p_file );
+
+	if ( bytesRead != static_cast<size_t>( fileLength ) ) {
+		Mem_Free( p_buffer );
+		p_buffer = NULL;
+		fileLength = 0;
+		return false;
+	}
+
+	StripUnsupportedParserLines( p_buffer, fileLength );
+
+	return true;
+}
+
+/*
+================
+idTypeInfoOutputFile
+================
+*/
+class idTypeInfoOutputFile : public idFile {
+public:
+	idTypeInfoOutputFile( const char *p_fileName, FILE *p_file ) :
+		name( p_fileName ),
+		fullPath( p_fileName ),
+		p_file( p_file ) {
+	}
+
+	virtual ~idTypeInfoOutputFile( void ) {
+		if ( p_file != NULL ) {
+			fclose( p_file );
+			p_file = NULL;
+		}
+	}
+
+	virtual const char *GetName( void ) {
+		return name.c_str();
+	}
+
+	virtual const char *GetFullPath( void ) {
+		return fullPath.c_str();
+	}
+
+	virtual int Write( const void *p_buffer, int len ) {
+		if ( p_file == NULL ) {
+			return 0;
+		}
+		return static_cast<int>( fwrite( p_buffer, 1, len, p_file ) );
+	}
+
+	virtual void Flush( void ) {
+		if ( p_file != NULL ) {
+			fflush( p_file );
+		}
+	}
+
+private:
+	idStr name;
+	idStr fullPath;
+	FILE *p_file;
+};
+
+/*
+================
+OpenTypeInfoOutputFile
+================
+*/
+static idFile *OpenTypeInfoOutputFile( const char *p_fileName ) {
+	FILE *p_file;
+
+	p_file = fopen( p_fileName, "wb" );
+	if ( p_file == NULL ) {
+		return NULL;
+	}
+	return new idTypeInfoOutputFile( p_fileName, p_file );
+}
+
 /*
 ================
 idTypeInfoGen::idTypeInfoGen
@@ -796,27 +1016,35 @@ void idTypeInfoGen::AddDefine( const char *define ) {
 idTypeInfoGen::CreateTypeInfo
 ================
 */
-void idTypeInfoGen::CreateTypeInfo( const char *path ) {
+void idTypeInfoGen::CreateTypeInfo( const char *p_path ) {
 	int i, j, inheritance;
 	idStr fileName;
-	idFileList *files;
+	idStrList files;
 	idParser src;
+	char *p_sourceBuffer;
+	int sourceLength;
 
-	common->Printf( "Type Info Generator v"TYPE_INFO_GEN_VERSION" (c) 2004 id Software\n" );
-	common->Printf( "%s\n", path );
+	common->Printf( "Type Info Generator v" TYPE_INFO_GEN_VERSION " (c) 2004 id Software\n" );
+	common->Printf( "%s\n", p_path );
 
-	files = fileSystem->ListFilesTree( path, ".cpp" );
+	AppendSourceFiles_r( p_path, ".cpp", files );
+	idStrListSortPaths( files );
 
-	for ( i = 0; i < files->GetNumFiles(); i++ ) {
+	for ( i = 0; i < files.Num(); i++ ) {
 
-		fileName = fileSystem->RelativePathToOSPath( files->GetFile( i ) );
+		fileName = files[i];
+
+		if ( ShouldSkipSourceFile( fileName ) ) {
+			continue;
+		}
 
 		common->Printf( "processing '%s' for type info...\n", fileName.c_str() );
 
-		if ( !src.LoadFile( fileName, true ) ) {
+		if ( !LoadSourceFile( fileName, p_sourceBuffer, sourceLength ) ) {
 			common->Warning( "couldn't load %s", fileName.c_str() );
 			continue;
 		}
+		src.LoadMemory( p_sourceBuffer, sourceLength, fileName );
 
 		src.SetFlags( LEXFL_NOBASEINCLUDES );
 
@@ -824,16 +1052,13 @@ void idTypeInfoGen::CreateTypeInfo( const char *path ) {
 			src.AddDefine( defines[j] );
 		}
 
-		idClassTypeInfo *typeInfo = new idClassTypeInfo;
-		ParseScope( "", false, src, typeInfo );
-		delete typeInfo;
+		idClassTypeInfo *p_typeInfo = new idClassTypeInfo;
+		ParseScope( "", false, src, p_typeInfo );
+		delete p_typeInfo;
 
 		src.FreeSource();
-
-		break;
+		Mem_Free( p_sourceBuffer );
 	}
-
-	fileSystem->FreeFileList( files );
 
 	numTemplates = 0;
 	for ( i = 0; i < classes.Num(); i++ ) {
@@ -877,15 +1102,15 @@ void CleanName( idStr &name ) {
 idTypeInfoGen::WriteTypeInfo
 ================
 */
-void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
+void idTypeInfoGen::WriteTypeInfo( const char *p_fileName ) const {
 	int i, j;
 	idStr path, define;
-	idFile *file;
+	idFile *p_file;
 
-	path = fileSystem->RelativePathToOSPath( fileName );
+	path = p_fileName;
 
-	file = fileSystem->OpenExplicitFileWrite( path );
-	if ( !file ) {
+	p_file = OpenTypeInfoOutputFile( path );
+	if ( !p_file ) {
 		common->Warning( "couldn't open %s", path.c_str() );
 		return;
 	}
@@ -896,15 +1121,17 @@ void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
 	define.Replace( ".", "_" );
 	define.ToUpper();
 
-	file->WriteFloatString(
+	p_file->WriteFloatString(
 		"\n"
 		"#ifndef __%s__\n"
 		"#define __%s__\n"
 		"\n"
+		"#include <stddef.h>\n"
+		"\n"
 		"/*\n"
 		"===================================================================================\n"
 		"\n"
-		"\tThis file has been generated with the Type Info Generator v"TYPE_INFO_GEN_VERSION" (c) 2004 id Software\n"
+		"\tThis file has been generated with the Type Info Generator v" TYPE_INFO_GEN_VERSION " (c) 2004 id Software\n"
 		"\n"
 		"\t%d constants\n"
 		"\t%d enums\n"
@@ -917,7 +1144,7 @@ void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
 		"\n", define.c_str(), define.c_str(), constants.Num(), enums.Num(), classes.Num(),
 				numTemplates, maxInheritance, maxInheritanceClass.c_str() );
 
-	file->WriteFloatString(
+	p_file->WriteFloatString(
 		"typedef struct {\n"
 		"\t"	"const char * name;\n"
 		"\t"	"const char * type;\n"
@@ -937,28 +1164,28 @@ void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
 		"typedef struct {\n"
 		"\t"	"const char * type;\n"
 		"\t"	"const char * name;\n"
-		"\t"	"int offset;\n"
-		"\t"	"int size;\n"
+		"\t"	"size_t offset;\n"
+		"\t"	"size_t size;\n"
 		"} classVariableInfo_t;\n"
 		"\n"
 		"typedef struct {\n"
 		"\t"	"const char * typeName;\n"
 		"\t"	"const char * superType;\n"
-		"\t"	"int size;\n"
+		"\t"	"size_t size;\n"
 		"\t"	"const classVariableInfo_t * variables;\n"
 		"} classTypeInfo_t;\n"
 		"\n" );
 
 	// constants
-	file->WriteFloatString( "static constantInfo_t constantInfo[] = {\n" );
+	p_file->WriteFloatString( "static constantInfo_t constantInfo[] = {\n" );
 
 	for ( i = 0; i < constants.Num(); i++ ) {
 		idConstantInfo *info = constants[i];
-		file->WriteFloatString( "\t{ \"%s\", \"%s\", \"%s\" },\n", info->type.c_str(), info->name.c_str(), info->value.c_str() );
+		p_file->WriteFloatString( "\t{ \"%s\", \"%s\", \"%s\" },\n", info->type.c_str(), info->name.c_str(), info->value.c_str() );
 	}
 
-	file->WriteFloatString( "\t{ NULL, NULL, NULL }\n" );
-	file->WriteFloatString( "};\n\n" );
+	p_file->WriteFloatString( "\t{ NULL, NULL, NULL }\n" );
+	p_file->WriteFloatString( "};\n\n" );
 
 	// enum values
 	for ( i = 0; i < enums.Num(); i++ ) {
@@ -967,21 +1194,21 @@ void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
 		idStr typeInfoName = info->scope + info->typeName;
 		CleanName( typeInfoName );
 
-		file->WriteFloatString( "static enumValueInfo_t %s_typeInfo[] = {\n", typeInfoName.c_str() );
+		p_file->WriteFloatString( "static enumValueInfo_t %s_typeInfo[] = {\n", typeInfoName.c_str() );
 
 		for ( j = 0; j < info->values.Num(); j++ ) {
 			if ( info->isTemplate ) {
-				file->WriteFloatString( "//" );
+				p_file->WriteFloatString( "//" );
 			}
-			file->WriteFloatString( "\t{ \"%s\", %d },\n", info->values[j].name.c_str(), info->values[j].value );
+			p_file->WriteFloatString( "\t{ \"%s\", %d },\n", info->values[j].name.c_str(), info->values[j].value );
 		}
 
-		file->WriteFloatString( "\t{ NULL, 0 }\n" );
-		file->WriteFloatString( "};\n\n" );
+		p_file->WriteFloatString( "\t{ NULL, 0 }\n" );
+		p_file->WriteFloatString( "};\n\n" );
 	}
 
 	// enums
-	file->WriteFloatString( "static enumTypeInfo_t enumTypeInfo[] = {\n" );
+	p_file->WriteFloatString( "static enumTypeInfo_t enumTypeInfo[] = {\n" );
 
 	for ( i = 0; i < enums.Num(); i++ ) {
 		idEnumTypeInfo *info = enums[i];
@@ -991,13 +1218,13 @@ void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
 		CleanName( typeInfoName );
 
 		if ( info->isTemplate ) {
-			file->WriteFloatString( "//" );
+			p_file->WriteFloatString( "//" );
 		}
-		file->WriteFloatString( "\t{ \"%s\", %s_typeInfo },\n", typeName.c_str(), typeInfoName.c_str() );
+		p_file->WriteFloatString( "\t{ \"%s\", %s_typeInfo },\n", typeName.c_str(), typeInfoName.c_str() );
 	}
 
-	file->WriteFloatString( "\t{ NULL, NULL }\n" );
-	file->WriteFloatString( "};\n\n" );
+	p_file->WriteFloatString( "\t{ NULL, NULL }\n" );
+	p_file->WriteFloatString( "};\n\n" );
 
 	// class variables
 	for ( i = 0; i < classes.Num(); i++ ) {
@@ -1007,25 +1234,25 @@ void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
 		idStr typeInfoName = typeName;
 		CleanName( typeInfoName );
 
-		file->WriteFloatString( "static classVariableInfo_t %s_typeInfo[] = {\n", typeInfoName.c_str() );
+		p_file->WriteFloatString( "static classVariableInfo_t %s_typeInfo[] = {\n", typeInfoName.c_str() );
 
 		for ( j = 0; j < info->variables.Num(); j++ ) {
 			const char *varName = info->variables[j].name.c_str();
 			const char *varType = info->variables[j].type.c_str();
 
 			if ( info->unnamed || info->isTemplate || info->variables[j].bits != 0 ) {
-				file->WriteFloatString( "//" );
+				p_file->WriteFloatString( "//" );
 			}
-			file->WriteFloatString( "\t{ \"%s\", \"%s\", (int)(&((%s *)0)->%s), sizeof( ((%s *)0)->%s ) },\n",
+			p_file->WriteFloatString( "\t{ \"%s\", \"%s\", offsetof( %s, %s ), sizeof( ((%s *)0)->%s ) },\n",
 									varType, varName, typeName.c_str(), varName, typeName.c_str(), varName );
 		}
 
-		file->WriteFloatString( "\t{ NULL, 0 }\n" );
-		file->WriteFloatString( "};\n\n" );
+		p_file->WriteFloatString( "\t{ NULL, 0 }\n" );
+		p_file->WriteFloatString( "};\n\n" );
 	}
 
 	// classes
-	file->WriteFloatString( "static classTypeInfo_t classTypeInfo[] = {\n" );
+	p_file->WriteFloatString( "static classTypeInfo_t classTypeInfo[] = {\n" );
 
 	for ( i = 0; i < classes.Num(); i++ ) {
 		idClassTypeInfo *info = classes[i];
@@ -1035,16 +1262,16 @@ void idTypeInfoGen::WriteTypeInfo( const char *fileName ) const {
 		CleanName( typeInfoName );
 
 		if ( info->unnamed || info->isTemplate ) {
-			file->WriteFloatString( "//" );
+			p_file->WriteFloatString( "//" );
 		}
-		file->WriteFloatString( "\t{ \"%s\", \"%s\", sizeof(%s), %s_typeInfo },\n",
+		p_file->WriteFloatString( "\t{ \"%s\", \"%s\", sizeof(%s), %s_typeInfo },\n",
 								typeName.c_str(), info->superType.c_str(), typeName.c_str(), typeInfoName.c_str() );
 	}
 
-	file->WriteFloatString( "\t{ NULL, NULL, 0, NULL }\n" );
-	file->WriteFloatString( "};\n\n" );
+	p_file->WriteFloatString( "\t{ NULL, NULL, 0, NULL }\n" );
+	p_file->WriteFloatString( "};\n\n" );
 
-	file->WriteFloatString( "#endif /* !__%s__ */\n", define.c_str() );
+	p_file->WriteFloatString( "#endif /* !__%s__ */\n", define.c_str() );
 
-	fileSystem->CloseFile( file );
+	delete p_file;
 }

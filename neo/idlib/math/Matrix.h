@@ -1820,7 +1820,7 @@ public:
 	void			ChangeSize( int rows, int columns, bool makeZero = false );		// change the size keeping data intact where possible
 	int				GetNumRows( void ) const { return numRows; }					// get the number of rows
 	int				GetNumColumns( void ) const { return numColumns; }				// get the number of columns
-	void			SetData( int rows, int columns, float *data );					// set float array pointer
+	void			SetData( int rows, int columns, float *p_data );				// set float array pointer
 	void			Zero( void );													// clear matrix
 	void			Zero( int rows, int columns );									// set size and clear matrix
 	void			Identity( void );												// clear to identity matrix
@@ -2275,13 +2275,13 @@ ID_INLINE void idMatX::SetTempSize( int rows, int columns ) {
 	MATX_CLEAREND();
 }
 
-ID_INLINE void idMatX::SetData( int rows, int columns, float *data ) {
+ID_INLINE void idMatX::SetData( int rows, int columns, float *p_data ) {
 	assert( mat < idMatX::tempPtr || mat > idMatX::tempPtr + MATX_MAX_TEMP );
 	if ( mat != NULL && alloced != -1 ) {
 		Mem_Free16( mat );
 	}
-	assert( ( ( (int) data ) & 15 ) == 0 ); // data must be 16 byte aligned
-	mat = data;
+	assert( ( reinterpret_cast<uintptr_t>( p_data ) & 15 ) == 0 ); // data must be 16 byte aligned
+	mat = p_data;
 	alloced = -1;
 	numRows = rows;
 	numColumns = columns;

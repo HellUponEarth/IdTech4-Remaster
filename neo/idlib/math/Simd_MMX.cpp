@@ -223,48 +223,48 @@ idSIMD_MMX::Memcpy
   optimized memory copy routine that handles all alignment cases and block sizes efficiently
 ================
 */
-void VPCALL idSIMD_MMX::Memcpy( void *dest0, const void *src0, const int count0 ) {
+void VPCALL idSIMD_MMX::Memcpy( void *p_dest0, const void *p_src0, const int count0 ) {
 	// if copying more than 16 bytes and we can copy 8 byte aligned
-	if ( count0 > 16 && !( ( (int)dest0 ^ (int)src0 ) & 7 ) ) {
-		byte *dest = (byte *)dest0;
-		byte *src = (byte *)src0;
+	if ( count0 > 16 && !( ( reinterpret_cast<uintptr_t>( p_dest0 ) ^ reinterpret_cast<uintptr_t>( p_src0 ) ) & 7 ) ) {
+		byte *p_dest = (byte *)p_dest0;
+		byte *p_src = (byte *)p_src0;
 
 		// copy up to the first 8 byte aligned boundary
-		int count = ((int)dest) & 7;
-		memcpy( dest, src, count );
-		dest += count;
-		src += count;
+		int count = static_cast<int>( reinterpret_cast<uintptr_t>( p_dest ) & 7 );
+		memcpy( p_dest, p_src, count );
+		p_dest += count;
+		p_src += count;
 		count = count0 - count;
 
 		// if there are multiple blocks of 2kB
 		if ( count & ~4095 ) {
-			MMX_Memcpy2kB( dest, src, count );
-			src += (count & ~2047);
-			dest += (count & ~2047);
+			MMX_Memcpy2kB( p_dest, p_src, count );
+			p_src += (count & ~2047);
+			p_dest += (count & ~2047);
 			count &= 2047;
 		}
 
 		// if there are blocks of 64 bytes
 		if ( count & ~63 ) {
-			MMX_Memcpy64B( dest, src, count );
-			src += (count & ~63);
-			dest += (count & ~63);
+			MMX_Memcpy64B( p_dest, p_src, count );
+			p_src += (count & ~63);
+			p_dest += (count & ~63);
 			count &= 63;
 		}
 
 		// if there are blocks of 8 bytes
 		if ( count & ~7 ) {
-			MMX_Memcpy8B( dest, src, count );
-			src += (count & ~7);
-			dest += (count & ~7);
+			MMX_Memcpy8B( p_dest, p_src, count );
+			p_src += (count & ~7);
+			p_dest += (count & ~7);
 			count &= 7;
 		}
 
 		// copy any remaining bytes
-		memcpy( dest, src, count );
+		memcpy( p_dest, p_src, count );
 	} else {
 		// use the regular one if we cannot copy 8 byte aligned
-		memcpy( dest0, src0, count0 );
+		memcpy( p_dest0, p_src0, count0 );
 	}
 
 	// the MMX_Memcpy* functions use MOVNTQ, issue a fence operation
@@ -278,19 +278,19 @@ void VPCALL idSIMD_MMX::Memcpy( void *dest0, const void *src0, const int count0 
 idSIMD_MMX::Memset
 ================
 */
-void VPCALL idSIMD_MMX::Memset( void* dest0, const int val, const int count0 ) {
+void VPCALL idSIMD_MMX::Memset( void* p_dest0, const int val, const int count0 ) {
 	union {
 		byte	bytes[8];
 		word	words[4];
 		dword	dwords[2];
 	} dat;
 
-	byte *dest = (byte *)dest0;
+	byte *p_dest = (byte *)p_dest0;
 	int count = count0;
 
-	while ( count > 0 && (((int)dest) & 7) ) {
-		*dest = val;
-		dest++;
+	while ( count > 0 && ( reinterpret_cast<uintptr_t>( p_dest ) & 7 ) ) {
+		*p_dest = val;
+		p_dest++;
 		count--;
 	}
 	if ( !count ) {
@@ -304,7 +304,7 @@ void VPCALL idSIMD_MMX::Memset( void* dest0, const int val, const int count0 ) {
 
 	if ( count >= 64 ) {
 		__asm {
-			mov edi, dest 
+			mov edi, p_dest
 			mov ecx, count 
 			shr ecx, 6				// 64 bytes per iteration 
 			movq mm1, dat			// Read in source data 
@@ -329,13 +329,13 @@ loop1:
 			dec ecx 
 			jnz loop1 
 		}
-		dest += ( count & ~63 );
+		p_dest += ( count & ~63 );
 		count &= 63;
 	}
 
 	if ( count >= 8 ) {
 		__asm {
-			mov edi, dest 
+			mov edi, p_dest
 			mov ecx, count 
 			shr ecx, 3				// 8 bytes per iteration 
 			movq mm1, dat			// Read in source data 
@@ -346,13 +346,13 @@ loop2:
 			dec ecx 
 			jnz loop2
 		}
-		dest += (count & ~7);
+		p_dest += (count & ~7);
 		count &= 7;
 	}
 
 	while ( count > 0 ) {
-		*dest = val;
-		dest++;
+		*p_dest = val;
+		p_dest++;
 		count--;
 	}
 

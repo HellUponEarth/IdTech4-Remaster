@@ -302,7 +302,7 @@ bool idCollisionModelManagerLocal::TestTrmInPolygon( cm_traceWork_t *tw, cm_poly
 			tw->trace.c.contents = p->contents;
 			tw->trace.c.material = p->material;
 			tw->trace.c.point = tw->vertices[tw->edges[i].vertexNum[ !flip ]].p;
-			tw->trace.c.modelFeature = *reinterpret_cast<int *>(&p);
+			tw->trace.c.modelFeature = p->polygonId;
 			tw->trace.c.trmFeature = i;
 			return true;
 		}

@@ -82,7 +82,7 @@ public:
 					// returns number in the range [0-100] representing the spread over the hash table
 	int				GetSpread( void ) const;
 					// returns a key for a string
-	int				GenerateKey( const char *string, bool caseSensitive = true ) const;
+	int				GenerateKey( const char *p_string, bool caseSensitive = true ) const;
 					// returns a key for a vector
 	int				GenerateKey( const idVec3 &v ) const;
 					// returns a key for two integers
@@ -90,9 +90,9 @@ public:
 
 private:
 	int				hashSize;
-	int *			hash;
+	int *			p_hash;
 	int				indexSize;
-	int *			indexChain;
+	int *			p_indexChain;
 	int				granularity;
 	int				hashMask;
 	int				lookupMask;
@@ -164,22 +164,22 @@ ID_INLINE idHashIndex &idHashIndex::operator=( const idHashIndex &other ) {
 		Free();
 	}
 	else {
-		if ( other.hashSize != hashSize || hash == INVALID_INDEX ) {
-			if ( hash != INVALID_INDEX ) {
-				delete[] hash;
+		if ( other.hashSize != hashSize || p_hash == INVALID_INDEX ) {
+			if ( p_hash != INVALID_INDEX ) {
+				delete[] p_hash;
 			}
 			hashSize = other.hashSize;
-			hash = new int[hashSize];
+			p_hash = new int[hashSize];
 		}
-		if ( other.indexSize != indexSize || indexChain == INVALID_INDEX ) {
-			if ( indexChain != INVALID_INDEX ) {
-				delete[] indexChain;
+		if ( other.indexSize != indexSize || p_indexChain == INVALID_INDEX ) {
+			if ( p_indexChain != INVALID_INDEX ) {
+				delete[] p_indexChain;
 			}
 			indexSize = other.indexSize;
-			indexChain = new int[indexSize];
+			p_indexChain = new int[indexSize];
 		}
-		memcpy( hash, other.hash, hashSize * sizeof( hash[0] ) );
-		memcpy( indexChain, other.indexChain, indexSize * sizeof( indexChain[0] ) );
+		memcpy( p_hash, other.p_hash, hashSize * sizeof( p_hash[0] ) );
+		memcpy( p_indexChain, other.p_indexChain, indexSize * sizeof( p_indexChain[0] ) );
 	}
 
 	return *this;
@@ -194,15 +194,15 @@ ID_INLINE void idHashIndex::Add( const int key, const int index ) {
 	int h;
 
 	assert( index >= 0 );
-	if ( hash == INVALID_INDEX ) {
+	if ( p_hash == INVALID_INDEX ) {
 		Allocate( hashSize, index >= indexSize ? index + 1 : indexSize );
 	}
 	else if ( index >= indexSize ) {
 		ResizeIndex( index + 1 );
 	}
 	h = key & hashMask;
-	indexChain[index] = hash[h];
-	hash[h] = index;
+	p_indexChain[index] = p_hash[h];
+	p_hash[h] = index;
 }
 
 /*
@@ -213,21 +213,21 @@ idHashIndex::Remove
 ID_INLINE void idHashIndex::Remove( const int key, const int index ) {
 	int k = key & hashMask;
 
-	if ( hash == INVALID_INDEX ) {
+	if ( p_hash == INVALID_INDEX ) {
 		return;
 	}
-	if ( hash[k] == index ) {
-		hash[k] = indexChain[index];
+	if ( p_hash[k] == index ) {
+		p_hash[k] = p_indexChain[index];
 	}
 	else {
-		for ( int i = hash[k]; i != -1; i = indexChain[i] ) {
-			if ( indexChain[i] == index ) {
-				indexChain[i] = indexChain[index];
+		for ( int i = p_hash[k]; i != -1; i = p_indexChain[i] ) {
+			if ( p_indexChain[i] == index ) {
+				p_indexChain[i] = p_indexChain[index];
 				break;
 			}
 		}
 	}
-	indexChain[index] = -1;
+	p_indexChain[index] = -1;
 }
 
 /*
@@ -236,7 +236,7 @@ idHashIndex::First
 ================
 */
 ID_INLINE int idHashIndex::First( const int key ) const {
-	return hash[key & hashMask & lookupMask];
+	return p_hash[key & hashMask & lookupMask];
 }
 
 /*
@@ -246,7 +246,7 @@ idHashIndex::Next
 */
 ID_INLINE int idHashIndex::Next( const int index ) const {
 	assert( index >= 0 && index < indexSize );
-	return indexChain[index & lookupMask];
+	return p_indexChain[index & lookupMask];
 }
 
 /*
@@ -257,21 +257,21 @@ idHashIndex::InsertIndex
 ID_INLINE void idHashIndex::InsertIndex( const int key, const int index ) {
 	int i, max;
 
-	if ( hash != INVALID_INDEX ) {
+	if ( p_hash != INVALID_INDEX ) {
 		max = index;
 		for ( i = 0; i < hashSize; i++ ) {
-			if ( hash[i] >= index ) {
-				hash[i]++;
-				if ( hash[i] > max ) {
-					max = hash[i];
+			if ( p_hash[i] >= index ) {
+				p_hash[i]++;
+				if ( p_hash[i] > max ) {
+					max = p_hash[i];
 				}
 			}
 		}
 		for ( i = 0; i < indexSize; i++ ) {
-			if ( indexChain[i] >= index ) {
-				indexChain[i]++;
-				if ( indexChain[i] > max ) {
-					max = indexChain[i];
+			if ( p_indexChain[i] >= index ) {
+				p_indexChain[i]++;
+				if ( p_indexChain[i] > max ) {
+					max = p_indexChain[i];
 				}
 			}
 		}
@@ -279,9 +279,9 @@ ID_INLINE void idHashIndex::InsertIndex( const int key, const int index ) {
 			ResizeIndex( max + 1 );
 		}
 		for ( i = max; i > index; i-- ) {
-			indexChain[i] = indexChain[i-1];
+			p_indexChain[i] = p_indexChain[i-1];
 		}
-		indexChain[index] = -1;
+		p_indexChain[index] = -1;
 	}
 	Add( key, index );
 }
@@ -295,28 +295,28 @@ ID_INLINE void idHashIndex::RemoveIndex( const int key, const int index ) {
 	int i, max;
 
 	Remove( key, index );
-	if ( hash != INVALID_INDEX ) {
+	if ( p_hash != INVALID_INDEX ) {
 		max = index;
 		for ( i = 0; i < hashSize; i++ ) {
-			if ( hash[i] >= index ) {
-				if ( hash[i] > max ) {
-					max = hash[i];
+			if ( p_hash[i] >= index ) {
+				if ( p_hash[i] > max ) {
+					max = p_hash[i];
 				}
-				hash[i]--;
+				p_hash[i]--;
 			}
 		}
 		for ( i = 0; i < indexSize; i++ ) {
-			if ( indexChain[i] >= index ) {
-				if ( indexChain[i] > max ) {
-					max = indexChain[i];
+			if ( p_indexChain[i] >= index ) {
+				if ( p_indexChain[i] > max ) {
+					max = p_indexChain[i];
 				}
-				indexChain[i]--;
+				p_indexChain[i]--;
 			}
 		}
 		for ( i = index; i < max; i++ ) {
-			indexChain[i] = indexChain[i+1];
+			p_indexChain[i] = p_indexChain[i+1];
 		}
-		indexChain[max] = -1;
+		p_indexChain[max] = -1;
 	}
 }
 
@@ -327,8 +327,8 @@ idHashIndex::Clear
 */
 ID_INLINE void idHashIndex::Clear( void ) {
 	// only clear the hash table because clearing the indexChain is not really needed
-	if ( hash != INVALID_INDEX ) {
-		memset( hash, 0xff, hashSize * sizeof( hash[0] ) );
+	if ( p_hash != INVALID_INDEX ) {
+		memset( p_hash, 0xff, hashSize * sizeof( p_hash[0] ) );
 	}
 }
 
@@ -376,11 +376,11 @@ ID_INLINE void idHashIndex::SetGranularity( const int newGranularity ) {
 idHashIndex::GenerateKey
 ================
 */
-ID_INLINE int idHashIndex::GenerateKey( const char *string, bool caseSensitive ) const {
+ID_INLINE int idHashIndex::GenerateKey( const char *p_string, bool caseSensitive ) const {
 	if ( caseSensitive ) {
-		return ( idStr::Hash( string ) & hashMask );
+		return ( idStr::Hash( p_string ) & hashMask );
 	} else {
-		return ( idStr::IHash( string ) & hashMask );
+		return ( idStr::IHash( p_string ) & hashMask );
 	}
 }
 

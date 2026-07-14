@@ -7,13 +7,20 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
+#ifdef _WIN64
+#include <winres.h>
+#ifndef IDC_STATIC
+#define IDC_STATIC -1
+#endif
+#else
 #include "afxres.h"
 #define _AFX_NO_SPLITTER_RESOURCES
 #define _AFX_NO_OLE_RESOURCES
 #define _AFX_NO_TRACKER_RESOURCES
 #define _AFX_NO_PROPERTY_RESOURCES
+#endif
 
-#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#if !defined(_WIN64) && ( !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU) )
 #ifdef _WIN32
 LANGUAGE 9, 1
 #pragma code_page(1252)
@@ -119,4 +126,3 @@ IDI_ICON1               ICON                    "res\\doom.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-

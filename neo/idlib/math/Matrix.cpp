@@ -2936,7 +2936,7 @@ const char *idMat6::ToString( int precision ) const {
 //===============================================================
 
 float	idMatX::temp[MATX_MAX_TEMP+4];
-float *	idMatX::tempPtr = (float *) ( ( (int) idMatX::temp + 15 ) & ~15 );
+float *	idMatX::tempPtr = reinterpret_cast<float *>( ( reinterpret_cast<uintptr_t>( idMatX::temp ) + 15 ) & ~static_cast<uintptr_t>( 15 ) );
 int		idMatX::tempIndex = 0;
 
 

@@ -29,6 +29,8 @@ If you have questions concerning this license or the applicable additional terms
 #ifndef __SYS_PUBLIC__
 #define __SYS_PUBLIC__
 
+#include <stdint.h>
+
 /*
 ===============================================================================
 
@@ -41,21 +43,31 @@ If you have questions concerning this license or the applicable additional terms
 // Win32
 #if defined(WIN32) || defined(_WIN32)
 
+#if defined(_WIN64)
+#define	BUILD_STRING					"win-x64"
+#define	CPUSTRING						"x64"
+#else
 #define	BUILD_STRING					"win-x86"
-#define BUILD_OS_ID						0
 #define	CPUSTRING						"x86"
+#endif
+#define BUILD_OS_ID						0
 #define CPU_EASYARGS					1
 
 #define ALIGN16( x )					__declspec(align(16)) x
 #define PACKED
 
-#define _alloca16( x )					((void *)((((int)_alloca( (x)+15 )) + 15) & ~15))
+#define _alloca16( x )					((void *)((((uintptr_t)_alloca( (x)+15 )) + 15) & ~(uintptr_t)15))
 
 #define PATHSEPERATOR_STR				"\\"
 #define PATHSEPERATOR_CHAR				'\\'
 
+#if defined(__GNUC__) || defined(__clang__)
+#define ID_INLINE						inline
+#define ID_STATIC_TEMPLATE
+#else
 #define ID_INLINE						__forceinline
 #define ID_STATIC_TEMPLATE				static
+#endif
 
 #define assertmem( x, y )				assert( _CrtIsValidPointer( x, y, true ) )
 
@@ -84,7 +96,7 @@ If you have questions concerning this license or the applicable additional terms
 #endif
 
 #define _alloca							alloca
-#define _alloca16( x )					((void *)((((int)alloca( (x)+15 )) + 15) & ~15))
+#define _alloca16( x )					((void *)((((uintptr_t)alloca( (x)+15 )) + 15) & ~(uintptr_t)15))
 
 #define PATHSEPERATOR_STR				"/"
 #define PATHSEPERATOR_CHAR				'/'
@@ -108,6 +120,11 @@ If you have questions concerning this license or the applicable additional terms
 	#define BUILD_OS_ID					2
 	#define CPUSTRING					"x86"
 	#define CPU_EASYARGS				1
+#elif defined(__x86_64__)
+	#define	BUILD_STRING				"linux-x64"
+	#define BUILD_OS_ID					2
+	#define CPUSTRING					"x64"
+	#define CPU_EASYARGS				1
 #elif defined(__ppc__)
 	#define	BUILD_STRING				"linux-ppc"
 	#define CPUSTRING					"ppc"
@@ -115,7 +132,7 @@ If you have questions concerning this license or the applicable additional terms
 #endif
 
 #define _alloca							alloca
-#define _alloca16( x )					((void *)((((int)alloca( (x)+15 )) + 15) & ~15))
+#define _alloca16( x )					((void *)((((uintptr_t)alloca( (x)+15 )) + 15) & ~(uintptr_t)15))
 
 #define ALIGN16( x )					x
 #define PACKED							__attribute__((packed))
@@ -195,7 +212,7 @@ typedef enum {
 	SE_CHAR,				// evValue is an ascii char
 	SE_MOUSE,				// evValue and evValue2 are reletive signed x / y moves
 	SE_JOYSTICK_AXIS,		// evValue is an axis number and evValue2 is the current state (-127 to 127)
-	SE_CONSOLE				// evPtr is a char*, from typing something at a non-game console
+	SE_CONSOLE				// p_evPtr is a char*, from typing something at a non-game console
 } sysEventType_t;
 
 typedef enum {
@@ -216,8 +233,8 @@ typedef struct sysEvent_s {
 	sysEventType_t	evType;
 	int				evValue;
 	int				evValue2;
-	int				evPtrLength;		// bytes of data pointed to by evPtr, for journaling
-	void *			evPtr;				// this must be manually freed if not NULL
+	int				evPtrLength;		// bytes of data pointed to by p_evPtr, for journaling
+	void *			p_evPtr;            // this must be manually freed if not NULL
 } sysEvent_t;
 
 typedef struct sysMemoryStats_s {
@@ -231,7 +248,8 @@ typedef struct sysMemoryStats_s {
 	int availExtendedVirtual;
 } sysMemoryStats_t;
 
-typedef unsigned long address_t;
+typedef uintptr_t address_t;
+typedef uintptr_t sysHandle_t;
 
 template<class type> class idList;		// for Sys_ListFiles
 
@@ -312,8 +330,8 @@ void			Sys_GetCurrentMemoryStatus( sysMemoryStats_t &stats );
 void			Sys_GetExeLaunchMemoryStatus( sysMemoryStats_t &stats );
 
 // lock and unlock memory
-bool			Sys_LockMemory( void *ptr, int bytes );
-bool			Sys_UnlockMemory( void *ptr, int bytes );
+bool			Sys_LockMemory( void *p_ptr, int bytes );
+bool			Sys_UnlockMemory( void *p_ptr, int bytes );
 
 // set amount of physical work memory
 void			Sys_SetPhysicalWorkMemory( int minBytes, int maxBytes );
@@ -326,9 +344,9 @@ const char *	Sys_GetCallStackCurAddressStr( int depth );
 void			Sys_ShutdownSymbols( void );
 
 // DLL loading, the path should be a fully qualified OS path to the DLL file to be loaded
-int				Sys_DLL_Load( const char *dllName );
-void *			Sys_DLL_GetProcAddress( int dllHandle, const char *procName );
-void			Sys_DLL_Unload( int dllHandle );
+sysHandle_t		Sys_DLL_Load( const char *p_dllName );
+void *			Sys_DLL_GetProcAddress( sysHandle_t p_dllHandle, const char *p_procName );
+void			Sys_DLL_Unload( sysHandle_t p_dllHandle );
 
 // event generation
 void			Sys_GenerateEvents( void );
@@ -487,7 +505,7 @@ typedef enum {
 
 typedef struct {
 	const char *	name;
-	int				threadHandle;
+	sysHandle_t		p_threadHandle;
 	unsigned long	threadId;
 } xthreadInfo;
 
@@ -495,8 +513,8 @@ const int MAX_THREADS				= 10;
 extern xthreadInfo *g_threads[MAX_THREADS];
 extern int			g_thread_count;
 
-void				Sys_CreateThread( xthread_t function, void *parms, xthreadPriority priority, xthreadInfo &info, const char *name, xthreadInfo *threads[MAX_THREADS], int *thread_count );
-void				Sys_DestroyThread( xthreadInfo& info ); // sets threadHandle back to 0
+void				Sys_CreateThread( xthread_t p_function, void *p_parms, xthreadPriority priority, xthreadInfo &info, const char *p_name, xthreadInfo *p_threads[MAX_THREADS], int *p_thread_count );
+void				Sys_DestroyThread( xthreadInfo& info ); // sets p_threadHandle back to 0
 
 // find the name of the calling thread
 // if index != NULL, set the index in g_threads array (use -1 for "main" thread)
@@ -550,17 +568,17 @@ public:
 
 	virtual void			FPU_EnableExceptions( int exceptions ) = 0;
 
-	virtual bool			LockMemory( void *ptr, int bytes ) = 0;
-	virtual bool			UnlockMemory( void *ptr, int bytes ) = 0;
+	virtual bool			LockMemory( void *p_ptr, int bytes ) = 0;
+	virtual bool			UnlockMemory( void *p_ptr, int bytes ) = 0;
 
 	virtual void			GetCallStack( address_t *callStack, const int callStackSize ) = 0;
 	virtual const char *	GetCallStackStr( const address_t *callStack, const int callStackSize ) = 0;
 	virtual const char *	GetCallStackCurStr( int depth ) = 0;
 	virtual void			ShutdownSymbols( void ) = 0;
 
-	virtual int				DLL_Load( const char *dllName ) = 0;
-	virtual void *			DLL_GetProcAddress( int dllHandle, const char *procName ) = 0;
-	virtual void			DLL_Unload( int dllHandle ) = 0;
+	virtual sysHandle_t		DLL_Load( const char *p_dllName ) = 0;
+	virtual void *			DLL_GetProcAddress( sysHandle_t p_dllHandle, const char *p_procName ) = 0;
+	virtual void			DLL_Unload( sysHandle_t p_dllHandle ) = 0;
 	virtual void			DLL_GetFileName( const char *baseName, char *dllName, int maxLength ) = 0;
 
 	virtual sysEvent_t		GenerateMouseButtonEvent( int button, bool down ) = 0;

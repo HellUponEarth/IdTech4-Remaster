@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<resource xmlns="http://www.wxwindows.org/wxxrc" version="2.3.0.1">
+	<object class="wxPanel" name="ModelSelectorPanel">
+		<style>wxTAB_TRAVERSAL</style>
+		<object class="wxBoxSizer">
+			<orient>wxVERTICAL</orient>
+			<object class="sizeritem">
+				<option>1</option>
+				<flag>wxALL|wxEXPAND</flag>
+				<border>12</border>
+				<object class="wxBoxSizer">
+					<orient>wxHORIZONTAL</orient>
+					<object class="sizeritem">
+						<option>1</option>
+						<flag>wxEXPAND</flag>
+						<border>5</border>
+						<object class="wxSplitterWindow" name="ModelSelectorSplitter">
+							<style>wxSP_3D|wxSP_LIVE_UPDATE</style>
+							<sashpos>0</sashpos>
+							<gravity>0</gravity>
+							<minsize>50</minsize>
+							<orientation>vertical</orientation>
+							<object class="wxPanel" name="ModelSelectorLeftPanel">
+								<style>wxTAB_TRAVERSAL</style>
+								<object class="wxBoxSizer">
+									<orient>wxVERTICAL</orient>
+									<object class="sizeritem">
+										<option>0</option>
+										<flag>wxEXPAND</flag>
+										<border>0</border>
+										<object class="wxPanel" name="ModelSelectorOptionsPanel">
+											<style>wxTAB_TRAVERSAL</style>
+											<object class="wxBoxSizer">
+												<orient>wxHORIZONTAL</orient>
+												<object class="sizeritem">
+													<option>0</option>
+													<flag>wxALL</flag>
+													<border>6</border>
+													<object class="wxStaticText" name="m_staticText1">
+														<label>Options:</label>
+														<wrap>-1</wrap>
+													</object>
+												</object>
+												<object class="sizeritem">
+													<option>0</option>
+													<flag>wxALL</flag>
+													<border>6</border>
+													<object class="wxCheckBox" name="ModelSelectorMonsterClipOption">
+														<label>Surround with monsterclip brush</label>
+														<checked>0</checked>
+													</object>
+												</object>
+											</object>
+										</object>
+									</object>
+									<object class="sizeritem">
+										<option>1</option>
+										<flag>wxEXPAND | wxALL</flag>
+										<border>0</border>
+										<object class="wxNotebook" name="ModelSelectorDetailsNotebook">
+											<object class="notebookpage">
+												<label>Properties</label>
+												<selected>0</selected>
+												<bitmap stock_id="darkradiant:icon_classname.png" stock_client="">undefined.png</bitmap>
+												<object class="wxPanel" name="ModelDetailsPanel">
+													<style>wxTAB_TRAVERSAL</style>
+													<object class="wxBoxSizer">
+														<orient>wxVERTICAL</orient>
+													</object>
+												</object>
+											</object>
+											<object class="notebookpage">
+												<label>Materials</label>
+												<selected>0</selected>
+												<bitmap stock_id="darkradiant:icon_texture.png" stock_client="">undefined.png</bitmap>
+												<object class="wxPanel" name="ModelMaterialsPanel">
+													<style>wxTAB_TRAVERSAL</style>
+													<object class="wxBoxSizer">
+														<orient>wxVERTICAL</orient>
+													</object>
+												</object>
+											</object>
+											<object class="notebookpage">
+												<label>Related Entity Classes</label>
+												<selected>1</selected>
+												<bitmap stock_id="darkradiant:cmenu_add_entity.png" stock_client="">undefined.png</bitmap>
+												<object class="wxPanel" name="ModelRelatedEntitiesPanel">
+													<style>wxTAB_TRAVERSAL</style>
+													<object class="wxBoxSizer">
+														<orient>wxVERTICAL</orient>
+														<object class="sizeritem">
+															<option>0</option>
+															<flag>wxALIGN_LEFT|wxLEFT|wxTOP</flag>
+															<border>3</border>
+															<object class="wxStaticText" name="m_staticText2">
+																<label>Double-click to create the selected Entity Class</label>
+																<wrap>-1</wrap>
+															</object>
+														</object>
+													</object>
+												</object>
+											</object>
+										</object>
+									</object>
+								</object>
+							</object>
+							<object class="wxPanel" name="ModelSelectorRightPanel">
+								<style>wxTAB_TRAVERSAL</style>
+								<object class="wxBoxSizer">
+									<orient>wxVERTICAL</orient>
+								</object>
+							</object>
+						</object>
+					</object>
+				</object>
+			</object>
+			<object class="sizeritem">
+				<option>0</option>
+				<flag>wxALIGN_RIGHT|wxBOTTOM|wxLEFT|wxRIGHT</flag>
+				<border>12</border>
+				<object class="wxBoxSizer">
+					<orient>wxHORIZONTAL</orient>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxRIGHT</flag>
+						<border>6</border>
+						<object class="wxButton" name="ModelSelectorReloadDeclsButton">
+							<tooltip>Reload Skin declarations. Will rescan the model folders afterwards.</tooltip>
+							<label>Reload Decls</label>
+							<default>0</default>
+							<markup>0</markup>
+							<bitmap />
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxRIGHT</flag>
+						<border>6</border>
+						<object class="wxButton" name="ModelSelectorReloadModelsButton">
+							<tooltip>Reload all model to display geometry or material changes. Will also rescan the folders afterwards.</tooltip>
+							<label>Reload Models</label>
+							<default>0</default>
+							<markup>0</markup>
+							<bitmap />
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxRIGHT</flag>
+						<border>24</border>
+						<object class="wxButton" name="ModelSelectorRescanFoldersButton">
+							<tooltip>Look for newly added files in the model folders</tooltip>
+							<label>Rescan Folders</label>
+							<default>0</default>
+							<markup>0</markup>
+							<bitmap />
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag></flag>
+						<border>6</border>
+						<object class="wxButton" name="ModelSelectorCancelButton">
+							<label>Cancel</label>
+							<default>0</default>
+							<markup>0</markup>
+							<bitmap />
+						</object>
+					</object>
+					<object class="sizeritem">
+						<option>0</option>
+						<flag>wxLEFT</flag>
+						<border>6</border>
+						<object class="wxButton" name="ModelSelectorOkButton">
+							<label>OK</label>
+							<default>0</default>
+							<markup>0</markup>
+							<bitmap />
+						</object>
+					</object>
+				</object>
+			</object>
+		</object>
+	</object>
+</resource>

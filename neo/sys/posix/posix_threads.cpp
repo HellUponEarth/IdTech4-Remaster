@@ -161,20 +161,22 @@ typedef void *(*pthread_function_t) (void *);
 Sys_CreateThread
 ==================
 */
-void Sys_CreateThread( xthread_t function, void *parms, xthreadPriority priority, xthreadInfo& info, const char *name, xthreadInfo **threads, int *thread_count ) {
+void Sys_CreateThread( xthread_t p_function, void *p_parms, xthreadPriority priority, xthreadInfo& info, const char *p_name, xthreadInfo **p_threads, int *p_thread_count ) {
 	Sys_EnterCriticalSection( );		
 	pthread_attr_t attr;
 	pthread_attr_init( &attr );
 	if ( pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_JOINABLE ) != 0 ) {
-		common->Error( "ERROR: pthread_attr_setdetachstate %s failed\n", name );
+		common->Error( "ERROR: pthread_attr_setdetachstate %s failed\n", p_name );
 	}
-	if ( pthread_create( ( pthread_t* )&info.threadHandle, &attr, ( pthread_function_t )function, parms ) != 0 ) {
-		common->Error( "ERROR: pthread_create %s failed\n", name );
+	pthread_t p_threadHandle;
+	if ( pthread_create( &p_threadHandle, &attr, ( pthread_function_t )p_function, p_parms ) != 0 ) {
+		common->Error( "ERROR: pthread_create %s failed\n", p_name );
 	}
+	info.p_threadHandle = static_cast<sysHandle_t>( p_threadHandle );
 	pthread_attr_destroy( &attr );
-	info.name = name;
-	if ( *thread_count < MAX_THREADS ) {
-		threads[ ( *thread_count )++ ] = &info;
+	info.name = p_name;
+	if ( *p_thread_count < MAX_THREADS ) {
+		p_threads[ ( *p_thread_count )++ ] = &info;
 	} else {
 		common->DPrintf( "WARNING: MAX_THREADS reached\n" );
 	}
@@ -188,14 +190,14 @@ Sys_DestroyThread
 */
 void Sys_DestroyThread( xthreadInfo& info ) {
 	// the target thread must have a cancelation point, otherwise pthread_cancel is useless
-	assert( info.threadHandle );
-	if ( pthread_cancel( ( pthread_t )info.threadHandle ) != 0 ) {
+	assert( info.p_threadHandle );
+	if ( pthread_cancel( static_cast<pthread_t>( info.p_threadHandle ) ) != 0 ) {
 		common->Error( "ERROR: pthread_cancel %s failed\n", info.name );
 	}
-	if ( pthread_join( ( pthread_t )info.threadHandle, NULL ) != 0 ) {
+	if ( pthread_join( static_cast<pthread_t>( info.p_threadHandle ), NULL ) != 0 ) {
 		common->Error( "ERROR: pthread_join %s failed\n", info.name );
 	}
-	info.threadHandle = 0;
+	info.p_threadHandle = 0;
 	Sys_EnterCriticalSection( );
 	for( int i = 0 ; i < g_thread_count ; i++ ) {
 		if ( &info == g_threads[ i ] ) {
@@ -223,7 +225,7 @@ const char* Sys_GetThreadName( int *index ) {
 	Sys_EnterCriticalSection( );
 	pthread_t thread = pthread_self();
 	for( int i = 0 ; i < g_thread_count ; i++ ) {
-		if ( thread == (pthread_t)g_threads[ i ]->threadHandle ) {
+		if ( thread == static_cast<pthread_t>( g_threads[ i ]->p_threadHandle ) ) {
 			if ( index ) {
 				*index = i;
 			}
@@ -252,7 +254,7 @@ Posix_StartAsyncThread
 =================
 */
 void Posix_StartAsyncThread() {
-	if ( asyncThread.threadHandle == 0 ) {
+	if ( asyncThread.p_threadHandle == 0 ) {
 		Sys_CreateThread( (xthread_t)Sys_AsyncThread, NULL, THREAD_NORMAL, asyncThread, "Async", g_threads, &g_thread_count );
 	} else {
 		common->Printf( "Async thread already running\n" );
@@ -289,4 +291,3 @@ void Posix_InitPThreads( ) {
 		g_threads[ i ] = NULL;
 	}	
 }
-

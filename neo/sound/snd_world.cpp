@@ -588,17 +588,17 @@ void idSoundWorldLocal::AVIUpdate() {
 	}
 
 	float	mix[MIXBUFFER_SAMPLES*6+16];
-	float	*mix_p = (float *)((( int)mix + 15 ) & ~15);	// SIMD align
+	float	*p_mix = reinterpret_cast<float *>( ( reinterpret_cast<uintptr_t>( mix ) + 15 ) & ~static_cast<uintptr_t>( 15 ) );	// SIMD align
 
-	SIMDProcessor->Memset( mix_p, 0, MIXBUFFER_SAMPLES*sizeof(float)*numSpeakers );
+	SIMDProcessor->Memset( p_mix, 0, MIXBUFFER_SAMPLES*sizeof(float)*numSpeakers );
 
-	MixLoop( lastAVI44kHz, numSpeakers, mix_p );
+	MixLoop( lastAVI44kHz, numSpeakers, p_mix );
 
 	for ( int i = 0; i < numSpeakers; i++ ) {
 		short outD[MIXBUFFER_SAMPLES];
 
 		for( int j = 0; j < MIXBUFFER_SAMPLES; j++ ) {
-			float s = mix_p[ j*numSpeakers + i];
+			float s = p_mix[ j*numSpeakers + i];
 			if ( s < -32768.0f ) {
 				outD[j] = -32768;
 			} else if ( s > 32767.0f ) {
@@ -1175,13 +1175,13 @@ void idSoundWorldLocal::WriteToSaveGame( idFile *savefile ) {
  idSoundWorldLocal::WriteToSaveGameSoundShaderParams
  ===================
  */
-void idSoundWorldLocal::WriteToSaveGameSoundShaderParams( idFile *saveGame, soundShaderParms_t *params ) {
-	saveGame->WriteFloat(params->minDistance);
-	saveGame->WriteFloat(params->maxDistance);
-	saveGame->WriteFloat(params->volume);
-	saveGame->WriteFloat(params->shakes);
-	saveGame->WriteInt(params->soundShaderFlags);
-	saveGame->WriteInt(params->soundClass);
+void idSoundWorldLocal::WriteToSaveGameSoundShaderParams( idFile *p_saveGame, soundShaderParms_t *p_params ) {
+	p_saveGame->WriteFloat(p_params->minDistance);
+	p_saveGame->WriteFloat(p_params->maxDistance);
+	p_saveGame->WriteFloat(p_params->volume);
+	p_saveGame->WriteFloat(p_params->shakes);
+	p_saveGame->WriteInt(p_params->soundShaderFlags);
+	p_saveGame->WriteInt(p_params->soundClass);
 }
 
 /*
@@ -1189,26 +1189,26 @@ void idSoundWorldLocal::WriteToSaveGameSoundShaderParams( idFile *saveGame, soun
  idSoundWorldLocal::WriteToSaveGameSoundChannel
  ===================
  */
-void idSoundWorldLocal::WriteToSaveGameSoundChannel( idFile *saveGame, idSoundChannel *ch ) {
-	saveGame->WriteBool( ch->triggerState );
-	saveGame->WriteUnsignedChar( 0 );
-	saveGame->WriteUnsignedChar( 0 );
-	saveGame->WriteUnsignedChar( 0 );
-	saveGame->WriteInt( ch->trigger44kHzTime );
-	saveGame->WriteInt( ch->triggerGame44kHzTime );
-	WriteToSaveGameSoundShaderParams( saveGame, &ch->parms );
-	saveGame->WriteInt( (int)ch->leadinSample );
-	saveGame->WriteInt( ch->triggerChannel );
-	saveGame->WriteInt( (int)ch->soundShader );
-	saveGame->WriteInt( (int)ch->decoder );
-	saveGame->WriteFloat(ch->diversity );
-	saveGame->WriteFloat(ch->lastVolume );
+void idSoundWorldLocal::WriteToSaveGameSoundChannel( idFile *p_saveGame, idSoundChannel *p_ch ) {
+	p_saveGame->WriteBool( p_ch->triggerState );
+	p_saveGame->WriteUnsignedChar( 0 );
+	p_saveGame->WriteUnsignedChar( 0 );
+	p_saveGame->WriteUnsignedChar( 0 );
+	p_saveGame->WriteInt( p_ch->trigger44kHzTime );
+	p_saveGame->WriteInt( p_ch->triggerGame44kHzTime );
+	WriteToSaveGameSoundShaderParams( p_saveGame, &p_ch->parms );
+	p_saveGame->WriteInt( p_ch->leadinSample != NULL ? 1 : 0 );
+	p_saveGame->WriteInt( p_ch->triggerChannel );
+	p_saveGame->WriteInt( p_ch->soundShader != NULL ? 1 : 0 );
+	p_saveGame->WriteInt( p_ch->decoder != NULL ? 1 : 0 );
+	p_saveGame->WriteFloat(p_ch->diversity );
+	p_saveGame->WriteFloat(p_ch->lastVolume );
 	for (int m = 0; m < 6; m++)
-		saveGame->WriteFloat( ch->lastV[m] );
-	saveGame->WriteInt( ch->channelFade.fadeStart44kHz );
-	saveGame->WriteInt( ch->channelFade.fadeEnd44kHz );
-	saveGame->WriteFloat( ch->channelFade.fadeStartVolume );
-	saveGame->WriteFloat( ch->channelFade.fadeEndVolume );
+		p_saveGame->WriteFloat( p_ch->lastV[m] );
+	p_saveGame->WriteInt( p_ch->channelFade.fadeStart44kHz );
+	p_saveGame->WriteInt( p_ch->channelFade.fadeEnd44kHz );
+	p_saveGame->WriteFloat( p_ch->channelFade.fadeStartVolume );
+	p_saveGame->WriteFloat( p_ch->channelFade.fadeEndVolume );
 }
 
 /*
@@ -1274,8 +1274,10 @@ void idSoundWorldLocal::ReadFromSaveGame( idFile *savefile ) {
 		ReadFromSaveGameSoundShaderParams( savefile, &def->parms );
 		savefile->ReadFloat( def->amplitude );
 		savefile->ReadInt( def->ampTime );
-		for (int k = 0; k < SOUND_MAX_CHANNELS; k++) 
-			ReadFromSaveGameSoundChannel( savefile, &def->channels[k] );
+		bool channelNeedsDecoder[SOUND_MAX_CHANNELS];
+		for (int k = 0; k < SOUND_MAX_CHANNELS; k++) {
+			channelNeedsDecoder[k] = ReadFromSaveGameSoundChannel( savefile, &def->channels[k] );
+		}
 		savefile->ReadFloat( def->distance );
 		savefile->ReadBool( def->hasShakes );
 		savefile->ReadInt( def->lastValidPortalArea );
@@ -1289,39 +1291,39 @@ void idSoundWorldLocal::ReadFromSaveGame( idFile *savefile ) {
 		savefile->ReadInt( channel );
 
 		while ( channel >= 0 ) {
-			if ( channel > SOUND_MAX_CHANNELS ) {
+			if ( channel >= SOUND_MAX_CHANNELS ) {
 				common->Error( "idSoundWorldLocal::ReadFromSaveGame: channel > SOUND_MAX_CHANNELS" );
 			}
 
-			idSoundChannel *chan = &def->channels[channel];
+			idSoundChannel *p_chan = &def->channels[channel];
 
-			if ( chan->decoder != NULL ) {
+			if ( channelNeedsDecoder[channel] ) {
 				// The pointer in the save file is not valid, so we grab a new one
-				chan->decoder = idSampleDecoder::Alloc();
+				p_chan->decoder = idSampleDecoder::Alloc();
 			}
 
 			savefile->ReadString( soundShader );
-			chan->soundShader = declManager->FindSound( soundShader );
+			p_chan->soundShader = declManager->FindSound( soundShader );
 
 			savefile->ReadString( soundShader );
 			// load savegames with s_noSound 1
 			if ( soundSystemLocal.soundCache ) {
-				chan->leadinSample = soundSystemLocal.soundCache->FindSound( soundShader, false );
+				p_chan->leadinSample = soundSystemLocal.soundCache->FindSound( soundShader, false );
 			} else {
-				chan->leadinSample = NULL;
+				p_chan->leadinSample = NULL;
 			}
 
 			// adjust the hardware start time
-			chan->trigger44kHzTime += soundTimeOffset;
+			p_chan->trigger44kHzTime += soundTimeOffset;
 
 			// make sure we start up the hardware voice if needed
-			chan->triggered = chan->triggerState;
-			chan->openalStreamingOffset = currentSoundTime - chan->trigger44kHzTime;
+			p_chan->triggered = p_chan->triggerState;
+			p_chan->openalStreamingOffset = currentSoundTime - p_chan->trigger44kHzTime;
 
 			// adjust the hardware fade time
-			if ( chan->channelFade.fadeStart44kHz != 0 ) {
-				chan->channelFade.fadeStart44kHz += soundTimeOffset;
-				chan->channelFade.fadeEnd44kHz += soundTimeOffset;
+			if ( p_chan->channelFade.fadeStart44kHz != 0 ) {
+				p_chan->channelFade.fadeStart44kHz += soundTimeOffset;
+				p_chan->channelFade.fadeEnd44kHz += soundTimeOffset;
 			}
 
 			// next command
@@ -1345,13 +1347,13 @@ void idSoundWorldLocal::ReadFromSaveGame( idFile *savefile ) {
  idSoundWorldLocal::ReadFromSaveGameSoundShaderParams
  ===================
  */
-void idSoundWorldLocal::ReadFromSaveGameSoundShaderParams( idFile *saveGame, soundShaderParms_t *params ) {
-	saveGame->ReadFloat(params->minDistance);
-	saveGame->ReadFloat(params->maxDistance);
-	saveGame->ReadFloat(params->volume);
-	saveGame->ReadFloat(params->shakes);
-	saveGame->ReadInt(params->soundShaderFlags);
-	saveGame->ReadInt(params->soundClass);
+void idSoundWorldLocal::ReadFromSaveGameSoundShaderParams( idFile *p_saveGame, soundShaderParms_t *p_params ) {
+	p_saveGame->ReadFloat(p_params->minDistance);
+	p_saveGame->ReadFloat(p_params->maxDistance);
+	p_saveGame->ReadFloat(p_params->volume);
+	p_saveGame->ReadFloat(p_params->shakes);
+	p_saveGame->ReadInt(p_params->soundShaderFlags);
+	p_saveGame->ReadInt(p_params->soundClass);
 }
 
 /*
@@ -1359,27 +1361,38 @@ void idSoundWorldLocal::ReadFromSaveGameSoundShaderParams( idFile *saveGame, sou
  idSoundWorldLocal::ReadFromSaveGameSoundChannel
  ===================
  */
-void idSoundWorldLocal::ReadFromSaveGameSoundChannel( idFile *saveGame, idSoundChannel *ch ) {
-	saveGame->ReadBool( ch->triggerState );
+bool idSoundWorldLocal::ReadFromSaveGameSoundChannel( idFile *p_saveGame, idSoundChannel *p_ch ) {
+	int leadinSampleMarker;
+	int soundShaderMarker;
+	int decoderMarker;
+
+	p_saveGame->ReadBool( p_ch->triggerState );
 	char tmp;
-	saveGame->ReadChar( tmp );
-	saveGame->ReadChar( tmp );
-	saveGame->ReadChar( tmp );
-	saveGame->ReadInt( ch->trigger44kHzTime );
-	saveGame->ReadInt( ch->triggerGame44kHzTime );
-	ReadFromSaveGameSoundShaderParams( saveGame, &ch->parms );
-	saveGame->ReadInt( (int&)ch->leadinSample );
-	saveGame->ReadInt( ch->triggerChannel );
-	saveGame->ReadInt( (int&)ch->soundShader );
-	saveGame->ReadInt( (int&)ch->decoder );
-	saveGame->ReadFloat(ch->diversity );
-	saveGame->ReadFloat(ch->lastVolume );
+	p_saveGame->ReadChar( tmp );
+	p_saveGame->ReadChar( tmp );
+	p_saveGame->ReadChar( tmp );
+	p_saveGame->ReadInt( p_ch->trigger44kHzTime );
+	p_saveGame->ReadInt( p_ch->triggerGame44kHzTime );
+	ReadFromSaveGameSoundShaderParams( p_saveGame, &p_ch->parms );
+	p_saveGame->ReadInt( leadinSampleMarker );
+	p_saveGame->ReadInt( p_ch->triggerChannel );
+	p_saveGame->ReadInt( soundShaderMarker );
+	p_saveGame->ReadInt( decoderMarker );
+	(void)leadinSampleMarker;
+	(void)soundShaderMarker;
+	p_ch->leadinSample = NULL;
+	p_ch->soundShader = NULL;
+	p_ch->decoder = NULL;
+	p_saveGame->ReadFloat(p_ch->diversity );
+	p_saveGame->ReadFloat(p_ch->lastVolume );
 	for (int m = 0; m < 6; m++)
-		saveGame->ReadFloat( ch->lastV[m] );
-	saveGame->ReadInt( ch->channelFade.fadeStart44kHz );
-	saveGame->ReadInt( ch->channelFade.fadeEnd44kHz );
-	saveGame->ReadFloat( ch->channelFade.fadeStartVolume );
-	saveGame->ReadFloat( ch->channelFade.fadeEndVolume );
+		p_saveGame->ReadFloat( p_ch->lastV[m] );
+	p_saveGame->ReadInt( p_ch->channelFade.fadeStart44kHz );
+	p_saveGame->ReadInt( p_ch->channelFade.fadeEnd44kHz );
+	p_saveGame->ReadFloat( p_ch->channelFade.fadeStartVolume );
+	p_saveGame->ReadFloat( p_ch->channelFade.fadeEndVolume );
+
+	return decoderMarker != 0;
 }
 
 /*
@@ -1713,7 +1726,7 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 	//
 	int offset = current44kHz - chan->trigger44kHzTime;
 	float inputSamples[MIXBUFFER_SAMPLES*2+16];
-	float *alignedInputSamples = (float *) ( ( ( (int)inputSamples ) + 15 ) & ~15 );
+	float *p_alignedInputSamples = reinterpret_cast<float *>( ( reinterpret_cast<uintptr_t>( inputSamples ) + 15 ) & ~static_cast<uintptr_t>( 15 ) );
 
 	//
 	// allocate and initialize hardware source
@@ -1785,16 +1798,16 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 				}
 
 				for ( j = 0; j < finishedbuffers; j++ ) {
-					chan->GatherChannelSamples( chan->openalStreamingOffset * sample->objectInfo.nChannels, MIXBUFFER_SAMPLES * sample->objectInfo.nChannels, alignedInputSamples );
+					chan->GatherChannelSamples( chan->openalStreamingOffset * sample->objectInfo.nChannels, MIXBUFFER_SAMPLES * sample->objectInfo.nChannels, p_alignedInputSamples );
 					for ( int i = 0; i < ( MIXBUFFER_SAMPLES * sample->objectInfo.nChannels ); i++ ) {
-						if ( alignedInputSamples[i] < -32768.0f )
-							((short *)alignedInputSamples)[i] = -32768;
-						else if ( alignedInputSamples[i] > 32767.0f )
-							((short *)alignedInputSamples)[i] = 32767;
+						if ( p_alignedInputSamples[i] < -32768.0f )
+							((short *)p_alignedInputSamples)[i] = -32768;
+						else if ( p_alignedInputSamples[i] > 32767.0f )
+							((short *)p_alignedInputSamples)[i] = 32767;
 						else
-							((short *)alignedInputSamples)[i] = idMath::FtoiFast( alignedInputSamples[i] );
+							((short *)p_alignedInputSamples)[i] = idMath::FtoiFast( p_alignedInputSamples[i] );
 					}
-					alBufferData( buffers[j], chan->leadinSample->objectInfo.nChannels == 1 ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16, alignedInputSamples, MIXBUFFER_SAMPLES * sample->objectInfo.nChannels * sizeof( short ), 44100 );
+					alBufferData( buffers[j], chan->leadinSample->objectInfo.nChannels == 1 ? AL_FORMAT_MONO16 : AL_FORMAT_STEREO16, p_alignedInputSamples, MIXBUFFER_SAMPLES * sample->objectInfo.nChannels * sizeof( short ), 44100 );
 					chan->openalStreamingOffset += MIXBUFFER_SAMPLES;
 				}
 
@@ -1818,9 +1831,9 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 
 				if ( sample->objectInfo.nChannels == 2 ) {
 					// need to add a stereo path, but very few samples go through this
-					memset( alignedInputSamples, 0, sizeof( alignedInputSamples[0] ) * MIXBUFFER_SAMPLES * 2 );
+					memset( p_alignedInputSamples, 0, sizeof( p_alignedInputSamples[0] ) * MIXBUFFER_SAMPLES * 2 );
 				} else {
-					slow.GatherChannelSamples( offset, MIXBUFFER_SAMPLES, alignedInputSamples );
+					slow.GatherChannelSamples( offset, MIXBUFFER_SAMPLES, p_alignedInputSamples );
 				}
 
 			sound->SetSlowChannel( chan, slow );
@@ -1830,9 +1843,9 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 			// if we are getting a stereo sample adjust accordingly
 			if ( sample->objectInfo.nChannels == 2 ) {
 				// we should probably check to make sure any looping is also to a stereo sample...
-				chan->GatherChannelSamples( offset*2, MIXBUFFER_SAMPLES*2, alignedInputSamples );
+				chan->GatherChannelSamples( offset*2, MIXBUFFER_SAMPLES*2, p_alignedInputSamples );
 			} else {
-				chan->GatherChannelSamples( offset, MIXBUFFER_SAMPLES, alignedInputSamples );
+				chan->GatherChannelSamples( offset, MIXBUFFER_SAMPLES, p_alignedInputSamples );
 			}
 		}
 
@@ -1887,15 +1900,15 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
 
 		if ( numSpeakers == 6 ) {
 			if ( sample->objectInfo.nChannels == 1 ) {
-				SIMDProcessor->MixSoundSixSpeakerMono( finalMixBuffer, alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
+				SIMDProcessor->MixSoundSixSpeakerMono( finalMixBuffer, p_alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
 			} else {
-				SIMDProcessor->MixSoundSixSpeakerStereo( finalMixBuffer, alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
+				SIMDProcessor->MixSoundSixSpeakerStereo( finalMixBuffer, p_alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
 			}
 		} else {
 			if ( sample->objectInfo.nChannels == 1 ) {
-				SIMDProcessor->MixSoundTwoSpeakerMono( finalMixBuffer, alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
+				SIMDProcessor->MixSoundTwoSpeakerMono( finalMixBuffer, p_alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
 			} else {
-				SIMDProcessor->MixSoundTwoSpeakerStereo( finalMixBuffer, alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
+				SIMDProcessor->MixSoundTwoSpeakerStereo( finalMixBuffer, p_alignedInputSamples, MIXBUFFER_SAMPLES, chan->lastV, ears );
 			}
 		}
 

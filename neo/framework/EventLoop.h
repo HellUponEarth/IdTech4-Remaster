@@ -80,7 +80,7 @@ private:
 
 	sysEvent_t		GetRealEvent( void );
 	void			ProcessEvent( sysEvent_t ev );
-	void			PushEvent( sysEvent_t *event );
+	void			PushEvent( sysEvent_t *p_event );
 };
 
 extern	idEventLoop	*eventLoop;

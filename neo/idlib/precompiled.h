@@ -58,7 +58,9 @@ If you have questions concerning this license or the applicable additional terms
 
 #else
 
+#ifdef ID_ENABLE_MFC_TOOLS
 #include "../tools/comafx/StdAfx.h"
+#endif
 
 #endif
 

@@ -1654,7 +1654,7 @@ idStr::ShowMemoryUsage_f
 void idStr::ShowMemoryUsage_f( const idCmdArgs &args ) {
 #ifdef USE_STRING_DATA_ALLOCATOR
 	idLib::common->Printf( "%6d KB string memory (%d KB free in %d blocks, %d empty base blocks)\n",
-		stringDataAllocator.GetBaseBlockMemory() >> 10, stringDataAllocator.GetFreeBlockMemory() >> 10,
+		static_cast<int>( stringDataAllocator.GetBaseBlockMemory() >> 10 ), static_cast<int>( stringDataAllocator.GetFreeBlockMemory() >> 10 ),
 			stringDataAllocator.GetNumFreeBlocks(), stringDataAllocator.GetNumEmptyBaseBlocks() );
 #endif
 }
@@ -1740,4 +1740,3 @@ idStr idStr::FormatNumber( int number ) {
 
 	return string;
 }
-

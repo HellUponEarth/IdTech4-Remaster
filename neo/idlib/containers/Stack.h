@@ -37,50 +37,50 @@ If you have questions concerning this license or the applicable additional terms
 ===============================================================================
 */
 
-#define idStack( type, next )		idStackTemplate<type, (int)&(((type*)NULL)->next)>
+#define idStack( type, next )		idStackTemplate<type, offsetof( type, next )>
 
-template< class type, int nextOffset >
+template< class type, size_t nextOffset >
 class idStackTemplate {
 public:
 							idStackTemplate( void );
 
-	void					Add( type *element );
+	void					Add( type *p_element );
 	type *					Get( void );
 
 private:
-	type *					top;
-	type *					bottom;
+	type *					p_top;
+	type *					p_bottom;
 };
 
-#define STACK_NEXT_PTR( element )		(*(type**)(((byte*)element)+nextOffset))
+#define STACK_NEXT_PTR( p_element )		(*(type**)(((byte*)p_element)+nextOffset))
 
-template< class type, int nextOffset >
+template< class type, size_t nextOffset >
 idStackTemplate<type,nextOffset>::idStackTemplate( void ) {
-	top = bottom = NULL;
+	p_top = p_bottom = NULL;
 }
 
-template< class type, int nextOffset >
-void idStackTemplate<type,nextOffset>::Add( type *element ) {
-	STACK_NEXT_PTR(element) = top;
-	top = element;
-	if ( !bottom ) {
-		bottom = element;
+template< class type, size_t nextOffset >
+void idStackTemplate<type,nextOffset>::Add( type *p_element ) {
+	STACK_NEXT_PTR(p_element) = p_top;
+	p_top = p_element;
+	if ( !p_bottom ) {
+		p_bottom = p_element;
 	}
 }
 
-template< class type, int nextOffset >
+template< class type, size_t nextOffset >
 type *idStackTemplate<type,nextOffset>::Get( void ) {
-	type *element;
+	type *p_element;
 
-	element = top;
-	if ( element ) {
-		top = STACK_NEXT_PTR(top);
-		if ( bottom == element ) {
-			bottom = NULL;
+	p_element = p_top;
+	if ( p_element ) {
+		p_top = STACK_NEXT_PTR(p_top);
+		if ( p_bottom == p_element ) {
+			p_bottom = NULL;
 		}
-		STACK_NEXT_PTR(element) = NULL;
+		STACK_NEXT_PTR(p_element) = NULL;
 	}
-	return element;
+	return p_element;
 }
 
 #endif /* !__STACK_H__ */
