@@ -2092,3 +2092,41 @@ Known boundary: script interpreter stack pushes still contain separate float/vec
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-15 Sys Sound And Legacy Stack Patch Pointer Arithmetic Slice
+
+### Files Changed
+
+- `neo/sys/linux/sound.cpp`
+- `neo/sys/linux/sound_alsa.cpp`
+- `neo/sys/win32/win_main.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| OSS `idAudioHardwareOSS::Write` mix-buffer write pointer | Legacy API interop / runtime pointer arithmetic | Replaced `(int)m_buffer + byteOffset` with typed `byte *` pointer arithmetic and a `p_writeBuffer` pointer local before calling `write`. |
+| ALSA `idAudioHardwareALSA::Write` mix-buffer write pointer | Legacy API interop / runtime pointer arithmetic | Replaced `(int)m_buffer + byteOffset` with typed `byte *` pointer arithmetic and passed the resulting pointer to `snd_pcm_writei`. |
+| Win32 legacy `_chkstk` jump patch | Legacy API interop / 32-bit instruction patch | Removed `(int)_chkstk` / `(int)clrstk` address math. The patch now uses a byte pointer for the write target and `intptr_t` for the address difference before narrowing to the required 32-bit relative jump displacement. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, or asset formats. The Linux audio changes are process-local buffer pointer arithmetic only. The Win32 `_chkstk` patch remains compiled only for the legacy non-x64 path and still writes the same 5-byte relative jump encoding.
+
+Compile-time guard:
+
+```c
+static_assert( sizeof( int ) == 4, "relative jump patch displacement must stay 32-bit" );
+```
+
+Known boundary: the Windows CMake presets compile and link `neo/sys/win32/win_main.cpp`; they do not compile the Linux OSS/ALSA backend files in this environment. The Linux backend changes were verified with source scans here and should still be compiled on a Linux target when that build path is available.
+
+### Verification Log For This Slice
+
+- `rg -n "\(int\)m_buffer|int pos = \(int\)|\(int\)_chkstk|\(int\)clrstk|\*\(int \*\)\(\(int\)" neo\sys\linux\sound.cpp neo\sys\linux\sound_alsa.cpp neo\sys\win32\win_main.cpp`: no matches.
+- `rg -n "byteOffset|p_writeBuffer|p_chkstkBytes|relative jump patch displacement|reinterpret_cast<intptr_t>\( (_chkstk|clrstk) \)" neo\sys\linux\sound.cpp neo\sys\linux\sound_alsa.cpp neo\sys\win32\win_main.cpp`: helper locals and guard are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `neo/sys/win32/win_main.cpp` and linked `Doom3.exe`, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt `neo/sys/win32/win_main.cpp` and linked `DedServer.exe`, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.

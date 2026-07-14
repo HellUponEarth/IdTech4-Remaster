@@ -374,10 +374,11 @@ void idAudioHardwareOSS::Write( bool flushing ) {
 		return;
 	}
 	// what to write and how much
-	int pos = (int)m_buffer + ( MIXBUFFER_CHUNKS - m_writeChunks ) * m_channels * 2 * MIXBUFFER_SAMPLES / MIXBUFFER_CHUNKS;
+	int byteOffset = ( MIXBUFFER_CHUNKS - m_writeChunks ) * m_channels * 2 * MIXBUFFER_SAMPLES / MIXBUFFER_CHUNKS;
+	byte *p_writeBuffer = reinterpret_cast<byte *>( m_buffer ) + byteOffset;
 	int len = Min( m_writeChunks, m_freeWriteChunks ) * m_channels * 2 * MIXBUFFER_SAMPLES / MIXBUFFER_CHUNKS;
 	assert( len > 0 );
-	if ( ( ret = write( m_audio_fd, (void*)pos, len ) ) == -1 ) {
+	if ( ( ret = write( m_audio_fd, p_writeBuffer, len ) ) == -1 ) {
 		Sys_Printf( "write to audio fd failed: %s\n", strerror( errno ) );
 		return;
 	}
@@ -396,4 +397,3 @@ void idAudioHardwareOSS::Write( bool flushing ) {
 bool Sys_LoadOpenAL( void ) {
 	return false;
 }
-

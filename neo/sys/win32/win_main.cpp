@@ -1189,10 +1189,14 @@ HackChkStk
 ====================
 */
 void HackChkStk( void ) {
+	static_assert( sizeof( int ) == 4, "relative jump patch displacement must stay 32-bit" );
 	DWORD	old;
 	VirtualProtect( _chkstk, 6, PAGE_EXECUTE_READWRITE, &old );
-	*(byte *)_chkstk = 0xe9;
-	*(int *)((int)_chkstk+1) = (int)clrstk - (int)_chkstk - 5;
+	byte *p_chkstkBytes = reinterpret_cast<byte *>( _chkstk );
+	*p_chkstkBytes = 0xe9;
+	intptr_t chkstkAddress = reinterpret_cast<intptr_t>( _chkstk );
+	intptr_t clrstkAddress = reinterpret_cast<intptr_t>( clrstk );
+	*reinterpret_cast<int *>( p_chkstkBytes + 1 ) = static_cast<int>( clrstkAddress - chkstkAddress - 5 );
 
 	TestChkStk();
 }
