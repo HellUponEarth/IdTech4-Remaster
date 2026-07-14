@@ -2263,6 +2263,41 @@ Known boundary: script interpreter stack pushes still contain separate float/vec
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 Script VM Local Stack Push Lane Cleanup Slice
+
+### Files Changed
+
+- `neo/game/script/Script_Interpreter.h`
+- `neo/d3xp/script/Script_Interpreter.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| Base game `idInterpreter::Push( int )` local stack write | Serialization / script VM local stack scalar lane | Replaced `int *` aliasing of the byte `localstack` with `memcpy`, preserving the existing four-byte VM scalar lane used by integer/entity/bool and float-bit pushes. |
+| d3xp `idInterpreter::Push( int )` local stack write | Serialization / script VM local stack scalar lane | Applied the same fixed-width write to the d3xp interpreter stack. |
+
+This slice does not widen savegame, network, demo, journal, script bytecode, or VM stack fields. `localstack` remains a byte array, and each scalar push still advances by `sizeof( int )`. Existing script float/vector push sites that convert floats to 32-bit integer lanes continue to produce the same stack bytes; only the object-representation write into the byte stack changed.
+
+Compile-time guard:
+
+```c
+static_assert( sizeof( int ) == 4, "script VM local stack scalar lanes must stay 32-bit" );
+```
+
+Known boundary: `varEval_t` and several interpreter read/write paths still expose typed `int *`, `float *`, and `idVec3 *` views into `localstack`. Those are broader VM layout surfaces and should be audited in a dedicated VM stack-view slice before changing stack layout or save compatibility.
+
+### Verification Log For This Slice
+
+- `rg -n "\*\s*\(\s*int\s*\*\s*\)\s*&localstack\[ localstackUsed \]|script VM local stack scalar lanes|memcpy\( &localstack\[ localstackUsed \]" neo\game\script\Script_Interpreter.h neo\d3xp\script\Script_Interpreter.h`: stale push write aliases are gone; fixed-width guard and `memcpy` writes are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt broad game/d3xp script-dependent surfaces, regenerated TypeInfo, linked `Doom3.exe`, and emitted existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt broad game/d3xp script-dependent surfaces for the dedicated preset and emitted existing legacy warning noise but no errors. A final incremental run reported no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-15 Sys Sound And Legacy Stack Patch Pointer Arithmetic Slice
 
 ### Files Changed

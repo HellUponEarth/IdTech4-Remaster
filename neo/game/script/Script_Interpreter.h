@@ -32,6 +32,8 @@ If you have questions concerning this license or the applicable additional terms
 #define MAX_STACK_DEPTH 	64
 #define LOCALSTACK_SIZE 	6144
 
+static_assert( sizeof( int ) == 4, "script VM local stack scalar lanes must stay 32-bit" );
+
 typedef struct prstack_s {
 	int 				s;
 	const function_t	*f;
@@ -139,7 +141,7 @@ ID_INLINE void idInterpreter::Push( int value ) {
 	if ( localstackUsed + sizeof( int ) > LOCALSTACK_SIZE ) {
 		Error( "Push: locals stack overflow\n" );
 	}
-	*( int * )&localstack[ localstackUsed ]	= value;
+	memcpy( &localstack[ localstackUsed ], &value, sizeof( value ) );
 	localstackUsed += sizeof( int );
 }
 
