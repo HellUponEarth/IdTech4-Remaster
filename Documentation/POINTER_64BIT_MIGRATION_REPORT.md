@@ -1817,6 +1817,38 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 Token Special Float Bit Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/Token.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idToken::NumberValue` special float parsing for `1.#INF`, `1.#IND`, and `1.#QNAN` | Legacy API interop / token parser float bit lane | Replaced `float *` aliasing of 32-bit integer literals with a fixed-width `memcpy` helper that materializes the same IEEE float bit patterns before widening to the existing `double` token value. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, parser token, or asset formats. It only changes how the parser constructs transient special floating-point values for legacy token spellings. The 32-bit patterns remain `0x7f800000`, `0xffc00000`, and `0x7fc00000`.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( dword ) == 4, "token special-float bit lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "token special-float values require 32-bit IEEE float storage" );
+```
+
+### Verification Log For This Slice
+
+- `rg -n "\*\s*\(\s*float\s*\*\s*\)\s*&|Token_FloatFromBits|token special-float|0x7f800000|0xffc00000|0x7fc00000" neo\idlib\Token.cpp`: stale float-pointer aliases are gone; fixed-width helper, guards, and exact legacy bit patterns are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `neo/idlib/Token.cpp`, regenerated TypeInfo outputs, linked `Doom3.exe`, and emitted existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt `neo/idlib/Token.cpp`, regenerated TypeInfo outputs, and emitted existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-15 SSE2 Fixed-Width Mask Lane Cleanup Slice
 
 ### Files Changed

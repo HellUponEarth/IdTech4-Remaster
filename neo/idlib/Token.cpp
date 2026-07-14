@@ -29,6 +29,15 @@ If you have questions concerning this license or the applicable additional terms
 #include "precompiled.h"
 #pragma hdrstop
 
+static_assert( sizeof( dword ) == 4, "token special-float bit lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "token special-float values require 32-bit IEEE float storage" );
+
+static float Token_FloatFromBits( dword bits ) {
+	float value;
+	memcpy( &value, &bits, sizeof( value ) );
+	return value;
+}
+
 
 /*
 ================
@@ -48,16 +57,13 @@ void idToken::NumberValue( void ) {
 	if ( subtype & TT_FLOAT ) {
 		if ( subtype & ( TT_INFINITE | TT_INDEFINITE | TT_NAN ) ) {
 			if ( subtype & TT_INFINITE ) {			// 1.#INF
-				unsigned int inf = 0x7f800000;
-				floatvalue = (double) *(float*)&inf;
+				floatvalue = static_cast<double>( Token_FloatFromBits( 0x7f800000u ) );
 			}
 			else if ( subtype & TT_INDEFINITE ) {	// 1.#IND
-				unsigned int ind = 0xffc00000;
-				floatvalue = (double) *(float*)&ind;
+				floatvalue = static_cast<double>( Token_FloatFromBits( 0xffc00000u ) );
 			}
 			else if ( subtype & TT_NAN ) {			// 1.#QNAN
-				unsigned int nan = 0x7fc00000;
-				floatvalue = (double) *(float*)&nan;
+				floatvalue = static_cast<double>( Token_FloatFromBits( 0x7fc00000u ) );
 			}
 		}
 		else {
