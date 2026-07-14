@@ -57,6 +57,26 @@ static_assert( sizeof( contactType_t ) == sizeof( int ), "contact type save mark
 static_assert( sizeof( idVec3 ) == 12, "event trace vector fields must stay fixed-width" );
 static_assert( sizeof( idMat3 ) == 36, "event trace matrix fields must stay fixed-width" );
 
+static void Event_WriteIntLane( byte *p_data, int value ) {
+	memcpy( p_data, &value, sizeof( value ) );
+}
+
+static int Event_ReadIntLane( const byte *p_data ) {
+	int value;
+	memcpy( &value, p_data, sizeof( value ) );
+	return value;
+}
+
+static void Event_WriteFloatLane( byte *p_data, float value ) {
+	memcpy( p_data, &value, sizeof( value ) );
+}
+
+static float Event_ReadFloatLane( const byte *p_data ) {
+	float value;
+	memcpy( &value, p_data, sizeof( value ) );
+	return value;
+}
+
 static const idMaterial *Event_TraceMaterialMarker( void ) {
 	return reinterpret_cast<const idMaterial *>( static_cast<intptr_t>( 1 ) );
 }
@@ -326,7 +346,7 @@ idEvent *idEvent::Alloc( const idEventDef *evdef, int numargs, va_list args ) {
 		switch( format[ i ] ) {
 		case D_EVENT_FLOAT :
 		case D_EVENT_INTEGER :
-			*reinterpret_cast<int *>( dataPtr ) = arg->value;
+			Event_WriteIntLane( dataPtr, static_cast<int>( arg->value ) );
 			break;
 
 		case D_EVENT_VECTOR :
@@ -534,7 +554,7 @@ void idEvent::ServiceEvents( void ) {
 			switch( formatspec[ i ] ) {
 			case D_EVENT_FLOAT :
 			case D_EVENT_INTEGER :
-				args[ i ] = *reinterpret_cast<int *>( &data[ offset ] );
+				args[ i ] = Event_ReadIntLane( &data[ offset ] );
 				break;
 
 			case D_EVENT_VECTOR :
@@ -677,13 +697,13 @@ void idEvent::Save( idSaveGame *savefile ) {
 			dataPtr = &event->data[ event->eventdef->GetArgOffset( i ) ];
 			switch( format[ i ] ) {
 				case D_EVENT_FLOAT :
-					savefile->WriteFloat( *reinterpret_cast<float *>( dataPtr ) );
+					savefile->WriteFloat( Event_ReadFloatLane( dataPtr ) );
 					size += sizeof( float );
 					break;
 				case D_EVENT_INTEGER :
 				case D_EVENT_ENTITY :
 				case D_EVENT_ENTITY_NULL :
-					savefile->WriteInt( *reinterpret_cast<int *>( dataPtr ) );
+					savefile->WriteInt( Event_ReadIntLane( dataPtr ) );
 					size += sizeof( int );
 					break;
 				case D_EVENT_VECTOR :
@@ -773,16 +793,22 @@ void idEvent::Restore( idRestoreGame *savefile ) {
 			for ( j = 0, size = 0; j < event->eventdef->GetNumArgs(); ++j) {
 				dataPtr = &event->data[ event->eventdef->GetArgOffset( j ) ];
 				switch( format[ j ] ) {
-					case D_EVENT_FLOAT :
-						savefile->ReadFloat( *reinterpret_cast<float *>( dataPtr ) );
+					case D_EVENT_FLOAT : {
+						float value;
+						savefile->ReadFloat( value );
+						Event_WriteFloatLane( dataPtr, value );
 						size += sizeof( float );
 						break;
+					}
 					case D_EVENT_INTEGER :
 					case D_EVENT_ENTITY :
-					case D_EVENT_ENTITY_NULL :
-						savefile->ReadInt( *reinterpret_cast<int *>( dataPtr ) );
+					case D_EVENT_ENTITY_NULL : {
+						int value;
+						savefile->ReadInt( value );
+						Event_WriteIntLane( dataPtr, value );
 						size += sizeof( int );
 						break;
+					}
 					case D_EVENT_VECTOR :
 						savefile->ReadVec3( *reinterpret_cast<idVec3 *>( dataPtr ) );
 						size += sizeof( idVec3 );

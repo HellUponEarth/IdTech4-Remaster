@@ -43,6 +43,15 @@ extern const idEventDef EV_SafeRemove;
 
 typedef void ( idClass::*eventCallback_t )( void );
 
+static_assert( sizeof( int ) == 4, "event argument integer lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "event argument float lanes must stay 32-bit" );
+
+static ID_INLINE int idEventArg_FloatToBits( float p_data ) {
+	int bits;
+	memcpy( &bits, &p_data, sizeof( bits ) );
+	return bits;
+}
+
 template< class Type >
 struct idEventFunc {
 	const idEventDef	*event;
@@ -61,7 +70,7 @@ public:
 
 	idEventArg()								{ type = D_EVENT_INTEGER; value = 0; };
 	idEventArg( int data )						{ type = D_EVENT_INTEGER; value = data; };
-	idEventArg( float data )					{ type = D_EVENT_FLOAT; value = *reinterpret_cast<int *>( &data ); };
+	idEventArg( float p_data )					{ type = D_EVENT_FLOAT; value = idEventArg_FloatToBits( p_data ); };
 	idEventArg( idVec3 &data )					{ type = D_EVENT_VECTOR; value = reinterpret_cast<intptr_t>( &data ); };
 	idEventArg( const idStr &data )				{ type = D_EVENT_STRING; value = reinterpret_cast<intptr_t>( data.c_str() ); };
 	idEventArg( const char *p_data )			{ type = D_EVENT_STRING; value = reinterpret_cast<intptr_t>( p_data ); };

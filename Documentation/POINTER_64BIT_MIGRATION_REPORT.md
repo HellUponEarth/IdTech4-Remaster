@@ -2006,3 +2006,43 @@ Known boundary: the compatibility path validates legacy 32-bit queued trace-even
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-14 Event Scalar Lane Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/game/gamesys/Class.h`
+- `neo/d3xp/gamesys/Class.h`
+- `neo/game/gamesys/Event.cpp`
+- `neo/d3xp/gamesys/Event.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idEventArg( float )` in base game and d3xp | Legacy API interop / event argument bit field | Replaced `float` through `int *` aliasing with a `memcpy` helper that stores the same 32-bit IEEE payload in the transient `intptr_t` event argument lane. |
+| Queued `D_EVENT_FLOAT` / `D_EVENT_INTEGER` storage in base game and d3xp | Serialization / savegame field helper | Added explicit 4-byte scalar-lane read/write helpers for queued event buffers instead of reading and writing through `int *` / `float *` aliases. |
+| d3xp fast-event scalar dispatch and save/restore | Serialization / savegame field helper | Applied the same helpers to the `_D3XP` fast-event queue so normal and fast event queues preserve identical scalar lane semantics. |
+
+This slice does not widen queued event buffers, savegame fields, or network fields. `D_EVENT_FLOAT` and `D_EVENT_INTEGER` still occupy exactly four bytes in queued event storage and saved event streams. The already pointer-sized transient callback array remains `intptr_t`; scalar event values are copied into or out of the low 32-bit lane explicitly.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( int ) == 4, "event argument integer lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "event argument float lanes must stay 32-bit" );
+```
+
+Known boundary: script interpreter stack pushes still contain separate float/vector bit-punning sites. Those are script VM stack lanes rather than queued event lanes and should be cleaned in a dedicated script-VM slice.
+
+### Verification Log For This Slice
+
+- `rg -n "idEventArg\( float data \)|\*reinterpret_cast<\s*(int|float)\s*\*>\s*\(\s*&data|\*reinterpret_cast<\s*(int|float)\s*\*>\s*\(\s*dataPtr\s*\)|\*reinterpret_cast<\s*(int|float)\s*\*>\s*\(\s*&data\[\s*offset\s*\]\s*\)" neo\game\gamesys\Class.h neo\d3xp\gamesys\Class.h neo\game\gamesys\Event.cpp neo\d3xp\gamesys\Event.cpp`: no matches.
+- `rg -n "Event_Write(Int|Float)Lane|Event_Read(Int|Float)Lane|idEventArg_FloatToBits|event argument (integer|float) lanes" neo\game\gamesys\Class.h neo\d3xp\gamesys\Class.h neo\game\gamesys\Event.cpp neo\d3xp\gamesys\Event.cpp`: helper definitions, use sites, and guards are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the game and d3xp modules, regenerated/linking outputs as needed, and emitted existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the touched game modules under the dedicated preset, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
