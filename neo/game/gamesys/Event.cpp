@@ -929,7 +929,7 @@ void CreateEventCallbackHandler( void ) {
 			for( k = 0; k < i; k++ ) {
 				if ( j & ( 1 << k ) ) {
 					string1 += "const float";
-					string2 += va( "*( float * )&p_data[ %d ]", k );
+					string2 += va( "idClass_FloatEventArg( p_data[ %d ] )", k );
 				} else {
 					string1 += "const intptr_t";
 					string2 += va( "p_data[ %d ]", k );

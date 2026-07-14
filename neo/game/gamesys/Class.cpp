@@ -39,6 +39,14 @@ instancing of objects.
 
 #include "TypeInfo.h"
 
+static_assert( sizeof( float ) == 4, "event callback float lanes must stay 32-bit" );
+
+static float idClass_FloatEventArg( intptr_t value ) {
+	float result;
+	memcpy( &result, &value, sizeof( result ) );
+	return result;
+}
+
 
 /***********************************************************************
 

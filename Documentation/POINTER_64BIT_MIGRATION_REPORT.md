@@ -1817,6 +1817,52 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 Script VM And Callback Float Lane Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/game/script/Script_Interpreter.cpp`
+- `neo/d3xp/script/Script_Interpreter.cpp`
+- `neo/game/gamesys/Class.cpp`
+- `neo/d3xp/gamesys/Class.cpp`
+- `neo/game/gamesys/Event.cpp`
+- `neo/d3xp/gamesys/Event.cpp`
+- `neo/game/gamesys/Callbacks.cpp`
+- `neo/d3xp/gamesys/Callbacks.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idInterpreter::GetRegisterValue` object field debug reads in base game and d3xp | Legacy API interop / script VM value lane | Replaced `int *` and `float *` byte alias reads with `memcpy` helpers that decode the same 32-bit VM field lanes. |
+| `idInterpreter::CallEvent` / `CallSysEvent` script-to-event scalar bridge | Legacy API interop / event argument bit field | Replaced writes through `float *` / `int *` into the transient `intptr_t p_data[]` callback array with explicit helpers and whole-lane integer assignment. |
+| `OP_PUSH_BTOF` and `OP_PUSH_V` in base game and d3xp | Legacy API interop / script VM value lane | Replaced float-to-int bit aliasing with an explicit `memcpy` helper before pushing the 32-bit VM lane. |
+| Generated `Callbacks.cpp` float argument reads and `CreateEventCallbackHandler` | Legacy API interop / generated callback float lane | Replaced generated `*( float * )&p_data[n]` callback reads with `idClass_FloatEventArg( p_data[n] )`, and updated the generator so future callback regeneration emits the helper path. |
+
+This slice does not widen savegame fields, network fields, script VM stack lanes, or queued event buffers. Script VM int and float lanes remain four bytes, including the raw `localstack` bytes that are saved and restored by the interpreter. The transient event callback array remains `intptr_t`, but float callback arguments are copied into and decoded from the low 32-bit IEEE float lane explicitly; the helper zeroes the upper bytes before copying a float into an `intptr_t` slot.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( int ) == 4, "script VM integer stack lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "script VM float stack lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "event callback float lanes must stay 32-bit" );
+```
+
+Known boundary: the broader VM `localstack` design still exposes typed pointer views through `varEval_t` and `idInterpreter::Push`; this slice removes the active float/int bit-pun expressions at the script/event callback boundary without changing VM layout or save format.
+
+### Verification Log For This Slice
+
+- `rg -n "\*reinterpret_cast<\s*(int|float)\s*\*>\s*\(\s*&obj->data|\*reinterpret_cast<\s*int\s*\*>\s*\(\s*&floatVal\s*\)|\*reinterpret_cast<\s*int\s*\*>\s*\(\s*&var_a\.vectorPtr|\*\(\s*(int|float)\s*\*\s*\)&p_data|\(\s*\*\(\s*float\s*\*\s*\)&p_data" neo\game\script\Script_Interpreter.cpp neo\d3xp\script\Script_Interpreter.cpp neo\game\gamesys\Callbacks.cpp neo\d3xp\gamesys\Callbacks.cpp neo\game\gamesys\Event.cpp neo\d3xp\gamesys\Event.cpp`: no matches.
+- `rg -n "ScriptVM_(ReadIntLane|ReadFloatLane|FloatToIntLane|WriteFloatEventArg)|idClass_FloatEventArg|script VM (integer|float) stack lanes|event callback float lanes" neo\game\script\Script_Interpreter.cpp neo\d3xp\script\Script_Interpreter.cpp neo\game\gamesys\Class.cpp neo\d3xp\gamesys\Class.cpp neo\game\gamesys\Event.cpp neo\d3xp\gamesys\Event.cpp neo\game\gamesys\Callbacks.cpp neo\d3xp\gamesys\Callbacks.cpp`: helper definitions, use sites, generator output, and guards are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the touched game and d3xp modules, regenerated TypeInfo, and emitted existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the touched game and d3xp modules under the dedicated preset, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-14 DrawVert Color And InvSqrt Bit Alias Cleanup Slice
 
 ### Files Changed

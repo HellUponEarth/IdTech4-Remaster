@@ -31,6 +31,32 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "../Game_local.h"
 
+static_assert( sizeof( int ) == 4, "script VM integer stack lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "script VM float stack lanes must stay 32-bit" );
+
+static int ScriptVM_ReadIntLane( const byte *p_data ) {
+	int value;
+	memcpy( &value, p_data, sizeof( value ) );
+	return value;
+}
+
+static float ScriptVM_ReadFloatLane( const byte *p_data ) {
+	float value;
+	memcpy( &value, p_data, sizeof( value ) );
+	return value;
+}
+
+static int ScriptVM_FloatToIntLane( float value ) {
+	int bits;
+	memcpy( &bits, &value, sizeof( bits ) );
+	return bits;
+}
+
+static void ScriptVM_WriteFloatEventArg( intptr_t *p_data, int index, float value ) {
+	p_data[ index ] = 0;
+	memcpy( &p_data[ index ], &value, sizeof( value ) );
+}
+
 /*
 ================
 idInterpreter::idInterpreter()
@@ -285,11 +311,11 @@ bool idInterpreter::GetRegisterValue( const char *name, idStr &out, int scopeDep
 								
 		switch ( field->Type() ) {
 		case ev_boolean:
-			out = va( "%d", *( reinterpret_cast<int *>( &obj->data[ reg.ptrOffset ] ) ) );
+			out = va( "%d", ScriptVM_ReadIntLane( &obj->data[ reg.ptrOffset ] ) );
 			return true;
 
 		case ev_float:
-			out = va( "%g", *( reinterpret_cast<float *>( &obj->data[ reg.ptrOffset ] ) ) );
+			out = va( "%g", ScriptVM_ReadFloatLane( &obj->data[ reg.ptrOffset ] ) );
 			return true;
 
 		default:
@@ -750,7 +776,7 @@ void idInterpreter::CallEvent( const function_t *func, int argsize ) {
 
 		case D_EVENT_FLOAT :
 			var.intPtr = ( int * )&localstack[ start + pos ];
-			( *( float * )&p_data[ i ] ) = *var.floatPtr;
+			ScriptVM_WriteFloatEventArg( p_data, i, *var.floatPtr );
 			break;
 
 		case D_EVENT_VECTOR :
@@ -875,12 +901,12 @@ void idInterpreter::CallSysEvent( const function_t *func, int argsize ) {
 		switch( format[ i ] ) {
 		case D_EVENT_INTEGER :
 			source.intPtr = ( int * )&localstack[ start + pos ];
-			*( int * )&p_data[ i ] = int( *source.floatPtr );
+			p_data[ i ] = static_cast<intptr_t>( int( *source.floatPtr ) );
 			break;
 
 		case D_EVENT_FLOAT :
 			source.intPtr = ( int * )&localstack[ start + pos ];
-			*( float * )&p_data[ i ] = *source.floatPtr;
+			ScriptVM_WriteFloatEventArg( p_data, i, *source.floatPtr );
 			break;
 
 		case D_EVENT_VECTOR :
@@ -1775,7 +1801,7 @@ bool idInterpreter::Execute( void ) {
 		case OP_PUSH_BTOF:
 			var_a = GetVariable( st->a );
 			floatVal = *var_a.intPtr;
-			Push( *reinterpret_cast<int *>( &floatVal ) );
+			Push( ScriptVM_FloatToIntLane( floatVal ) );
 			break;
 
 		case OP_PUSH_FTOB:
@@ -1808,9 +1834,9 @@ bool idInterpreter::Execute( void ) {
 
 		case OP_PUSH_V:
 			var_a = GetVariable( st->a );
-			Push( *reinterpret_cast<int *>( &var_a.vectorPtr->x ) );
-			Push( *reinterpret_cast<int *>( &var_a.vectorPtr->y ) );
-			Push( *reinterpret_cast<int *>( &var_a.vectorPtr->z ) );
+			Push( ScriptVM_FloatToIntLane( var_a.vectorPtr->x ) );
+			Push( ScriptVM_FloatToIntLane( var_a.vectorPtr->y ) );
+			Push( ScriptVM_FloatToIntLane( var_a.vectorPtr->z ) );
 			break;
 
 		case OP_PUSH_OBJ:
