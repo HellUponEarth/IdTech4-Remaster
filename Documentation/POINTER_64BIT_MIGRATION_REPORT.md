@@ -2111,6 +2111,41 @@ Known boundary: this does not address non-aliasing math warnings such as depreca
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 Math FloatHash Fixed-Width Lane Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Math.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idMath::FloatHash` float-array hashing | Pointer hashing / math helper fixed-width float lane | Replaced `reinterpret_cast<const int *>( array )` hashing with per-float `idMath_FloatBits` reads, preserving the old 32-bit XOR hash semantics without reading a `float *` through an `int *`. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. `FloatHash` still returns an `int`, and each input float still contributes exactly its 32-bit IEEE object representation to the XOR hash. Only the in-memory object-representation access path changed.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( dword ) == 4, "math float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "math float bit helpers require 32-bit IEEE float storage" );
+static_assert( sizeof( int ) == 4, "math integer bit lanes must stay 32-bit" );
+```
+
+Known boundary: `FloatHash` is used by base game and d3xp clip-model hashes. This slice preserves the existing hash type and bit pattern; any future change to a wider or endian-stable hash would need an explicit asset/network compatibility review.
+
+### Verification Log For This Slice
+
+- `rg -n "FloatHash\(|reinterpret_cast<\s*const\s*int\s*\*>\s*\(\s*array\s*\)|math integer bit lanes|idMath_FloatBits\( array\[i\] \)" neo\idlib\math\Math.h`: stale `reinterpret_cast<const int *>` array hashing is gone; fixed-width helper use and guards are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `cmake --build --preset ninja-dedicated-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-14 BitMsg Float Bit Serialization Alias Cleanup Slice
 
 ### Files Changed

@@ -67,6 +67,7 @@ If you have questions concerning this license or the applicable additional terms
 
 static_assert( sizeof( dword ) == 4, "math float bit helpers require a fixed 32-bit integer lane" );
 static_assert( sizeof( float ) == 4, "math float bit helpers require 32-bit IEEE float storage" );
+static_assert( sizeof( int ) == 4, "math integer bit lanes must stay 32-bit" );
 
 static ID_INLINE dword idMath_FloatBits( float f ) {
 	dword bits;
@@ -931,11 +932,9 @@ ID_INLINE float idMath::AngleDelta( float angle1, float angle2 ) {
 
 ID_INLINE int idMath::FloatHash( const float *array, const int numFloats ) {
 	int i, hash = 0;
-	const int *ptr;
 
-	ptr = reinterpret_cast<const int *>( array );
 	for ( i = 0; i < numFloats; i++ ) {
-		hash ^= ptr[i];
+		hash ^= static_cast<int>( idMath_FloatBits( array[i] ) );
 	}
 	return hash;
 }
