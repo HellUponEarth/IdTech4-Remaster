@@ -1817,6 +1817,46 @@ Compatibility boundary: this slice supports new versioned journals and old heade
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-14 Math And Random Float Bit Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Math.h`
+- `neo/idlib/math/Math.cpp`
+- `neo/idlib/math/Random.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `FLOATSIGNBIT*`, `FLOATNOTZERO`, and `FLOAT_IS_*` macros | Legacy API interop / math helper bit fields | Replaced direct `unsigned long *` float aliasing with a local `memcpy`-based 32-bit float bit helper. |
+| `idMath::RSqrt`, `Exp16`, `Log16`, `ILog2`, `MaskForFloatSign`, and `Fabs` | Legacy API interop / math helper bit fields | Replaced active `reinterpret_cast<int *>` / `reinterpret_cast<long *>` float bit punning with the same fixed-width helper path. |
+| `idMath::FloatToBits` / `BitsToFloat` | Network field helper | Kept the compressed-float bit layout unchanged while replacing strict-aliasing conversions with fixed-width bit copies. |
+| `idRandom2::RandomFloat` / `CRandomFloat` | Runtime math helper | Replaced `*(float *)&i` with the fixed-width helper while preserving the existing generated mantissa bits. |
+
+This slice does not widen savegame or network fields. It keeps the existing 32-bit IEEE float assumptions explicit and removes undefined strict-aliasing reads from the active math and random helper paths. The public `idRandom2` seed type is unchanged; only the local generated IEEE float bit lane now uses `dword`.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( dword ) == 4, "math float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "math float bit helpers require 32-bit IEEE float storage" );
+```
+
+Known boundary: this does not address non-aliasing math warnings such as deprecated implicit copies, class `memcpy` warnings in vector/matrix storage, or unrelated renderer/game warnings.
+
+### Verification Log For This Slice
+
+- `rg -n "\*reinterpret_cast<\s*(int|long|float)\s*\*>\s*\(&|\*\(float \*\)&|\*\(float \*\)|\*\(const unsigned long \*\)" neo\idlib\math\Math.h neo\idlib\math\Math.cpp neo\idlib\math\Random.h`: no matches.
+- `rg -n "FLOATSIGNBITSET\(|FLOAT_IS_NAN\(|idMath_FloatBits|idMath_BitsToFloat|Random2::RandomFloat|Random2::CRandomFloat" neo\idlib\math\Math.h neo\idlib\math\Math.cpp neo\idlib\math\Random.h`: fixed-width helper definitions and use sites are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the broad idLib/header dependency surface, linked runtime outputs, and emitted existing non-aliasing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad idLib/header dependency surface for the dedicated preset and emitted existing non-aliasing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-14 BitMsg Float Bit Serialization Alias Cleanup Slice
 
 ### Files Changed

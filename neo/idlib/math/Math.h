@@ -65,17 +65,32 @@ If you have questions concerning this license or the applicable additional terms
 #define	ANGLE2BYTE(x)			( idMath::FtoiFast( (x) * 256.0f / 360.0f ) & 255 )
 #define	BYTE2ANGLE(x)			( (x) * ( 360.0f / 256.0f ) )
 
-#define FLOATSIGNBITSET(f)		((*(const unsigned long *)&(f)) >> 31)
-#define FLOATSIGNBITNOTSET(f)	((~(*(const unsigned long *)&(f))) >> 31)
-#define FLOATNOTZERO(f)			((*(const unsigned long *)&(f)) & ~(1<<31) )
+static_assert( sizeof( dword ) == 4, "math float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "math float bit helpers require 32-bit IEEE float storage" );
+
+static ID_INLINE dword idMath_FloatBits( float f ) {
+	dword bits;
+	memcpy( &bits, &f, sizeof( bits ) );
+	return bits;
+}
+
+static ID_INLINE float idMath_BitsToFloat( dword bits ) {
+	float f;
+	memcpy( &f, &bits, sizeof( f ) );
+	return f;
+}
+
+#define FLOATSIGNBITSET(f)		(idMath_FloatBits( f ) >> 31)
+#define FLOATSIGNBITNOTSET(f)	((~idMath_FloatBits( f )) >> 31)
+#define FLOATNOTZERO(f)			(idMath_FloatBits( f ) & ~(1<<31) )
 #define INTSIGNBITSET(i)		(((const unsigned long)(i)) >> 31)
 #define INTSIGNBITNOTSET(i)		((~((const unsigned long)(i))) >> 31)
 
-#define	FLOAT_IS_NAN(x)			(((*(const unsigned long *)&x) & 0x7f800000) == 0x7f800000)
-#define FLOAT_IS_INF(x)			(((*(const unsigned long *)&x) & 0x7fffffff) == 0x7f800000)
-#define FLOAT_IS_IND(x)			((*(const unsigned long *)&x) == 0xffc00000)
-#define	FLOAT_IS_DENORMAL(x)	(((*(const unsigned long *)&x) & 0x7f800000) == 0x00000000 && \
-								 ((*(const unsigned long *)&x) & 0x007fffff) != 0x00000000 )
+#define	FLOAT_IS_NAN(x)			((idMath_FloatBits( x ) & 0x7f800000) == 0x7f800000)
+#define FLOAT_IS_INF(x)			((idMath_FloatBits( x ) & 0x7fffffff) == 0x7f800000)
+#define FLOAT_IS_IND(x)			(idMath_FloatBits( x ) == 0xffc00000)
+#define	FLOAT_IS_DENORMAL(x)	((idMath_FloatBits( x ) & 0x7f800000) == 0x00000000 && \
+								 (idMath_FloatBits( x ) & 0x007fffff) != 0x00000000 )
 
 #define IEEE_FLT_MANTISSA_BITS	23
 #define IEEE_FLT_EXPONENT_BITS	8
@@ -240,13 +255,13 @@ private:
 
 ID_INLINE float idMath::RSqrt( float x ) {
 
-	long i;
+	dword i;
 	float y, r;
 
 	y = x * 0.5f;
-	i = *reinterpret_cast<long *>( &x );
+	i = idMath_FloatBits( x );
 	i = 0x5f3759df - ( i >> 1 );
-	r = *reinterpret_cast<float *>( &i );
+	r = idMath_BitsToFloat( i );
 	r = r * ( 1.5f - r * r * y );
 	return r;
 }
@@ -655,7 +670,7 @@ ID_INLINE float idMath::Exp16( float f ) {
 
 	x = f * 1.44269504088896340f;		// multiply with ( 1 / log( 2 ) )
 #if 1
-	i = *reinterpret_cast<int *>(&x);
+	i = static_cast<int>( idMath_FloatBits( x ) );
 	s = ( i >> IEEE_FLT_SIGN_BIT );
 	e = ( ( i >> IEEE_FLT_MANTISSA_BITS ) & ( ( 1 << IEEE_FLT_EXPONENT_BITS ) - 1 ) ) - IEEE_FLT_EXPONENT_BIAS;
 	m = ( i & ( ( 1 << IEEE_FLT_MANTISSA_BITS ) - 1 ) ) | ( 1 << IEEE_FLT_MANTISSA_BITS );
@@ -667,7 +682,7 @@ ID_INLINE float idMath::Exp16( float f ) {
 	}
 #endif
 	exponent = ( i + IEEE_FLT_EXPONENT_BIAS ) << IEEE_FLT_MANTISSA_BITS;
-	y = *reinterpret_cast<float *>(&exponent);
+	y = idMath_BitsToFloat( static_cast<dword>( exponent ) );
 	x -= (float) i;
 	if ( x >= 0.5f ) {
 		x -= 0.5f;
@@ -692,10 +707,10 @@ ID_INLINE float idMath::Log16( float f ) {
 	int i, exponent;
 	float y, y2;
 
-	i = *reinterpret_cast<int *>(&f);
+	i = static_cast<int>( idMath_FloatBits( f ) );
 	exponent = ( ( i >> IEEE_FLT_MANTISSA_BITS ) & ( ( 1 << IEEE_FLT_EXPONENT_BITS ) - 1 ) ) - IEEE_FLT_EXPONENT_BIAS;
 	i -= ( exponent + 1 ) << IEEE_FLT_MANTISSA_BITS;	// get value in the range [.5, 1>
-	y = *reinterpret_cast<float *>(&i);
+	y = idMath_BitsToFloat( static_cast<dword>( i ) );
 	y *= 1.4142135623730950488f;						// multiply with sqrt( 2 )
 	y = ( y - 1.0f ) / ( y + 1.0f );
 	y2 = y * y;
@@ -713,7 +728,7 @@ ID_INLINE int idMath::IPow( int x, int y ) {
 }
 
 ID_INLINE int idMath::ILog2( float f ) {
-	return ( ( (*reinterpret_cast<int *>(&f)) >> IEEE_FLT_MANTISSA_BITS ) & ( ( 1 << IEEE_FLT_EXPONENT_BITS ) - 1 ) ) - IEEE_FLT_EXPONENT_BIAS;
+	return ( ( static_cast<int>( idMath_FloatBits( f ) ) >> IEEE_FLT_MANTISSA_BITS ) & ( ( 1 << IEEE_FLT_EXPONENT_BITS ) - 1 ) ) - IEEE_FLT_EXPONENT_BIAS;
 }
 
 ID_INLINE int idMath::ILog2( int i ) {
@@ -729,7 +744,7 @@ ID_INLINE int idMath::BitsForInteger( int i ) {
 }
 
 ID_INLINE int idMath::MaskForFloatSign( float f ) {
-	return ( (*reinterpret_cast<int *>(&f)) >> 31 );
+	return ( static_cast<int>( idMath_FloatBits( f ) ) >> 31 );
 }
 
 ID_INLINE int idMath::MaskForIntegerSign( int i ) {
@@ -777,9 +792,9 @@ ID_INLINE int idMath::Abs( int x ) {
 }
 
 ID_INLINE float idMath::Fabs( float f ) {
-	int tmp = *reinterpret_cast<int *>( &f );
+	dword tmp = idMath_FloatBits( f );
 	tmp &= 0x7FFFFFFF;
-	return *reinterpret_cast<float *>( &tmp );
+	return idMath_BitsToFloat( tmp );
 }
 
 ID_INLINE float idMath::Floor( float f ) {
@@ -806,7 +821,7 @@ ID_INLINE int idMath::FtoiFast( float f ) {
 	return i;
 #elif 0						// round chop (C/C++ standard)
 	int i, s, e, m, shift;
-	i = *reinterpret_cast<int *>(&f);
+	i = static_cast<int>( idMath_FloatBits( f ) );
 	s = i >> IEEE_FLT_SIGN_BIT;
 	e = ( ( i >> IEEE_FLT_MANTISSA_BITS ) & ( ( 1 << IEEE_FLT_EXPONENT_BITS ) - 1 ) ) - IEEE_FLT_EXPONENT_BIAS;
 	m = ( i & ( ( 1 << IEEE_FLT_MANTISSA_BITS ) - 1 ) ) | ( 1 << IEEE_FLT_MANTISSA_BITS );
@@ -839,7 +854,7 @@ ID_INLINE unsigned long idMath::FtolFast( float f ) {
 	return i;
 #elif 0						// round chop (C/C++ standard)
 	int i, s, e, m, shift;
-	i = *reinterpret_cast<int *>(&f);
+	i = static_cast<int>( idMath_FloatBits( f ) );
 	s = i >> IEEE_FLT_SIGN_BIT;
 	e = ( ( i >> IEEE_FLT_MANTISSA_BITS ) & ( ( 1 << IEEE_FLT_EXPONENT_BITS ) - 1 ) ) - IEEE_FLT_EXPONENT_BIAS;
 	m = ( i & ( ( 1 << IEEE_FLT_MANTISSA_BITS ) - 1 ) ) | ( 1 << IEEE_FLT_MANTISSA_BITS );

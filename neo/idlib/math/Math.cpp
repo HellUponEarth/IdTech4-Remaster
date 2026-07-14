@@ -100,7 +100,7 @@ int idMath::FloatToBits( float f, int exponentBits, int mantissaBits ) {
 	}
 
 	exponentBits--;
-	i = *reinterpret_cast<int *>(&f);
+	i = static_cast<int>( idMath_FloatBits( f ) );
 	sign = ( i >> IEEE_FLT_SIGN_BIT ) & 1;
 	exponent = ( ( i >> IEEE_FLT_MANTISSA_BITS ) & ( ( 1 << IEEE_FLT_EXPONENT_BITS ) - 1 ) ) - IEEE_FLT_EXPONENT_BIAS;
 	mantissa = i & ( ( 1 << IEEE_FLT_MANTISSA_BITS ) - 1 );
@@ -127,5 +127,5 @@ float idMath::BitsToFloat( int i, int exponentBits, int mantissaBits ) {
 	exponent = ( ( i >> mantissaBits ) & ( ( 1 << exponentBits ) - 1 ) ) * exponentSign[( i >> ( exponentBits + mantissaBits ) ) & 1];
 	mantissa = ( i & ( ( 1 << mantissaBits ) - 1 ) ) << ( IEEE_FLT_MANTISSA_BITS - mantissaBits );
 	value = sign << IEEE_FLT_SIGN_BIT | ( exponent + IEEE_FLT_EXPONENT_BIAS ) << IEEE_FLT_MANTISSA_BITS | mantissa;
-	return *reinterpret_cast<float *>(&value);
+	return idMath_BitsToFloat( static_cast<dword>( value ) );
 }

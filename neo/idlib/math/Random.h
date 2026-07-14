@@ -142,17 +142,17 @@ ID_INLINE int idRandom2::RandomInt( int max ) {
 }
 
 ID_INLINE float idRandom2::RandomFloat( void ) {
-	unsigned long i;
+	dword i;
 	seed = 1664525L * seed + 1013904223L;
-	i = idRandom2::IEEE_ONE | ( seed & idRandom2::IEEE_MASK );
-	return ( ( *(float *)&i ) - 1.0f );
+	i = static_cast<dword>( idRandom2::IEEE_ONE | ( seed & idRandom2::IEEE_MASK ) );
+	return ( idMath_BitsToFloat( i ) - 1.0f );
 }
 
 ID_INLINE float idRandom2::CRandomFloat( void ) {
-	unsigned long i;
+	dword i;
 	seed = 1664525L * seed + 1013904223L;
-	i = idRandom2::IEEE_ONE | ( seed & idRandom2::IEEE_MASK );
-	return ( 2.0f * ( *(float *)&i ) - 3.0f );
+	i = static_cast<dword>( idRandom2::IEEE_ONE | ( seed & idRandom2::IEEE_MASK ) );
+	return ( 2.0f * idMath_BitsToFloat( i ) - 3.0f );
 }
 
 #endif /* !__MATH_RANDOM_H__ */
