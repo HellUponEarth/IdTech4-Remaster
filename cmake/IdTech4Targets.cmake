@@ -461,6 +461,35 @@ endfunction()
 function(idtech4_add_maya_import target vcxproj idlib_target)
     idtech4_neo_dir(_neo_dir)
 
+    set(_maya_header "${_neo_dir}/MayaImport/Maya5.0/maya.h")
+    set(_maya_lib_dir "${_neo_dir}/MayaImport/maya5.0/libs")
+    set(_maya_libs Foundation OpenMaya OpenMayaAnim)
+    set(_missing_maya_sdk_files)
+
+    if(NOT EXISTS "${_maya_header}")
+        list(APPEND _missing_maya_sdk_files "${_maya_header}")
+    endif()
+
+    foreach(_maya_lib IN LISTS _maya_libs)
+        if(NOT EXISTS "${_maya_lib_dir}/${_maya_lib}.lib")
+            list(APPEND _missing_maya_sdk_files "${_maya_lib_dir}/${_maya_lib}.lib")
+        endif()
+    endforeach()
+
+    if(_missing_maya_sdk_files)
+        if(IDTECH4_BUILD_MAYAIMPORT)
+            message(FATAL_ERROR "MayaImport requires the legacy Maya 5.0 SDK files: ${_missing_maya_sdk_files}")
+        endif()
+
+        add_custom_target(
+            ${target}
+            COMMAND "${CMAKE_COMMAND}" -E echo
+                    "MayaImport skipped: legacy Maya 5.0 SDK files are not present in neo/MayaImport/Maya5.0 and neo/MayaImport/maya5.0/libs."
+            VERBATIM
+        )
+        return()
+    endif()
+
     if(IDTECH4_BUILD_MAYAIMPORT)
         add_library(${target} SHARED)
     else()
@@ -475,8 +504,8 @@ function(idtech4_add_maya_import target vcxproj idlib_target)
     target_link_libraries(${target} PRIVATE ${idlib_target})
 
     if(WIN32)
-        target_link_directories(${target} PRIVATE "${_neo_dir}/MayaImport/maya5.0/libs")
-        target_link_libraries(${target} PRIVATE Foundation OpenMaya OpenMayaAnim)
+        target_link_directories(${target} PRIVATE "${_maya_lib_dir}")
+        target_link_libraries(${target} PRIVATE ${_maya_libs})
     endif()
 
     if(MSVC)

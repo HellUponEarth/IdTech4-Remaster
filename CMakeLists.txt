@@ -61,7 +61,10 @@ if(IDTECH4_BUILD_ENGINE_TARGETS)
 
     set_property(TARGET idLib CurlLib PROPERTY FOLDER libs)
     set_property(TARGET TypeInfo DoomDLL PROPERTY FOLDER exes)
-    set_property(TARGET Game Game-d3xp MayaImport PROPERTY FOLDER dlls)
+    set_property(TARGET Game Game-d3xp PROPERTY FOLDER dlls)
+    if(TARGET MayaImport)
+        set_property(TARGET MayaImport PROPERTY FOLDER dlls)
+    endif()
 endif()
 
 idtech4_write_legacy_solution()
