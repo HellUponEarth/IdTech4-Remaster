@@ -2630,3 +2630,35 @@ Known boundary: this code is inside the legacy `MACOS_X && __i386__` SSE path. I
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-15 Generic SIMD Negate16 Float Lane Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_Generic.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idSIMD_Generic::Negate16` destination float sign-bit toggle | Legacy API interop / SIMD fixed 32-bit float lane | Replaced the writable `unsigned int *` view over the float destination buffer with the existing `SimdGeneric_XorFloatSignBits` helper, which copies the same 32-bit IEEE lane through `memcpy` before toggling the sign bit. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. `Negate16` keeps the same public SIMD signature and still flips only the 32-bit IEEE float sign bit for each destination element; the change only removes the strict-aliasing integer-pointer view over a `float *` buffer.
+
+Existing compile-time guards in `Simd_Generic.cpp` cover this helper path:
+
+```c
+static_assert( sizeof( dword ) == 4, "SIMD float bit helpers require a fixed 32-bit integer lane" );
+static_assert( sizeof( float ) == 4, "SIMD float bit helpers require 32-bit IEEE float storage" );
+```
+
+### Verification Log For This Slice
+
+- `rg -n "unsigned int \*ptr|reinterpret_cast<unsigned int \*>\(dst\)|SimdGeneric_XorFloatSignBits\( dst\[\(X\)\], 1u << 31 \)" neo\idlib\math\Simd_Generic.cpp`: stale writable integer pointer view is gone; the fixed-width helper path is present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `neo/idlib/math/Simd_Generic.cpp`, reran TypeInfo, and linked `Doom3.exe`, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt `neo/idlib/math/Simd_Generic.cpp`, reran TypeInfo, and linked `DedServer.exe`, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.

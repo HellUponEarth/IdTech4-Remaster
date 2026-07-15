@@ -636,8 +636,7 @@ idSIMD_Generic::Negate16
 ============
 */
 void VPCALL idSIMD_Generic::Negate16( float *dst, const int count ) {
-	unsigned int *ptr = reinterpret_cast<unsigned int *>(dst);
-#define OPER(X) ptr[(X)] ^= ( 1 << 31 )		// IEEE 32 bits float sign bit
+#define OPER(X) dst[(X)] = SimdGeneric_XorFloatSignBits( dst[(X)], 1u << 31 )		// IEEE 32 bits float sign bit
 	UNROLL1(OPER)
 #undef OPER
 }
