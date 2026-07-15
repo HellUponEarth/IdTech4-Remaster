@@ -554,7 +554,7 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	pvsHandle_t pvsHandle;
 	idBitMsgDelta deltaMsg;
 	snapshot_t *snapshot;
-	entityState_t *base, *newBase;
+	entityState_t *p_base, *p_newBase;
 	int numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
 
 	player = static_cast<idPlayer *>( entities[ clientNum ] );
@@ -611,16 +611,16 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 		// write the entity to the snapshot
 		msg.WriteBits( ent->entityNumber, GENTITYNUM_BITS );
 
-		base = clientEntityStates[clientNum][ent->entityNumber];
-		if ( base ) {
-			base->state.BeginReading();
+		p_base = clientEntityStates[clientNum][ent->entityNumber];
+		if ( p_base ) {
+			p_base->state.BeginReading();
 		}
-		newBase = entityStateAllocator.Alloc();
-		newBase->entityNumber = ent->entityNumber;
-		newBase->state.Init( newBase->stateBuf, sizeof( newBase->stateBuf ) );
-		newBase->state.BeginWriting();
+		p_newBase = entityStateAllocator.Alloc();
+		p_newBase->entityNumber = ent->entityNumber;
+		p_newBase->state.Init( p_newBase->stateBuf, sizeof( p_newBase->stateBuf ) );
+		p_newBase->state.BeginWriting();
 
-		deltaMsg.Init( base ? &base->state : NULL, &newBase->state, &msg );
+		deltaMsg.Init( p_base ? &p_base->state : NULL, &p_newBase->state, &msg );
 
 		deltaMsg.WriteBits( spawnIds[ ent->entityNumber ], 32 - GENTITYNUM_BITS );
 		deltaMsg.WriteBits( ent->GetType()->typeNum, idClass::GetTypeNumBits() );
@@ -631,10 +631,10 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 
 		if ( !deltaMsg.HasChanged() ) {
 			msg.RestoreWriteState( msgSize, msgWriteBit );
-			entityStateAllocator.Free( newBase );
+			entityStateAllocator.Free( p_newBase );
 		} else {
-			newBase->next = snapshot->firstEntityState;
-			snapshot->firstEntityState = newBase;
+			p_newBase->next = snapshot->firstEntityState;
+			snapshot->firstEntityState = p_newBase;
 
 #if ASYNC_WRITE_TAGS
 			msg.WriteLong( tagRandom.RandomInt() );
@@ -663,17 +663,17 @@ void idGameLocal::ServerWriteSnapshot( int clientNum, int sequence, idBitMsg &ms
 	pvs.FreeCurrentPVS( pvsHandle );
 
 	// write the game and player state to the snapshot
-	base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
-	if ( base ) {
-		base->state.BeginReading();
+	p_base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
+	if ( p_base ) {
+		p_base->state.BeginReading();
 	}
-	newBase = entityStateAllocator.Alloc();
-	newBase->entityNumber = ENTITYNUM_NONE;
-	newBase->next = snapshot->firstEntityState;
-	snapshot->firstEntityState = newBase;
-	newBase->state.Init( newBase->stateBuf, sizeof( newBase->stateBuf ) );
-	newBase->state.BeginWriting();
-	deltaMsg.Init( base ? &base->state : NULL, &newBase->state, &msg );
+	p_newBase = entityStateAllocator.Alloc();
+	p_newBase->entityNumber = ENTITYNUM_NONE;
+	p_newBase->next = snapshot->firstEntityState;
+	snapshot->firstEntityState = p_newBase;
+	p_newBase->state.Init( p_newBase->stateBuf, sizeof( p_newBase->stateBuf ) );
+	p_newBase->state.BeginWriting();
+	deltaMsg.Init( p_base ? &p_base->state : NULL, &p_newBase->state, &msg );
 	if ( player->spectating && player->spectator != player->entityNumber && gameLocal.entities[ player->spectator ] && gameLocal.entities[ player->spectator ]->IsType( idPlayer::Type ) ) {
 		static_cast< idPlayer * >( gameLocal.entities[ player->spectator ] )->WritePlayerStateToSnapshot( deltaMsg );
 	} else {
@@ -869,7 +869,7 @@ void idGameLocal::ClientShowSnapshot( int clientNum ) const {
 	idPlayer *player;
 	idMat3 viewAxis;
 	idBounds viewBounds;
-	entityState_t *base;
+	entityState_t *p_base;
 
 	if ( !net_clientShowSnapshot.GetInteger() ) {
 		return;
@@ -895,9 +895,9 @@ void idGameLocal::ClientShowSnapshot( int clientNum ) const {
 			continue;
 		}
 
-		base = clientEntityStates[clientNum][ent->entityNumber];
-		if ( base ) {
-			baseBits = base->state.GetNumBitsWritten();
+		p_base = clientEntityStates[clientNum][ent->entityNumber];
+		if ( p_base ) {
+			baseBits = p_base->state.GetNumBitsWritten();
 		} else {
 			baseBits = 0;
 		}
@@ -964,7 +964,7 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 	const char		*classname;
 	idBitMsgDelta	deltaMsg;
 	snapshot_t		*snapshot;
-	entityState_t	*base, *newBase;
+	entityState_t	*p_base, *p_newBase;
 	int				spawnId;
 	int				numSourceAreas, sourceAreas[ idEntity::MAX_PVS_AREAS ];
 	idWeapon		*weap;
@@ -1011,20 +1011,20 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 	// read all entities from the snapshot
 	for ( i = msg.ReadBits( GENTITYNUM_BITS ); i != ENTITYNUM_NONE; i = msg.ReadBits( GENTITYNUM_BITS ) ) {
 
-		base = clientEntityStates[clientNum][i];
-		if ( base ) {
-			base->state.BeginReading();
+		p_base = clientEntityStates[clientNum][i];
+		if ( p_base ) {
+			p_base->state.BeginReading();
 		}
-		newBase = entityStateAllocator.Alloc();
-		newBase->entityNumber = i;
-		newBase->next = snapshot->firstEntityState;
-		snapshot->firstEntityState = newBase;
-		newBase->state.Init( newBase->stateBuf, sizeof( newBase->stateBuf ) );
-		newBase->state.BeginWriting();
+		p_newBase = entityStateAllocator.Alloc();
+		p_newBase->entityNumber = i;
+		p_newBase->next = snapshot->firstEntityState;
+		snapshot->firstEntityState = p_newBase;
+		p_newBase->state.Init( p_newBase->stateBuf, sizeof( p_newBase->stateBuf ) );
+		p_newBase->state.BeginWriting();
 
 		numBitsRead = msg.GetNumBitsRead();
 
-		deltaMsg.Init( base ? &base->state : NULL, &newBase->state, &msg );
+		deltaMsg.Init( p_base ? &p_base->state : NULL, &p_newBase->state, &msg );
 
 		spawnId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS );
 		typeNum = deltaMsg.ReadBits( idClass::GetTypeNumBits() );
@@ -1172,15 +1172,15 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 		ent->snapshotSequence = sequence;
 		ent->snapshotBits = 0;
 
-		base = clientEntityStates[clientNum][ent->entityNumber];
-		if ( !base ) {
+		p_base = clientEntityStates[clientNum][ent->entityNumber];
+		if ( !p_base ) {
 			// entity has probably fl.networkSync set to false
 			continue;
 		}
 
-		base->state.BeginReading();
+		p_base->state.BeginReading();
 
-		deltaMsg.Init( &base->state, NULL, (const idBitMsg *)NULL );
+		deltaMsg.Init( &p_base->state, NULL, (const idBitMsg *)NULL );
 
 		spawnId = deltaMsg.ReadBits( 32 - GENTITYNUM_BITS );
 		typeNum = deltaMsg.ReadBits( idClass::GetTypeNumBits() );
@@ -1203,17 +1203,17 @@ void idGameLocal::ClientReadSnapshot( int clientNum, int sequence, const int gam
 	pvs.FreeCurrentPVS( pvsHandle );
 
 	// read the game and player state from the snapshot
-	base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
-	if ( base ) {
-		base->state.BeginReading();
+	p_base = clientEntityStates[clientNum][ENTITYNUM_NONE];	// ENTITYNUM_NONE is used for the game and player state
+	if ( p_base ) {
+		p_base->state.BeginReading();
 	}
-	newBase = entityStateAllocator.Alloc();
-	newBase->entityNumber = ENTITYNUM_NONE;
-	newBase->next = snapshot->firstEntityState;
-	snapshot->firstEntityState = newBase;
-	newBase->state.Init( newBase->stateBuf, sizeof( newBase->stateBuf ) );
-	newBase->state.BeginWriting();
-	deltaMsg.Init( base ? &base->state : NULL, &newBase->state, &msg );
+	p_newBase = entityStateAllocator.Alloc();
+	p_newBase->entityNumber = ENTITYNUM_NONE;
+	p_newBase->next = snapshot->firstEntityState;
+	snapshot->firstEntityState = p_newBase;
+	p_newBase->state.Init( p_newBase->stateBuf, sizeof( p_newBase->stateBuf ) );
+	p_newBase->state.BeginWriting();
+	deltaMsg.Init( p_base ? &p_base->state : NULL, &p_newBase->state, &msg );
 	if ( player->spectating && player->spectator != player->entityNumber && gameLocal.entities[ player->spectator ] && gameLocal.entities[ player->spectator ]->IsType( idPlayer::Type ) ) {
 		static_cast< idPlayer * >( gameLocal.entities[ player->spectator ] )->ReadPlayerStateFromSnapshot( deltaMsg );
 		weap = static_cast< idPlayer * >( gameLocal.entities[ player->spectator ] )->weapon.GetEntity();
@@ -1293,7 +1293,7 @@ idGameLocal::ClientProcessReliableMessage
 */
 void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &msg ) {
 	int			id, line;
-	idPlayer	*p;
+	idPlayer	*p_player;
 	idDict		backupSI;
 
 	InitLocalClient( clientNum );
@@ -1406,11 +1406,11 @@ void idGameLocal::ClientProcessReliableMessage( int clientNum, const idBitMsg &m
 		}
 		case GAME_RELIABLE_MESSAGE_TOURNEYLINE: {
 			line = msg.ReadByte( );
-			p = static_cast< idPlayer * >( entities[ clientNum ] );
-			if ( !p ) {
+			p_player = static_cast< idPlayer * >( entities[ clientNum ] );
+			if ( !p_player ) {
 				break;
 			}
-			p->tourneyLine = line;
+			p_player->tourneyLine = line;
 			break;
 		}
 		case GAME_RELIABLE_MESSAGE_STARTVOTE: {
@@ -1525,24 +1525,24 @@ gameReturn_t idGameLocal::ClientPrediction( int clientNum, const usercmd_t *clie
 idGameLocal::Tokenize
 ===============
 */
-void idGameLocal::Tokenize( idStrList &out, const char *in ) {
+void idGameLocal::Tokenize( idStrList &out, const char *p_in ) {
 	char buf[ MAX_STRING_CHARS ];
-	char *token, *next;
+	char *p_token, *p_next;
 	
-	idStr::Copynz( buf, in, MAX_STRING_CHARS );
-	token = buf;
-	next = strchr( token, ';' );
-	while ( token ) {
-		if ( next ) {
-			*next = '\0';
+	idStr::Copynz( buf, p_in, MAX_STRING_CHARS );
+	p_token = buf;
+	p_next = strchr( p_token, ';' );
+	while ( p_token ) {
+		if ( p_next ) {
+			*p_next = '\0';
 		}
-		idStr::ToLower( token );
-		out.Append( token );
-		if ( next ) {
-			token = next + 1;
-			next = strchr( token, ';' );
+		idStr::ToLower( p_token );
+		out.Append( p_token );
+		if ( p_next ) {
+			p_token = p_next + 1;
+			p_next = strchr( p_token, ';' );
 		} else {
-			token = NULL;
+			p_token = NULL;
 		}		
 	}
 }

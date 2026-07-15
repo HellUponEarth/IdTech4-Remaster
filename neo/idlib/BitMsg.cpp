@@ -44,8 +44,8 @@ idBitMsg::idBitMsg
 ================
 */
 idBitMsg::idBitMsg() {
-	writeData = NULL;
-	readData = NULL;
+	p_writeData = NULL;
+	p_readData = NULL;
 	maxSize = 0;
 	curSize = 0;
 	writeBit = 0;
@@ -83,9 +83,9 @@ idBitMsg::GetByteSpace
 ================
 */
 byte *idBitMsg::GetByteSpace( int length ) {
-	byte *ptr;
+	byte *p_ptr;
 
-	if ( !writeData ) {
+	if ( !p_writeData ) {
 		idLib::common->FatalError( "idBitMsg::GetByteSpace: cannot write to message" );
 	}
 
@@ -95,9 +95,9 @@ byte *idBitMsg::GetByteSpace( int length ) {
 	// check for overflow
 	CheckOverflow( length << 3 );
 
-	ptr = writeData + curSize;
+	p_ptr = p_writeData + curSize;
 	curSize += length;
-	return ptr;
+	return p_ptr;
 }
 
 /*
@@ -111,7 +111,7 @@ void idBitMsg::WriteBits( int value, int numBits ) {
 	int		put;
 	int		fraction;
 
-	if ( !writeData ) {
+	if ( !p_writeData ) {
 		idLib::common->Error( "idBitMsg::WriteBits: cannot write to message" );
 	}
 
@@ -151,7 +151,7 @@ void idBitMsg::WriteBits( int value, int numBits ) {
 	// write the bits
 	while( numBits ) {
 		if ( writeBit == 0 ) {
-			writeData[curSize] = 0;
+			p_writeData[curSize] = 0;
 			curSize++;
 		}
 		put = 8 - writeBit;
@@ -159,7 +159,7 @@ void idBitMsg::WriteBits( int value, int numBits ) {
 			put = numBits;
 		}
 		fraction = value & ( ( 1 << put ) - 1 );
-		writeData[curSize - 1] |= fraction << writeBit;
+		p_writeData[curSize - 1] |= fraction << writeBit;
 		numBits -= put;
 		value >>= put;
 		writeBit = ( writeBit + put ) & 7;
@@ -176,29 +176,29 @@ void idBitMsg::WriteString( const char *s, int maxLength, bool make7Bit ) {
 		WriteData( "", 1 );
 	} else {
 		int i, l;
-		byte *dataPtr;
-		const byte *bytePtr;
+		byte *p_dataPtr;
+		const byte *p_bytePtr;
 
 		l = idStr::Length( s );
 		if ( maxLength >= 0 && l >= maxLength ) {
 			l = maxLength - 1;
 		}
-		dataPtr = GetByteSpace( l + 1 );
-		bytePtr = reinterpret_cast<const byte *>(s);
+		p_dataPtr = GetByteSpace( l + 1 );
+		p_bytePtr = reinterpret_cast<const byte *>(s);
 		if ( make7Bit ) {
 			for ( i = 0; i < l; i++ ) {
-				if ( bytePtr[i] > 127 ) {
-					dataPtr[i] = '.';
+				if ( p_bytePtr[i] > 127 ) {
+					p_dataPtr[i] = '.';
 				} else {
-					dataPtr[i] = bytePtr[i];
+					p_dataPtr[i] = p_bytePtr[i];
 				}
 			}
 		} else {
 			for ( i = 0; i < l; i++ ) {
-				dataPtr[i] = bytePtr[i];
+				p_dataPtr[i] = p_bytePtr[i];
 			}
 		}
-		dataPtr[i] = '\0';
+		p_dataPtr[i] = '\0';
 	}
 }
 
@@ -207,8 +207,8 @@ void idBitMsg::WriteString( const char *s, int maxLength, bool make7Bit ) {
 idBitMsg::WriteData
 ================
 */
-void idBitMsg::WriteData( const void *data, int length ) {
-	memcpy( GetByteSpace( length ), data, length );
+void idBitMsg::WriteData( const void *p_data, int length ) {
+	memcpy( GetByteSpace( length ), p_data, length );
 }
 
 /*
@@ -217,9 +217,9 @@ idBitMsg::WriteNetadr
 ================
 */
 void idBitMsg::WriteNetadr( const netadr_t adr ) {
-	byte *dataPtr;
-	dataPtr = GetByteSpace( 4 );
-	memcpy( dataPtr, adr.ip, 4 );
+	byte *p_dataPtr;
+	p_dataPtr = GetByteSpace( 4 );
+	memcpy( p_dataPtr, adr.ip, 4 );
 	WriteUShort( adr.port );
 }
 
@@ -305,16 +305,16 @@ void idBitMsg::WriteDeltaLongCounter( int oldValue, int newValue ) {
 idBitMsg::WriteDeltaDict
 ==================
 */
-bool idBitMsg::WriteDeltaDict( const idDict &dict, const idDict *base ) {
+bool idBitMsg::WriteDeltaDict( const idDict &dict, const idDict *p_base ) {
 	int i;
 	const idKeyValue *kv, *basekv;
 	bool changed = false;
 
-	if ( base != NULL ) {
+	if ( p_base != NULL ) {
 
 		for ( i = 0; i < dict.GetNumKeyVals(); i++ ) {
 			kv = dict.GetKeyVal( i );
-			basekv = base->FindKey( kv->GetKey() );
+			basekv = p_base->FindKey( kv->GetKey() );
 			if ( basekv == NULL || basekv->GetValue().Icmp( kv->GetValue() ) != 0 ) {
 				WriteString( kv->GetKey() );
 				WriteString( kv->GetValue() );
@@ -324,8 +324,8 @@ bool idBitMsg::WriteDeltaDict( const idDict &dict, const idDict *base ) {
 
 		WriteString( "" );
 
-		for ( i = 0; i < base->GetNumKeyVals(); i++ ) {
-			basekv = base->GetKeyVal( i );
+		for ( i = 0; i < p_base->GetNumKeyVals(); i++ ) {
+			basekv = p_base->GetKeyVal( i );
 			kv = dict.FindKey( basekv->GetKey() );
 			if ( kv == NULL ) {
 				WriteString( basekv->GetKey() );
@@ -366,7 +366,7 @@ int idBitMsg::ReadBits( int numBits ) const {
 	int		fraction;
 	bool	sgn;
 
-	if ( !readData ) {
+	if ( !p_readData ) {
 		idLib::common->FatalError( "idBitMsg::ReadBits: cannot read from message" );
 	}
 
@@ -398,7 +398,7 @@ int idBitMsg::ReadBits( int numBits ) const {
 		if ( get > (numBits - valueBits) ) {
 			get = numBits - valueBits;
 		}
-		fraction = readData[readCount - 1];
+		fraction = p_readData[readCount - 1];
 		fraction >>= readBit;
 		fraction &= ( 1 << get ) - 1;
 		value |= fraction << valueBits;
@@ -421,7 +421,7 @@ int idBitMsg::ReadBits( int numBits ) const {
 idBitMsg::ReadString
 ================
 */
-int idBitMsg::ReadString( char *buffer, int bufferSize ) const {
+int idBitMsg::ReadString( char *p_buffer, int bufferSize ) const {
 	int	l, c;
 	
 	ReadByteAlign();
@@ -440,12 +440,12 @@ int idBitMsg::ReadString( char *buffer, int bufferSize ) const {
 		// the following data can be read, but the string will
 		// be truncated
 		if ( l < bufferSize - 1 ) {
-			buffer[l] = c;
+			p_buffer[l] = c;
 			l++;
 		}
 	}
 	
-	buffer[l] = 0;
+	p_buffer[l] = 0;
 	return l;
 }
 
@@ -454,20 +454,20 @@ int idBitMsg::ReadString( char *buffer, int bufferSize ) const {
 idBitMsg::ReadData
 ================
 */
-int idBitMsg::ReadData( void *data, int length ) const {
+int idBitMsg::ReadData( void *p_data, int length ) const {
 	int cnt;
 
 	ReadByteAlign();
 	cnt = readCount;
 
 	if ( readCount + length > curSize ) {
-		if ( data ) {
-			memcpy( data, readData + readCount, GetRemaingData() );
+		if ( p_data ) {
+			memcpy( p_data, p_readData + readCount, GetRemaingData() );
 		}
 		readCount = curSize;
 	} else {
-		if ( data ) {
-			memcpy( data, readData + readCount, length );
+		if ( p_data ) {
+			memcpy( p_data, p_readData + readCount, length );
 		}
 		readCount += length;
 	}
@@ -555,13 +555,13 @@ int idBitMsg::ReadDeltaLongCounter( int oldValue ) const {
 idBitMsg::ReadDeltaDict
 ==================
 */
-bool idBitMsg::ReadDeltaDict( idDict &dict, const idDict *base ) const {
+bool idBitMsg::ReadDeltaDict( idDict &dict, const idDict *p_base ) const {
 	char		key[MAX_STRING_CHARS];
 	char		value[MAX_STRING_CHARS];
 	bool		changed = false;
 
-	if ( base != NULL ) {
-		dict = *base;
+	if ( p_base != NULL ) {
+		dict = *p_base;
 	} else {
 		dict.Clear();
 	}
@@ -646,20 +646,20 @@ idBitMsgDelta::WriteBits
 ================
 */
 void idBitMsgDelta::WriteBits( int value, int numBits ) {
-	if ( newBase ) {
-		newBase->WriteBits( value, numBits );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( value, numBits );
 	}
 
-	if ( !base ) {
-		writeDelta->WriteBits( value, numBits );
+	if ( !p_base ) {
+		p_writeDelta->WriteBits( value, numBits );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( numBits );
+		int baseValue = p_base->ReadBits( numBits );
 		if ( baseValue == value ) {
-			writeDelta->WriteBits( 0, 1 );
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
-			writeDelta->WriteBits( value, numBits );
+			p_writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteBits( value, numBits );
 			changed = true;
 		}
 	}
@@ -671,30 +671,30 @@ idBitMsgDelta::WriteDelta
 ================
 */
 void idBitMsgDelta::WriteDelta( int oldValue, int newValue, int numBits ) {
-	if ( newBase ) {
-		newBase->WriteBits( newValue, numBits );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( newValue, numBits );
 	}
 
-	if ( !base ) {
+	if ( !p_base ) {
 		if ( oldValue == newValue ) {
-			writeDelta->WriteBits( 0, 1 );
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
-			writeDelta->WriteBits( newValue, numBits );
+			p_writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteBits( newValue, numBits );
 		}
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( numBits );
+		int baseValue = p_base->ReadBits( numBits );
 		if ( baseValue == newValue ) {
-			writeDelta->WriteBits( 0, 1 );
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteBits( 1, 1 );
 			if ( oldValue == newValue ) {
-				writeDelta->WriteBits( 0, 1 );
+				p_writeDelta->WriteBits( 0, 1 );
 				changed = true;
 			} else {
-				writeDelta->WriteBits( 1, 1 );
-				writeDelta->WriteBits( newValue, numBits );
+				p_writeDelta->WriteBits( 1, 1 );
+				p_writeDelta->WriteBits( newValue, numBits );
 				changed = true;
 			}
 		}
@@ -709,21 +709,21 @@ idBitMsgDelta::ReadBits
 int idBitMsgDelta::ReadBits( int numBits ) const {
 	int value;
 
-	if ( !base ) {
-		value = readDelta->ReadBits( numBits );
+	if ( !p_base ) {
+		value = p_readDelta->ReadBits( numBits );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( numBits );
-		if ( !readDelta || readDelta->ReadBits( 1 ) == 0 ) {
+		int baseValue = p_base->ReadBits( numBits );
+		if ( !p_readDelta || p_readDelta->ReadBits( 1 ) == 0 ) {
 			value = baseValue;
 		} else {
-			value = readDelta->ReadBits( numBits );
+			value = p_readDelta->ReadBits( numBits );
 			changed = true;
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteBits( value, numBits );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( value, numBits );
 	}
 	return value;
 }
@@ -736,28 +736,28 @@ idBitMsgDelta::ReadDelta
 int idBitMsgDelta::ReadDelta( int oldValue, int numBits ) const {
 	int value;
 
-	if ( !base ) {
-		if ( readDelta->ReadBits( 1 ) == 0 ) {
+	if ( !p_base ) {
+		if ( p_readDelta->ReadBits( 1 ) == 0 ) {
 			value = oldValue;
 		} else {
-			value = readDelta->ReadBits( numBits );
+			value = p_readDelta->ReadBits( numBits );
 		}
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( numBits );
-		if ( !readDelta || readDelta->ReadBits( 1 ) == 0 ) {
+		int baseValue = p_base->ReadBits( numBits );
+		if ( !p_readDelta || p_readDelta->ReadBits( 1 ) == 0 ) {
 			value = baseValue;
-		} else if ( readDelta->ReadBits( 1 ) == 0 ) {
+		} else if ( p_readDelta->ReadBits( 1 ) == 0 ) {
 			value = oldValue;
 			changed = true;
 		} else {
-			value = readDelta->ReadBits( numBits );
+			value = p_readDelta->ReadBits( numBits );
 			changed = true;
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteBits( value, numBits );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( value, numBits );
 	}
 	return value;
 }
@@ -768,21 +768,21 @@ idBitMsgDelta::WriteString
 ================
 */
 void idBitMsgDelta::WriteString( const char *s, int maxLength ) {
-	if ( newBase ) {
-		newBase->WriteString( s, maxLength );
+	if ( p_newBase ) {
+		p_newBase->WriteString( s, maxLength );
 	}
 
-	if ( !base ) {
-		writeDelta->WriteString( s, maxLength );
+	if ( !p_base ) {
+		p_writeDelta->WriteString( s, maxLength );
 		changed = true;
 	} else {
 		char baseString[MAX_DATA_BUFFER];
-		base->ReadString( baseString, sizeof( baseString ) );
+		p_base->ReadString( baseString, sizeof( baseString ) );
 		if ( idStr::Cmp( s, baseString ) == 0 ) {
-			writeDelta->WriteBits( 0, 1 );
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
-			writeDelta->WriteString( s, maxLength );
+			p_writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteString( s, maxLength );
 			changed = true;
 		}
 	}
@@ -793,23 +793,23 @@ void idBitMsgDelta::WriteString( const char *s, int maxLength ) {
 idBitMsgDelta::WriteData
 ================
 */
-void idBitMsgDelta::WriteData( const void *data, int length ) {
-	if ( newBase ) {
-		newBase->WriteData( data, length );
+void idBitMsgDelta::WriteData( const void *p_data, int length ) {
+	if ( p_newBase ) {
+		p_newBase->WriteData( p_data, length );
 	}
 
-	if ( !base ) {
-		writeDelta->WriteData( data, length );
+	if ( !p_base ) {
+		p_writeDelta->WriteData( p_data, length );
 		changed = true;
 	} else {
 		byte baseData[MAX_DATA_BUFFER];
 		assert( length < sizeof( baseData ) );
-		base->ReadData( baseData, length );
-		if ( memcmp( data, baseData, length ) == 0 ) {
-			writeDelta->WriteBits( 0, 1 );
+		p_base->ReadData( baseData, length );
+		if ( memcmp( p_data, baseData, length ) == 0 ) {
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
-			writeDelta->WriteData( data, length );
+			p_writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteData( p_data, length );
 			changed = true;
 		}
 	}
@@ -821,17 +821,17 @@ idBitMsgDelta::WriteDict
 ================
 */
 void idBitMsgDelta::WriteDict( const idDict &dict ) {
-	if ( newBase ) {
-		newBase->WriteDeltaDict( dict, NULL );
+	if ( p_newBase ) {
+		p_newBase->WriteDeltaDict( dict, NULL );
 	}
 
-	if ( !base ) {
-		writeDelta->WriteDeltaDict( dict, NULL );
+	if ( !p_base ) {
+		p_writeDelta->WriteDeltaDict( dict, NULL );
 		changed = true;
 	} else {
 		idDict baseDict;
-		base->ReadDeltaDict( baseDict, NULL );
-		changed = writeDelta->WriteDeltaDict( dict, &baseDict );
+		p_base->ReadDeltaDict( baseDict, NULL );
+		changed = p_writeDelta->WriteDeltaDict( dict, &baseDict );
 	}
 }
 
@@ -841,20 +841,20 @@ idBitMsgDelta::WriteDeltaByteCounter
 ================
 */
 void idBitMsgDelta::WriteDeltaByteCounter( int oldValue, int newValue ) {
-	if ( newBase ) {
-		newBase->WriteBits( newValue, 8 );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( newValue, 8 );
 	}
 
-	if ( !base ) {
-		writeDelta->WriteDeltaByteCounter( oldValue, newValue );
+	if ( !p_base ) {
+		p_writeDelta->WriteDeltaByteCounter( oldValue, newValue );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( 8 );
+		int baseValue = p_base->ReadBits( 8 );
 		if ( baseValue == newValue ) {
-			writeDelta->WriteBits( 0, 1 );
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
-			writeDelta->WriteDeltaByteCounter( oldValue, newValue );
+			p_writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteDeltaByteCounter( oldValue, newValue );
 			changed = true;
 		}
 	}
@@ -866,20 +866,20 @@ idBitMsgDelta::WriteDeltaShortCounter
 ================
 */
 void idBitMsgDelta::WriteDeltaShortCounter( int oldValue, int newValue ) {
-	if ( newBase ) {
-		newBase->WriteBits( newValue, 16 );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( newValue, 16 );
 	}
 
-	if ( !base ) {
-		writeDelta->WriteDeltaShortCounter( oldValue, newValue );
+	if ( !p_base ) {
+		p_writeDelta->WriteDeltaShortCounter( oldValue, newValue );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( 16 );
+		int baseValue = p_base->ReadBits( 16 );
 		if ( baseValue == newValue ) {
-			writeDelta->WriteBits( 0, 1 );
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
-			writeDelta->WriteDeltaShortCounter( oldValue, newValue );
+			p_writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteDeltaShortCounter( oldValue, newValue );
 			changed = true;
 		}
 	}
@@ -891,20 +891,20 @@ idBitMsgDelta::WriteDeltaLongCounter
 ================
 */
 void idBitMsgDelta::WriteDeltaLongCounter( int oldValue, int newValue ) {
-	if ( newBase ) {
-		newBase->WriteBits( newValue, 32 );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( newValue, 32 );
 	}
 
-	if ( !base ) {
-		writeDelta->WriteDeltaLongCounter( oldValue, newValue );
+	if ( !p_base ) {
+		p_writeDelta->WriteDeltaLongCounter( oldValue, newValue );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( 32 );
+		int baseValue = p_base->ReadBits( 32 );
 		if ( baseValue == newValue ) {
-			writeDelta->WriteBits( 0, 1 );
+			p_writeDelta->WriteBits( 0, 1 );
 		} else {
-			writeDelta->WriteBits( 1, 1 );
-			writeDelta->WriteDeltaLongCounter( oldValue, newValue );
+			p_writeDelta->WriteBits( 1, 1 );
+			p_writeDelta->WriteDeltaLongCounter( oldValue, newValue );
 			changed = true;
 		}
 	}
@@ -915,23 +915,23 @@ void idBitMsgDelta::WriteDeltaLongCounter( int oldValue, int newValue ) {
 idBitMsgDelta::ReadString
 ================
 */
-void idBitMsgDelta::ReadString( char *buffer, int bufferSize ) const {
-	if ( !base ) {
-		readDelta->ReadString( buffer, bufferSize );
+void idBitMsgDelta::ReadString( char *p_buffer, int bufferSize ) const {
+	if ( !p_base ) {
+		p_readDelta->ReadString( p_buffer, bufferSize );
 		changed = true;
 	} else {
 		char baseString[MAX_DATA_BUFFER];
-		base->ReadString( baseString, sizeof( baseString ) );
-		if ( !readDelta || readDelta->ReadBits( 1 ) == 0 ) {
-			idStr::Copynz( buffer, baseString, bufferSize );
+		p_base->ReadString( baseString, sizeof( baseString ) );
+		if ( !p_readDelta || p_readDelta->ReadBits( 1 ) == 0 ) {
+			idStr::Copynz( p_buffer, baseString, bufferSize );
 		} else {
-			readDelta->ReadString( buffer, bufferSize );
+			p_readDelta->ReadString( p_buffer, bufferSize );
 			changed = true;
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteString( buffer );
+	if ( p_newBase ) {
+		p_newBase->WriteString( p_buffer );
 	}
 }
 
@@ -940,24 +940,24 @@ void idBitMsgDelta::ReadString( char *buffer, int bufferSize ) const {
 idBitMsgDelta::ReadData
 ================
 */
-void idBitMsgDelta::ReadData( void *data, int length ) const {
-	if ( !base ) {
-		readDelta->ReadData( data, length );
+void idBitMsgDelta::ReadData( void *p_data, int length ) const {
+	if ( !p_base ) {
+		p_readDelta->ReadData( p_data, length );
 		changed = true;
 	} else {
 		char baseData[MAX_DATA_BUFFER];
 		assert( length < sizeof( baseData ) );
-		base->ReadData( baseData, length );
-		if ( !readDelta || readDelta->ReadBits( 1 ) == 0 ) {
-			memcpy( data, baseData, length );
+		p_base->ReadData( baseData, length );
+		if ( !p_readDelta || p_readDelta->ReadBits( 1 ) == 0 ) {
+			memcpy( p_data, baseData, length );
 		} else {
-			readDelta->ReadData( data, length );
+			p_readDelta->ReadData( p_data, length );
 			changed = true;
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteData( data, length );
+	if ( p_newBase ) {
+		p_newBase->WriteData( p_data, length );
 	}
 }
 
@@ -967,21 +967,21 @@ idBitMsgDelta::ReadDict
 ================
 */
 void idBitMsgDelta::ReadDict( idDict &dict ) {
-	if ( !base ) {
-		readDelta->ReadDeltaDict( dict, NULL );
+	if ( !p_base ) {
+		p_readDelta->ReadDeltaDict( dict, NULL );
 		changed = true;
 	} else {
 		idDict baseDict;
-		base->ReadDeltaDict( baseDict, NULL );
-		if ( !readDelta ) {
+		p_base->ReadDeltaDict( baseDict, NULL );
+		if ( !p_readDelta ) {
 			dict = baseDict;
 		} else {
-			changed = readDelta->ReadDeltaDict( dict, &baseDict );
+			changed = p_readDelta->ReadDeltaDict( dict, &baseDict );
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteDeltaDict( dict, NULL );
+	if ( p_newBase ) {
+		p_newBase->WriteDeltaDict( dict, NULL );
 	}
 }
 
@@ -993,21 +993,21 @@ idBitMsgDelta::ReadDeltaByteCounter
 int idBitMsgDelta::ReadDeltaByteCounter( int oldValue ) const {
 	int value;
 
-	if ( !base ) {
-		value = readDelta->ReadDeltaByteCounter( oldValue );
+	if ( !p_base ) {
+		value = p_readDelta->ReadDeltaByteCounter( oldValue );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( 8 );
-		if ( !readDelta || readDelta->ReadBits( 1 ) == 0 ) {
+		int baseValue = p_base->ReadBits( 8 );
+		if ( !p_readDelta || p_readDelta->ReadBits( 1 ) == 0 ) {
 			value = baseValue;
 		} else {
-			value = readDelta->ReadDeltaByteCounter( oldValue );
+			value = p_readDelta->ReadDeltaByteCounter( oldValue );
 			changed = true;
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteBits( value, 8 );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( value, 8 );
 	}
 	return value;
 }
@@ -1020,21 +1020,21 @@ idBitMsgDelta::ReadDeltaShortCounter
 int idBitMsgDelta::ReadDeltaShortCounter( int oldValue ) const {
 	int value;
 
-	if ( !base ) {
-		value = readDelta->ReadDeltaShortCounter( oldValue );
+	if ( !p_base ) {
+		value = p_readDelta->ReadDeltaShortCounter( oldValue );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( 16 );
-		if ( !readDelta || readDelta->ReadBits( 1 ) == 0 ) {
+		int baseValue = p_base->ReadBits( 16 );
+		if ( !p_readDelta || p_readDelta->ReadBits( 1 ) == 0 ) {
 			value = baseValue;
 		} else {
-			value = readDelta->ReadDeltaShortCounter( oldValue );
+			value = p_readDelta->ReadDeltaShortCounter( oldValue );
 			changed = true;
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteBits( value, 16 );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( value, 16 );
 	}
 	return value;
 }
@@ -1047,21 +1047,21 @@ idBitMsgDelta::ReadDeltaLongCounter
 int idBitMsgDelta::ReadDeltaLongCounter( int oldValue ) const {
 	int value;
 
-	if ( !base ) {
-		value = readDelta->ReadDeltaLongCounter( oldValue );
+	if ( !p_base ) {
+		value = p_readDelta->ReadDeltaLongCounter( oldValue );
 		changed = true;
 	} else {
-		int baseValue = base->ReadBits( 32 );
-		if ( !readDelta || readDelta->ReadBits( 1 ) == 0 ) {
+		int baseValue = p_base->ReadBits( 32 );
+		if ( !p_readDelta || p_readDelta->ReadBits( 1 ) == 0 ) {
 			value = baseValue;
 		} else {
-			value = readDelta->ReadDeltaLongCounter( oldValue );
+			value = p_readDelta->ReadDeltaLongCounter( oldValue );
 			changed = true;
 		}
 	}
 
-	if ( newBase ) {
-		newBase->WriteBits( value, 32 );
+	if ( p_newBase ) {
+		p_newBase->WriteBits( value, 32 );
 	}
 	return value;
 }

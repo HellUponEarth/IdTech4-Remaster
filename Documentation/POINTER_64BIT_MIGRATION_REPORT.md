@@ -2693,3 +2693,75 @@ This slice does not widen savegame, network, demo, journal, renderer handle, mod
 - `Get-Process Doom3,DedServer -ErrorAction SilentlyContinue`: no lingering runtime processes after the smoke runs.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed after removing one trailing space introduced on the touched destructor comment line.
+
+## 2026-07-15 BitMsg Pointer Field And Buffer Name Slice
+
+### Files Changed
+
+- `neo/idlib/BitMsg.h`
+- `neo/idlib/BitMsg.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idBitMsg` message buffer fields | Network field / serialization buffer pointer storage | Renamed private pointer fields `writeData` and `readData` to `p_writeData` and `p_readData`; field types, order, and byte-buffer ownership behavior are unchanged. |
+| `idBitMsg::Init`, `WriteData`, `ReadString`, and `ReadData` pointer parameters | Network field / serialization API pointer parameters | Renamed touched pointer parameters to `p_data` and `p_buffer` while preserving the same bit/byte serialization behavior. |
+| `idBitMsg` byte-space/string/netadr locals | Network field / serialization buffer pointer locals | Renamed touched byte pointer locals to `p_ptr`, `p_dataPtr`, and `p_bytePtr`; no buffer length or encoding logic changed. |
+| `idBitMsgDelta` base/delta message fields and pointer parameters | Network field / delta serialization pointer storage | Renamed private message pointers to `p_base`, `p_newBase`, `p_writeDelta`, and `p_readDelta`, and renamed touched data/string buffer parameters to `p_data` and `p_buffer`; delta stream semantics are unchanged. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. `idBitMsg` still serializes fixed-width integer, float, string, and raw byte payloads exactly through the existing bitstream helpers; only private C++ pointer member names, pointer parameters, and pointer locals changed. The public function names and signatures remain type-compatible, and the existing `sizeof( int ) == 4` / `sizeof( float ) == 4` guards continue to define the serialized float lane width.
+
+Implementation note: the first mechanical member-name pass was intentionally followed by a focused scan because PowerShell replacement is case-insensitive by default. That scan caught and the patch restored accidental `WriteData`/`ReadData`/`WriteDelta`/`ReadDelta` method-name rewrites before compiler verification.
+
+### Verification Log For This Slice
+
+- `rg -n "p_writeData\(|p_readData\(|p_writeDelta\(|p_readDelta\(|::p_|->p_writeData\(|->p_readData\(|\bwriteData\b|\breadData\b|\bnewBase\b|\bwriteDelta\b|\breadDelta\b|\bbyte \*ptr\b|byte \*dataPtr\b|const byte \*bytePtr\b|const void \*data\b|void \*data\b|char \*buffer\b" neo\idlib\BitMsg.h neo\idlib\BitMsg.cpp`: no stale pointer field/local names or accidental `p_` method-name forms found.
+- `rg -n "WriteData\( const void \*p_data|ReadData\( void \*p_data|ReadString\( char \*p_buffer|p_writeData|p_readData|p_base|p_newBase|p_writeDelta|p_readDelta|p_dataPtr|p_bytePtr|p_ptr" neo\idlib\BitMsg.h neo\idlib\BitMsg.cpp`: confirmed the renamed pointer fields, parameters, and locals are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the broad header-dependent target graph and linked `Doom3.exe`, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad header-dependent target graph for the dedicated preset, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the header rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `Get-Process Doom3,DedServer -ErrorAction SilentlyContinue`: no lingering runtime processes after the smoke runs.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
+## 2026-07-15 Game Network Snapshot Pointer Name Slice
+
+### Files Changed
+
+- `neo/game/Game_network.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `ServerWriteSnapshot` entity-state baseline locals | Network field / delta snapshot pointer locals | Renamed `entityState_t *base` and `entityState_t *newBase` to `p_base` and `p_newBase` in the entity and game/player state delta paths; the same `idBitMsgDelta` baseline/new-baseline states are passed. |
+| `ClientShowSnapshot` baseline diagnostic local | Network field / snapshot diagnostics pointer local | Renamed the diagnostic baseline pointer to `p_base`; debug bit-count output is unchanged. |
+| `ClientReadSnapshot` entity-state baseline locals | Network field / delta snapshot pointer locals | Renamed client-side baseline/new-baseline entity-state pointers to `p_base` and `p_newBase` in entity, stale-entity base-state, and game/player state paths. |
+| `ClientProcessReliableMessage` tourney-line player local | Network field / reliable-message pointer local | Renamed the touched player pointer local to `p_player`; message parsing and assigned value are unchanged. |
+| `Tokenize` input and token cursors | Legacy API interop / network session command parsing pointer locals | Renamed the input string parameter and token cursor locals to `p_in`, `p_token`, and `p_next`; delimiter parsing is unchanged. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. Snapshot entity baselines still use the same `entityState_t` buffers and `idBitMsgDelta` bitstream semantics, and reliable-message parsing keeps the existing field widths. The change is a source-level pointer naming cleanup across touched network serialization paths.
+
+### Verification Log For This Slice
+
+- `rg -n "entityState_t\s+\*base|entityState_t\s+\*base, \*newBase|\bbase\s*= clientEntityStates|\bnewBase\s*=|\bbase->state|\bnewBase->|deltaMsg\.Init\( base|idPlayer\s+\*p\b|\bp\s*= static_cast< idPlayer|\bp->|Tokenize\( idStrList &out, const char \*in \)|char \*token, \*next" neo\game\Game_network.cpp`: no stale touched pointer declarations, assignments, or delta-init uses found; remaining `next` hits are struct link fields outside this slice.
+- `rg -n "entityState_t\s+\*p_base|entityState_t\s+\*p_base, \*p_newBase|p_base|p_newBase|p_player|Tokenize\( idStrList &out, const char \*p_in \)|p_token|p_next" neo\game\Game_network.cpp`: confirmed the renamed snapshot, reliable-message, and tokenization pointer surfaces are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `neo/game/Game_network.cpp`, reran TypeInfo, and linked the client/game DLL outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt `neo/game/Game_network.cpp` for the dedicated server preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the rebuild.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 release projects through `DoomDLL.vcxproj`, `Game.vcxproj`, and `Game-d3xp.vcxproj`.
+- `cmake --build --preset vs2026-x64-dedicated-release --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS dedicated release projects and produced `DedServer.exe`.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS test projects and unit test executables.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `Get-Process Doom3,DedServer,MSBuild -ErrorAction SilentlyContinue`: no lingering runtime or build processes after the smoke runs.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
