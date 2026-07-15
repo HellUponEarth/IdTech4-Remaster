@@ -1619,6 +1619,41 @@ Known boundary: this slice only covers the actual pointer parameter in `idStatic
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 idlib List Pointer Storage Rename Slice
+
+### Files Changed
+
+- `neo/idlib/containers/List.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idList::list` private backing-array pointer | Legacy API interop / idlib container pointer storage | Renamed the private pointer field to `p_list` and updated all internal uses. |
+| `idList::Resize` temporary backing-array pointers | Legacy API interop / idlib container pointer locals | Renamed `temp` pointer locals to `p_temp` in both resize overloads. |
+| `idList::AssureSizeAlloc` allocator callback pointer | Legacy API interop / idlib container pointer parameter | Renamed the callback pointer parameter to `p_allocator`. |
+| `idList::IndexOf` element pointer | Legacy API interop / idlib container pointer parameter | Renamed `objptr` to `p_obj` and kept the pointer-difference-to-index behavior unchanged. |
+| `idList::Sort` / `SortSubSection` comparator pointers | Legacy API interop / idlib container pointer parameters | Renamed comparator function pointers and the `qsort` thunk local to `p_` names. |
+| `idListSortCompare` comparator operands | Legacy API interop / idlib container pointer parameters | Renamed comparator pointer operands to `p_a` and `p_b`. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. `idList` remains a header-only in-memory template; the private backing pointer stays in the same field order with the same native pointer width, and count/index fields remain `int`.
+
+No binary-format compile-time assertion was added because this slice only renames source identifiers in a non-serialized template container and does not change the intended size of any persisted record.
+
+Known boundary: this slice does not evaluate whether `idList` count/capacity fields should become `size_t`; those fields are counts and indexes rather than pointer storage and need a separate large-container compatibility review before widening.
+
+### Verification Log For This Slice
+
+- `rg -n "\btype \*\s*list\b|\blist\s*=|\blist\[|\*list\b|\bother\.list\b|\bobjptr\b|\bnew_t \*allocator\b|\btype\s*\*temp\b|\btemp\s*=|\bdelete\[\]\s*temp\b|\bcmp_t \*compare\b|\bvCompare\b|idListSortCompare\( const type \*(a|b)" neo\idlib\containers\List.h`: no stale code identifiers remained.
+- `rg -n "p_list|p_temp|p_allocator|p_obj|p_compare|p_compareThunk|p_a|p_b" neo\idlib\containers\List.h`: renamed pointer storage, parameters, locals, and comparator operands are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `cmake --build --preset ninja-dedicated-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-13 idlib HashIndex Pointer Rename Slice
 
 Files changed in this slice:
