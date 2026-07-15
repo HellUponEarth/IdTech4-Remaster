@@ -85,8 +85,8 @@ private:
 	};
 
 	struct page_s {									// allocation page
-		void *				data;					// data pointer to allocated memory
-		dword				dataSize;				// number of bytes of memory 'data' points to
+		void *				p_data;					// data pointer to allocated memory
+		dword				dataSize;				// number of bytes of memory 'p_data' points to
 		page_s *			next;					// next free page in same page manager
 		page_s *			prev;					// used only when allocated
 		dword				largestFree;			// this data used by the medium-size heap manager
@@ -406,24 +406,24 @@ void idHeap::Dump( void ) {
 	idHeap::page_s	*p_page;
 
 	for ( p_page = smallFirstUsedPage; p_page; p_page = p_page->next ) {
-		idLib::common->Printf( "%p  bytes %-8d  (in use by small heap)\n", p_page->data, p_page->dataSize);
+		idLib::common->Printf( "%p  bytes %-8d  (in use by small heap)\n", p_page->p_data, p_page->dataSize);
 	}
 
 	if ( smallCurPage ) {
 		p_page = smallCurPage;
-		idLib::common->Printf( "%p  bytes %-8d  (small heap active page)\n", p_page->data, p_page->dataSize );
+		idLib::common->Printf( "%p  bytes %-8d  (small heap active page)\n", p_page->p_data, p_page->dataSize );
 	}
 
 	for ( p_page = mediumFirstUsedPage; p_page; p_page = p_page->next ) {
-		idLib::common->Printf( "%p  bytes %-8d  (completely used by medium heap)\n", p_page->data, p_page->dataSize );
+		idLib::common->Printf( "%p  bytes %-8d  (completely used by medium heap)\n", p_page->p_data, p_page->dataSize );
 	}
 
 	for ( p_page = mediumFirstFreePage; p_page; p_page = p_page->next ) {
-		idLib::common->Printf( "%p  bytes %-8d  (partially used by medium heap)\n", p_page->data, p_page->dataSize );
+		idLib::common->Printf( "%p  bytes %-8d  (partially used by medium heap)\n", p_page->p_data, p_page->dataSize );
 	}
 	
 	for ( p_page = largeFirstUsedPage; p_page; p_page = p_page->next ) {
-		idLib::common->Printf( "%p  bytes %-8d  (fully used by large heap)\n", p_page->data, p_page->dataSize );
+		idLib::common->Printf( "%p  bytes %-8d  (fully used by large heap)\n", p_page->p_data, p_page->dataSize );
 	}
 
 	idLib::common->Printf( "pages allocated : %d\n", pagesAllocated );
@@ -493,7 +493,7 @@ idHeap::page_s* idHeap::AllocatePage( dword bytes ) {
 			}
 		}
 
-		p_page->data		= (void *) ALIGN_SIZE( reinterpret_cast<uintptr_t>( (byte *)(p_page) ) + sizeof( idHeap::page_s ) );
+		p_page->p_data		= (void *) ALIGN_SIZE( reinterpret_cast<uintptr_t>( (byte *)(p_page) ) + sizeof( idHeap::page_s ) );
 		p_page->dataSize	= size - sizeof(idHeap::page_s);
 		p_page->firstFree	= NULL;
 		p_page->largestFree	= 0;
@@ -575,7 +575,7 @@ void *idHeap::SmallAllocate( dword bytes ) {
 		smallCurPageOffset	= SMALL_ALIGN( 0 );
 	}
 
-	p_smallBlock		= ((byte *)smallCurPage->data) + smallCurPageOffset;
+	p_smallBlock		= ((byte *)smallCurPage->p_data) + smallCurPageOffset;
 	p_smallBlock[0]		= (byte)(bytes / ALIGN);		// write # of bytes/ALIGN
 	p_smallBlock[1]		= SMALL_ALLOC;					// allocation identifier
 	smallCurPageOffset  += bytes + SMALL_HEADER_SIZE;	// increase the offset on the current page
@@ -719,7 +719,7 @@ void *idHeap::MediumAllocate( dword bytes ) {
 		mediumFirstFreePage		= p_page;
 		
 		p_page->largestFree	= pageSize;
-		p_page->firstFree	= (void *)p_page->data;
+		p_page->firstFree	= (void *)p_page->p_data;
 
 		mediumHeapEntry_s *p_entry;
 		p_entry				= (mediumHeapEntry_s *)(p_page->firstFree);
@@ -932,7 +932,7 @@ void *idHeap::LargeAllocate( dword bytes ) {
 		return NULL;
 	}
 
-	byte *		p_data		= (byte*)(p_page->data) + ALIGN_SIZE( LARGE_HEADER_SIZE );
+	byte *		p_data		= (byte*)(p_page->p_data) + ALIGN_SIZE( LARGE_HEADER_SIZE );
 	uintptr_t *	p_pageLink	= (uintptr_t *)(p_data - ALIGN_SIZE( LARGE_HEADER_SIZE ));
 	p_pageLink[0]			= reinterpret_cast<uintptr_t>( p_page );	// write pointer back to page table
 	p_data[-1]				= LARGE_ALLOC;								// allocation identifier

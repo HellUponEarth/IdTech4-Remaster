@@ -67,7 +67,7 @@ idSaveGame::idSaveGame()
 */
 idSaveGame::idSaveGame( idFile *savefile ) {
 
-	file = savefile;
+	p_file = savefile;
 
 	// Put NULL at the start of the list so we can skip over it.
 	objects.Clear();
@@ -105,7 +105,7 @@ void idSaveGame::Close( void ) {
 	objects.Clear();
 
 #ifdef ID_DEBUG_MEMORY
-	idStr gameState = file->GetName();
+	idStr gameState = p_file->GetName();
 	gameState.StripFileExtension();
 	WriteGameState_f( idCmdArgs( va( "test %s_save", gameState.c_str() ), false ) );
 #endif
@@ -157,7 +157,7 @@ idSaveGame::Write
 ================
 */
 void idSaveGame::Write( const void *p_buffer, int len ) {
-	file->Write( p_buffer, len );
+	p_file->Write( p_buffer, len );
 }
 
 /*
@@ -166,7 +166,7 @@ idSaveGame::WriteInt
 ================
 */
 void idSaveGame::WriteInt( const int value ) {
-	file->WriteInt( value );
+	p_file->WriteInt( value );
 }
 
 /*
@@ -175,7 +175,7 @@ idSaveGame::WriteJoint
 ================
 */
 void idSaveGame::WriteJoint( const jointHandle_t value ) {
-	file->WriteInt( (int&)value );
+	p_file->WriteInt( (int&)value );
 }
 
 /*
@@ -184,7 +184,7 @@ idSaveGame::WriteShort
 ================
 */
 void idSaveGame::WriteShort( const short value ) {
-	file->WriteShort( value );
+	p_file->WriteShort( value );
 }
 
 /*
@@ -193,7 +193,7 @@ idSaveGame::WriteByte
 ================
 */
 void idSaveGame::WriteByte( const byte value ) {
-	file->Write( &value, sizeof( value ) );
+	p_file->Write( &value, sizeof( value ) );
 }
 
 /*
@@ -202,7 +202,7 @@ idSaveGame::WriteSignedChar
 ================
 */
 void idSaveGame::WriteSignedChar( const signed char value ) {
-	file->Write( &value, sizeof( value ) );
+	p_file->Write( &value, sizeof( value ) );
 }
 
 /*
@@ -211,7 +211,7 @@ idSaveGame::WriteFloat
 ================
 */
 void idSaveGame::WriteFloat( const float value ) {
-	file->WriteFloat( value );
+	p_file->WriteFloat( value );
 }
 
 /*
@@ -220,7 +220,7 @@ idSaveGame::WriteBool
 ================
 */
 void idSaveGame::WriteBool( const bool value ) {
-	file->WriteBool( value );
+	p_file->WriteBool( value );
 }
 
 /*
@@ -233,7 +233,7 @@ void idSaveGame::WriteString( const char *string ) {
 
 	len = strlen( string );
 	WriteInt( len );
-    file->Write( string, len );
+    p_file->Write( string, len );
 }
 
 /*
@@ -242,7 +242,7 @@ idSaveGame::WriteVec2
 ================
 */
 void idSaveGame::WriteVec2( const idVec2 &vec ) {
-	file->WriteVec2( vec );
+	p_file->WriteVec2( vec );
 }
 
 /*
@@ -251,7 +251,7 @@ idSaveGame::WriteVec3
 ================
 */
 void idSaveGame::WriteVec3( const idVec3 &vec ) {
-	file->WriteVec3( vec );
+	p_file->WriteVec3( vec );
 }
 
 /*
@@ -260,7 +260,7 @@ idSaveGame::WriteVec4
 ================
 */
 void idSaveGame::WriteVec4( const idVec4 &vec ) {
-	file->WriteVec4( vec );
+	p_file->WriteVec4( vec );
 }
 
 /*
@@ -269,7 +269,7 @@ idSaveGame::WriteVec6
 ================
 */
 void idSaveGame::WriteVec6( const idVec6 &vec ) {
-	file->WriteVec6( vec );
+	p_file->WriteVec6( vec );
 }
 
 /*
@@ -280,7 +280,7 @@ idSaveGame::WriteBounds
 void idSaveGame::WriteBounds( const idBounds &bounds ) {
 	idBounds b = bounds;
 	LittleRevBytes( &b, sizeof(float), sizeof(b)/sizeof(float) );
-	file->Write( &b, sizeof( b ) );
+	p_file->Write( &b, sizeof( b ) );
 }
 
 /*
@@ -292,11 +292,11 @@ void idSaveGame::WriteWinding( const idWinding &w )
 {
 	int i, num;
 	num = w.GetNumPoints();
-	file->WriteInt( num );
+	p_file->WriteInt( num );
 	for ( i = 0; i < num; i++ ) {
 		idVec5 v = w[i];
 		LittleRevBytes(&v, sizeof(float), sizeof(v)/sizeof(float) );
-		file->Write( &v, sizeof(v) );
+		p_file->Write( &v, sizeof(v) );
 	}
 }
 
@@ -307,7 +307,7 @@ idSaveGame::WriteMat3
 ================
 */
 void idSaveGame::WriteMat3( const idMat3 &mat ) {
-	file->WriteMat3( mat );
+	p_file->WriteMat3( mat );
 }
 
 /*
@@ -318,7 +318,7 @@ idSaveGame::WriteAngles
 void idSaveGame::WriteAngles( const idAngles &angles ) {
 	idAngles v = angles;
 	LittleRevBytes(&v, sizeof(float), sizeof(v)/sizeof(float) );
-	file->Write( &v, sizeof( v ) );
+	p_file->Write( &v, sizeof( v ) );
 }
 
 /*
@@ -483,7 +483,7 @@ void idSaveGame::WriteUserInterface( const idUserInterface *ui, bool unique ) {
 		name = ui->Name();
 		WriteString( name );
 		WriteBool( unique );
-		if ( ui->WriteToSaveGame( file ) == false ) {
+		if ( ui->WriteToSaveGame( p_file ) == false ) {
 			gameLocal.Error( "idSaveGame::WriteUserInterface: ui failed to write properly\n" );
 		}
 	}
@@ -733,7 +733,7 @@ void idSaveGame::WriteTraceModel( const idTraceModel &trace ) {
 	// padding win32 native structs
 	char tmp[3];
 	memset( tmp, 0, sizeof( tmp ) );
-	file->Write( tmp, 3 );
+	p_file->Write( tmp, 3 );
 }
 
 /*
@@ -756,7 +756,7 @@ idSaveGame::WriteSoundCommands
 ===================
 */
 void idSaveGame::WriteSoundCommands( void ) {
-	gameSoundWorld->WriteToSaveGame( file );
+	gameSoundWorld->WriteToSaveGame( p_file );
 }
 
 /*
@@ -765,7 +765,7 @@ idSaveGame::WriteBuildNumber
 ======================
 */
 void idSaveGame::WriteBuildNumber( const int value ) {
-	file->WriteInt( BUILD_NUMBER );
+	p_file->WriteInt( BUILD_NUMBER );
 }
 
 /***********************************************************************
@@ -780,7 +780,7 @@ idRestoreGame::RestoreGame
 ================
 */
 idRestoreGame::idRestoreGame( idFile *savefile ) {
-	file = savefile;
+	p_file = savefile;
 }
 
 /*
@@ -849,7 +849,7 @@ void idRestoreGame::RestoreObjects( void ) {
 	}
 
 #ifdef ID_DEBUG_MEMORY
-	idStr gameState = file->GetName();
+	idStr gameState = p_file->GetName();
 	gameState.StripFileExtension();
 	WriteGameState_f( idCmdArgs( va( "test %s_restore", gameState.c_str() ), false ) );
 	//CompareGameState_f( idCmdArgs( va( "test %s_save", gameState.c_str() ) ) );
@@ -911,7 +911,7 @@ idRestoreGame::Read
 ================
 */
 void idRestoreGame::Read( void *p_buffer, int len ) {
-	file->Read( p_buffer, len );
+	p_file->Read( p_buffer, len );
 }
 
 /*
@@ -920,7 +920,7 @@ idRestoreGame::ReadInt
 ================
 */
 void idRestoreGame::ReadInt( int &value ) {
-	file->ReadInt( value );
+	p_file->ReadInt( value );
 }
 
 /*
@@ -929,7 +929,7 @@ idRestoreGame::ReadJoint
 ================
 */
 void idRestoreGame::ReadJoint( jointHandle_t &value ) {
-	file->ReadInt( (int&)value );
+	p_file->ReadInt( (int&)value );
 }
 
 /*
@@ -938,7 +938,7 @@ idRestoreGame::ReadShort
 ================
 */
 void idRestoreGame::ReadShort( short &value ) {
-	file->ReadShort( value );
+	p_file->ReadShort( value );
 }
 
 /*
@@ -947,7 +947,7 @@ idRestoreGame::ReadByte
 ================
 */
 void idRestoreGame::ReadByte( byte &value ) {
-	file->Read( &value, sizeof( value ) );
+	p_file->Read( &value, sizeof( value ) );
 }
 
 /*
@@ -956,7 +956,7 @@ idRestoreGame::ReadSignedChar
 ================
 */
 void idRestoreGame::ReadSignedChar( signed char &value ) {
-	file->Read( &value, sizeof( value ) );
+	p_file->Read( &value, sizeof( value ) );
 }
 
 /*
@@ -965,7 +965,7 @@ idRestoreGame::ReadFloat
 ================
 */
 void idRestoreGame::ReadFloat( float &value ) {
-	file->ReadFloat( value );
+	p_file->ReadFloat( value );
 }
 
 /*
@@ -974,7 +974,7 @@ idRestoreGame::ReadBool
 ================
 */
 void idRestoreGame::ReadBool( bool &value ) {
-	file->ReadBool( value );
+	p_file->ReadBool( value );
 }
 
 /*
@@ -991,7 +991,7 @@ void idRestoreGame::ReadString( idStr &string ) {
 	}
 
 	string.Fill( ' ', len );
-	file->Read( &string[ 0 ], len );
+	p_file->Read( &string[ 0 ], len );
 }
 
 /*
@@ -1000,7 +1000,7 @@ idRestoreGame::ReadVec2
 ================
 */
 void idRestoreGame::ReadVec2( idVec2 &vec ) {
-	file->ReadVec2( vec );
+	p_file->ReadVec2( vec );
 }
 
 /*
@@ -1009,7 +1009,7 @@ idRestoreGame::ReadVec3
 ================
 */
 void idRestoreGame::ReadVec3( idVec3 &vec ) {
-	file->ReadVec3( vec );
+	p_file->ReadVec3( vec );
 }
 
 /*
@@ -1018,7 +1018,7 @@ idRestoreGame::ReadVec4
 ================
 */
 void idRestoreGame::ReadVec4( idVec4 &vec ) {
-	file->ReadVec4( vec );
+	p_file->ReadVec4( vec );
 }
 
 /*
@@ -1027,7 +1027,7 @@ idRestoreGame::ReadVec6
 ================
 */
 void idRestoreGame::ReadVec6( idVec6 &vec ) {
-	file->ReadVec6( vec );
+	p_file->ReadVec6( vec );
 }
 
 /*
@@ -1036,7 +1036,7 @@ idRestoreGame::ReadBounds
 ================
 */
 void idRestoreGame::ReadBounds( idBounds &bounds ) {
-	file->Read( &bounds, sizeof( bounds ) );
+	p_file->Read( &bounds, sizeof( bounds ) );
 	LittleRevBytes( &bounds, sizeof(float), sizeof(bounds)/sizeof(float) );
 }
 
@@ -1048,10 +1048,10 @@ idRestoreGame::ReadWinding
 void idRestoreGame::ReadWinding( idWinding &w )
 {
 	int i, num;
-	file->ReadInt( num );
+	p_file->ReadInt( num );
 	w.SetNumPoints( num );
 	for ( i = 0; i < num; i++ ) {
-		file->Read( &w[i], sizeof(idVec5) );
+		p_file->Read( &w[i], sizeof(idVec5) );
 		LittleRevBytes(&w[i], sizeof(float), sizeof(idVec5)/sizeof(float) );
 	}
 }
@@ -1062,7 +1062,7 @@ idRestoreGame::ReadMat3
 ================
 */
 void idRestoreGame::ReadMat3( idMat3 &mat ) {
-	file->ReadMat3( mat );
+	p_file->ReadMat3( mat );
 }
 
 /*
@@ -1071,7 +1071,7 @@ idRestoreGame::ReadAngles
 ================
 */
 void idRestoreGame::ReadAngles( idAngles &angles ) {
-	file->Read( &angles, sizeof( angles ) );
+	p_file->Read( &angles, sizeof( angles ) );
 	LittleRevBytes(&angles, sizeof(float), sizeof(idAngles)/sizeof(float) );
 }
 
@@ -1252,7 +1252,7 @@ void idRestoreGame::ReadUserInterface( idUserInterface *&ui ) {
 		ReadBool( unique );
 		ui = uiManager->FindGui( name, true, unique );
 		if ( ui ) {
-			if ( ui->ReadFromSaveGame( file ) == false ) {
+			if ( ui->ReadFromSaveGame( p_file ) == false ) {
 				Error( "idSaveGame::ReadUserInterface: ui failed to read properly\n" );
 			} else {
 				ui->StateChanged( gameLocal.time );
@@ -1508,7 +1508,7 @@ void idRestoreGame::ReadTraceModel( idTraceModel &trace ) {
 	ReadBool( trace.isConvex );
 	// padding win32 native structs
 	char tmp[3];
-	file->Read( tmp, 3 );
+	p_file->Read( tmp, 3 );
 }
 
 /*
@@ -1535,7 +1535,7 @@ idRestoreGame::ReadSoundCommands
 */
 void idRestoreGame::ReadSoundCommands( void ) {
 	gameSoundWorld->StopAllSounds();
-	gameSoundWorld->ReadFromSaveGame( file );
+	gameSoundWorld->ReadFromSaveGame( p_file );
 }
 
 /*
@@ -1544,7 +1544,7 @@ idRestoreGame::ReadBuildNumber
 =====================
 */
 void idRestoreGame::ReadBuildNumber( void ) {
-	file->ReadInt( buildNumber );
+	p_file->ReadInt( buildNumber );
 }
 
 /*

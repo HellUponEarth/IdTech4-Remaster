@@ -86,12 +86,12 @@ bool idDeclSkin::Parse( const char *text, const int textLength ) {
 
 		if ( !token.Icmp( "*" ) ) {
 			// wildcard
-			map.from = NULL;
+			map.p_from = NULL;
 		} else {
-			map.from = declManager->FindMaterial( token );
+			map.p_from = declManager->FindMaterial( token );
 		}
 
-		map.to = declManager->FindMaterial( token2 );
+		map.p_to = declManager->FindMaterial( token2 );
 
 		mappings.Append( map );
 	}
@@ -175,8 +175,8 @@ const idMaterial *idDeclSkin::RemapShaderBySkin( const idMaterial *shader ) cons
 		const skinMapping_t	*map = &mappings[i];
 
 		// NULL = wildcard match
-		if ( !map->from || map->from == shader ) {
-			return map->to;
+		if ( !map->p_from || map->p_from == shader ) {
+			return map->p_to;
 		}
 	}
 

@@ -41,7 +41,7 @@ class idCompressor_None : public idCompressor {
 public:
 					idCompressor_None( void );
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 	void			FinishCompress( void );
 	float			GetCompressionRatio( void ) const;
 
@@ -57,7 +57,7 @@ public:
 	int				Seek( long offset, fsOrigin_t origin );
 
 protected:
-	idFile *		file;
+	idFile *		p_file;
 	bool			compress;
 };
 
@@ -67,7 +67,7 @@ idCompressor_None::idCompressor_None
 ================
 */
 idCompressor_None::idCompressor_None( void ) {
-	file = NULL;
+	p_file = NULL;
 	compress = true;
 }
 
@@ -76,8 +76,8 @@ idCompressor_None::idCompressor_None( void ) {
 idCompressor_None::Init
 ================
 */
-void idCompressor_None::Init( idFile *f, bool compress, int wordLength ) {
-	this->file = f;
+void idCompressor_None::Init( idFile *p_file, bool compress, int wordLength ) {
+	this->p_file = p_file;
 	this->compress = compress;
 }
 
@@ -104,8 +104,8 @@ idCompressor_None::GetName
 ================
 */
 const char *idCompressor_None::GetName( void ) {
-	if ( file ) {
-		return file->GetName();
+	if ( p_file ) {
+		return p_file->GetName();
 	} else {
 		return "";
 	}
@@ -117,8 +117,8 @@ idCompressor_None::GetFullPath
 ================
 */
 const char *idCompressor_None::GetFullPath( void ) {
-	if ( file ) {
-		return file->GetFullPath();
+	if ( p_file ) {
+		return p_file->GetFullPath();
 	} else {
 		return "";
 	}
@@ -133,7 +133,7 @@ int idCompressor_None::Write( const void *inData, int inLength ) {
 	if ( compress == false || inLength <= 0 ) {
 		return 0;
 	}
-	return file->Write( inData, inLength );
+	return p_file->Write( inData, inLength );
 }
 
 /*
@@ -145,7 +145,7 @@ int idCompressor_None::Read( void *outData, int outLength ) {
 	if ( compress == true || outLength <= 0 ) {
 		return 0;
 	}
-	return file->Read( outData, outLength );
+	return p_file->Read( outData, outLength );
 }
 
 /*
@@ -154,8 +154,8 @@ idCompressor_None::Length
 ================
 */
 int idCompressor_None::Length( void ) {
-	if ( file ) {
-		return file->Length();
+	if ( p_file ) {
+		return p_file->Length();
 	} else {
 		return 0;
 	}
@@ -167,8 +167,8 @@ idCompressor_None::Timestamp
 ================
 */
 ID_TIME_T idCompressor_None::Timestamp( void ) {
-	if ( file ) {
-		return file->Timestamp();
+	if ( p_file ) {
+		return p_file->Timestamp();
 	} else {
 		return 0;
 	}
@@ -180,8 +180,8 @@ idCompressor_None::Tell
 ================
 */
 int idCompressor_None::Tell( void ) {
-	if ( file ) {
-		return file->Tell();
+	if ( p_file ) {
+		return p_file->Tell();
 	} else {
 		return 0;
 	}
@@ -193,8 +193,8 @@ idCompressor_None::ForceFlush
 ================
 */
 void idCompressor_None::ForceFlush( void ) {
-	if ( file ) {
-		file->ForceFlush();
+	if ( p_file ) {
+		p_file->ForceFlush();
 	}
 }
 
@@ -204,8 +204,8 @@ idCompressor_None::Flush
 ================
 */
 void idCompressor_None::Flush( void ) {
-	if ( file ) {
-		file->ForceFlush();
+	if ( p_file ) {
+		p_file->ForceFlush();
 	}
 }
 
@@ -234,7 +234,7 @@ class idCompressor_BitStream : public idCompressor_None {
 public:
 					idCompressor_BitStream( void ) {}
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 	void			FinishCompress( void );
 	float			GetCompressionRatio( void ) const;
 
@@ -271,11 +271,11 @@ protected:
 idCompressor_BitStream::Init
 ================
 */
-void idCompressor_BitStream::Init( idFile *f, bool compress, int wordLength ) {
+void idCompressor_BitStream::Init( idFile *p_file, bool compress, int wordLength ) {
 
 	assert( wordLength >= 1 && wordLength <= 32 );
 
-	this->file = f;
+	this->p_file = p_file;
 	this->compress = compress;
 	this->wordLength = wordLength;
 
@@ -320,7 +320,7 @@ idCompressor_BitStream::InitDecompress
 ID_INLINE void idCompressor_BitStream::InitDecompress( void *outData, int outLength ) {
 
 	if ( !readLength ) {
-		readLength = file->Read( buffer, sizeof( buffer ) );
+		readLength = p_file->Read( buffer, sizeof( buffer ) );
 		readByte = 0;
 		readBit = 0;
 		readData = buffer;
@@ -353,7 +353,7 @@ void idCompressor_BitStream::WriteBits( int value, int numBits ) {
 		if ( writeBit == 0 ) {
 			if ( writeByte >= writeLength ) {
 				if ( writeData == buffer ) {
-					file->Write( buffer, writeByte );
+					p_file->Write( buffer, writeByte );
 					writeByte = 0;
 				} else {
 					put = numBits;
@@ -401,7 +401,7 @@ int idCompressor_BitStream::ReadBits( int numBits ) {
 		if ( readBit == 0 ) {
 			if ( readByte >= readLength ) {
 				if ( readData == buffer ) {
-					readLength = file->Read( buffer, sizeof( buffer ) );
+					readLength = p_file->Read( buffer, sizeof( buffer ) );
 					readByte = 0;
 				} else {
 					get = numBits - valueBits;
@@ -556,7 +556,7 @@ void idCompressor_BitStream::FinishCompress( void ) {
 	}
 
 	if ( writeByte ) {
-		file->Write( buffer, writeByte );
+		p_file->Write( buffer, writeByte );
 	}
 	writeLength = 0;
 	writeByte = 0;
@@ -612,7 +612,7 @@ class idCompressor_RunLength : public idCompressor_BitStream {
 public:
 					idCompressor_RunLength( void ) {}
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 
 	int				Write( const void *inData, int inLength );
 	int				Read( void *outData, int outLength );
@@ -626,8 +626,8 @@ private:
 idCompressor_RunLength::Init
 ================
 */
-void idCompressor_RunLength::Init( idFile *f, bool compress, int wordLength ) {
-	idCompressor_BitStream::Init( f, compress, wordLength );
+void idCompressor_RunLength::Init( idFile *p_file, bool compress, int wordLength ) {
+	idCompressor_BitStream::Init( p_file, compress, wordLength );
 	runLengthCode = ( 1 << wordLength ) - 1;
 }
 
@@ -820,7 +820,7 @@ class idCompressor_Huffman : public idCompressor_None {
 public:
 					idCompressor_Huffman( void ) {}
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 	void			FinishCompress( void );
 	float			GetCompressionRatio( void ) const;
 
@@ -869,10 +869,10 @@ private:
 idCompressor_Huffman::Init
 ================
 */
-void idCompressor_Huffman::Init( idFile *f, bool compress, int wordLength ) {
+void idCompressor_Huffman::Init( idFile *p_file, bool compress, int wordLength ) {
 	int i;
 
-	this->file = f;
+	this->p_file = p_file;
 	this->compress = compress;
 	bloc = 0;
 	blocMax = 0;
@@ -969,7 +969,7 @@ int idCompressor_Huffman::Get_bit() {
 	int wh = bloc >> 3;
 	int whb = wh>> 16;
 	if ( whb != blocIn ) {
-		blocMax += file->Read( seq, sizeof( seq ) );
+		blocMax += p_file->Read( seq, sizeof( seq ) );
 		blocIn++;
 	}
 	wh &= 0xffff;
@@ -1275,7 +1275,7 @@ int idCompressor_Huffman::Write( const void *inData, int inLength ) {
 		AddRef( (byte)ch );					/* Do update */
 		int b = (bloc>>3);
 		if ( b > 32768 ) {
-			file->Write( seq, b );
+			p_file->Write( seq, b );
 			seq[0] = seq[b];
 			bloc &= 7;
 			compressedSize += b;
@@ -1300,7 +1300,7 @@ void idCompressor_Huffman::FinishCompress( void ) {
 	bloc += 7;
 	int str = (bloc>>3);
 	if ( str ) {
-		file->Write( seq, str );
+		p_file->Write( seq, str );
 		compressedSize += str;
 	}
 }
@@ -1318,7 +1318,7 @@ int idCompressor_Huffman::Read( void *outData, int outLength ) {
 	}
 
 	if ( bloc == 0 ) {
-		blocMax = file->Read( seq, sizeof( seq ) );
+		blocMax = p_file->Read( seq, sizeof( seq ) );
 		blocIn = 0;
 	}
 
@@ -1379,7 +1379,7 @@ class idCompressor_Arithmetic : public idCompressor_BitStream {
 public:
 					idCompressor_Arithmetic( void ) {}
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 	void			FinishCompress( void );
 
 	int				Write( const void *inData, int inLength );
@@ -1431,8 +1431,8 @@ private:
 idCompressor_Arithmetic::Init
 ================
 */
-void idCompressor_Arithmetic::Init( idFile *f, bool compress, int wordLength ) {
-	idCompressor_BitStream::Init( f, compress, wordLength );
+void idCompressor_Arithmetic::Init( idFile *p_file, bool compress, int wordLength ) {
+	idCompressor_BitStream::Init( p_file, compress, wordLength );
 
 	symbolBuffer	= 0;
 	symbolBit		= 0;
@@ -1807,7 +1807,7 @@ class idCompressor_LZSS : public idCompressor_BitStream {
 public:
 					idCompressor_LZSS( void ) {}
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 	void			FinishCompress( void );
 
 	int				Write( const void *inData, int inLength );
@@ -1838,8 +1838,8 @@ protected:
 idCompressor_LZSS::Init
 ================
 */
-void idCompressor_LZSS::Init( idFile *f, bool compress, int wordLength ) {
-	idCompressor_BitStream::Init( f, compress, wordLength );
+void idCompressor_LZSS::Init( idFile *p_file, bool compress, int wordLength ) {
+	idCompressor_BitStream::Init( p_file, compress, wordLength );
 
 	offsetBits = LZSS_OFFSET_BITS;
 	lengthBits = LZSS_LENGTH_BITS;
@@ -2086,7 +2086,7 @@ class idCompressor_LZSS_WordAligned : public idCompressor_LZSS {
 public:
 					idCompressor_LZSS_WordAligned( void ) {}
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 private:
 	virtual void	CompressBlock( void );
 	virtual void	DecompressBlock( void );
@@ -2097,8 +2097,8 @@ private:
 idCompressor_LZSS_WordAligned::Init
 ================
 */
-void idCompressor_LZSS_WordAligned::Init( idFile *f, bool compress, int wordLength ) {
-	idCompressor_LZSS::Init( f, compress, wordLength );
+void idCompressor_LZSS_WordAligned::Init( idFile *p_file, bool compress, int wordLength ) {
+	idCompressor_LZSS::Init( p_file, compress, wordLength );
 
 	offsetBits = 2 * wordLength;
 	lengthBits = wordLength;
@@ -2225,7 +2225,7 @@ class idCompressor_LZW : public idCompressor_BitStream {
 public:
 					idCompressor_LZW( void ) {}
 
-	void			Init( idFile *f, bool compress, int wordLength );
+	void			Init( idFile *p_file, bool compress, int wordLength );
 	void			FinishCompress( void );
 
 	int				Write( const void *inData, int inLength );
@@ -2273,8 +2273,8 @@ protected:
 idCompressor_LZW::Init
 ================
 */
-void idCompressor_LZW::Init( idFile *f, bool compress, int wordLength ) {
-	idCompressor_BitStream::Init( f, compress, wordLength );
+void idCompressor_LZW::Init( idFile *p_file, bool compress, int wordLength ) {
+	idCompressor_BitStream::Init( p_file, compress, wordLength );
 
 	for ( int i=0; i<LZW_FIRST_CODE; i++ ) {
 		dictionary[i].k = i;

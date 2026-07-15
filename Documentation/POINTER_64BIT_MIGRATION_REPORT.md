@@ -2,6 +2,210 @@
 
 Status: in progress. This report tracks the codebase-wide 32-bit pointer audit, p_ pointer-variable renaming, ABI impact, and verification. It is intentionally additive so each verified slice can update the same ledger.
 
+## 2026-07-15 DeclSkin Material Mapping Pointer Name Slice
+
+### Files Changed
+
+- `neo/framework/DeclSkin.h`
+- `neo/framework/DeclSkin.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `skinMapping_t::from` / `skinMapping_t::to` material mapping pointers | Framework pointer storage / renderer material legacy API interop | Renamed the stored material remap pointers to `p_from` and `p_to`; wildcard matching, material lookup, and `idDeclSkin::RemapShaderBySkin` still use the same pointer identity checks and returned material pointers. |
+
+This slice does not alter skin declaration syntax, material names, parser token order, renderer handles, savegame fields, network fields, journal records, or binary file formats. `skinMapping_t` is an in-memory declaration helper, so no binary-format size assertion was added for this rename-only storage cleanup.
+
+### Verification Log For This Slice
+
+- `rg -n "\.from\b|\.to\b|->from\b|->to\b" neo\framework\DeclSkin.h neo\framework\DeclSkin.cpp`: no stale touched DeclSkin mapping member accesses found.
+- `rg -n "\bp_from\b|\bp_to\b" neo\framework\DeclSkin.h neo\framework\DeclSkin.cpp`: confirmed the renamed mapping pointer fields and parser/remap call sites are present.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed and restored the original runnable Win32 layout.
+- PE architecture check: `Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` are all x86 after the restore.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-15 idHeap Page Data Pointer Name Slice
+
+### Files Changed
+
+- `neo/idlib/Heap.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idHeap::page_s::data` allocation payload pointer | Pointer storage / idlib allocator legacy API interop | Renamed the native allocation payload pointer to `p_data`; page allocation, dump reporting, small/medium/large allocation entry setup, and large-allocation page-link recovery still use the same addresses and byte offsets. |
+
+This slice does not alter allocator page sizes, alignment, large-allocation headers, small/medium block metadata, savegame fields, network fields, journal records, renderer handles, or binary file formats. `dataSize` remains a byte count and was intentionally left unchanged.
+
+### Verification Log For This Slice
+
+- `rg -n "void \*\s+data\b|p_page->data\b|smallCurPage->data\b|firstFree\s*=\s*\(void \*\)p_page->data\b|\(byte\*\)\(p_page->data\b" neo\idlib\Heap.cpp`: no stale touched heap page payload pointer declarations or member uses found; `dataSize` remains intentionally unchanged as a byte count.
+- `rg -n "void \*\s+p_data\b|p_page->p_data\b|smallCurPage->p_data\b|firstFree\s*=\s*\(void \*\)p_page->p_data\b|\(byte\*\)\(p_page->p_data\b" neo\idlib\Heap.cpp`: confirmed the renamed page payload pointer declaration and small, medium, large, and dump call sites are present.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed and restored the original runnable Win32 layout.
+- PE architecture check: `Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` are all x86 after the restore.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-15 Framework Compressor File Pointer Name Slice
+
+### Files Changed
+
+- `neo/framework/Compressor.h`
+- `neo/framework/Compressor.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idCompressor_None::file` protected stream pointer | Legacy API interop / framework pointer storage | Renamed the protected `idFile *` member to `p_file`; all no-compression, bitstream, Huffman, arithmetic, LZSS, and LZW compressors still forward reads, writes, flushes, names, timestamps, and positions to the same caller-supplied file object. |
+| `idCompressor::Init` and compressor override file parameters | Legacy API interop pointer parameter | Renamed the touched file parameter from `f` to `p_file` in the interface and overrides; call semantics and compressor selection are unchanged. |
+
+This slice does not alter compressed stream formats, bit packing, run-length/Huffman/arithmetic/LZSS/LZW dictionaries, file offsets, savegame fields, network fields, journal records, or renderer handles. It is source-level pointer naming around the file object used by compression wrappers.
+
+### Verification Log For This Slice
+
+- `rg -n "idFile \*\s*file|idFile \*f|this->file|\bfile->" neo\framework\Compressor.cpp neo\framework\Compressor.h`: no stale active compressor file pointer member, `Init` file parameter, or member dereference names found.
+- `rg -n "idFile \*\s*p_file|this->p_file|\bp_file->|Init\( idFile \*p_file|Init\( p_file" neo\framework\Compressor.cpp neo\framework\Compressor.h`: confirmed the renamed protected file pointer, virtual/interface parameter, override parameters, and forwarded file calls are present.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed and restored the original runnable Win32 layout.
+- PE architecture check: `Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` are all x86 after the restore.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-15 idBase64 Buffer Pointer Name Slice
+
+### Files Changed
+
+- `neo/idlib/Base64.h`
+- `neo/idlib/Base64.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idBase64::data` private heap buffer | Legacy API interop / idlib helper pointer storage | Renamed the owned byte-buffer pointer to `p_data`; allocation size, lifetime, string terminator handling, and `c_str()` behavior are unchanged. |
+| `idBase64::Encode` / `Decode` pointer parameters and active byte locals | Serialization helper pointer parameters / locals | Renamed touched source, destination, and temporary byte/file pointers to `p_from`, `p_to`, `p_buf`, and `p_dest`; base64 encoding and decoding loops still emit and consume the same bytes. |
+
+This slice does not alter any savegame, network, journal, renderer, or asset format. It is a source-level pointer naming cleanup inside the idlib base64 helper; the encoded text and decoded byte payload remain unchanged.
+
+### Verification Log For This Slice
+
+- `rg -n "byte \*\s+data|\bdata\s*=\s*NULL|delete\[\]\s+data|\bdata\s*=\s*new|\(char \*\)data|\bto\s*=\s*data|to - data|byte \*from = data|void idBase64::Encode\( const byte \*from|int idBase64::Decode\( byte \*to|void idBase64::Decode\( idFile \*dest|byte \*buf|Decode\( buf|dest->Write\( buf" neo\idlib\Base64.h neo\idlib\Base64.cpp`: no stale touched active `idBase64` pointer storage, parameter, or local names found.
+- `rg -n "byte \*\s+p_data|p_data\s*=\s*NULL|delete\[\]\s+p_data|p_data\s*=\s*new|\(char \*\)p_data|p_to\s*=\s*p_data|p_to - p_data|byte \*p_from = p_data|void idBase64::Encode\( const byte \*p_from|int idBase64::Decode\( byte \*p_to|void idBase64::Decode\( idFile \*p_dest|byte \*p_buf|Decode\( p_buf|p_dest->Write\( p_buf" neo\idlib\Base64.h neo\idlib\Base64.cpp`: confirmed the renamed base64 buffer pointer, active pointer parameters, active byte locals, and file destination pointer are present.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed and restored the original runnable Win32 layout.
+- PE architecture check: `Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` are all x86 after the restore.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-15 SaveGame File Pointer Storage Name Slice
+
+### Files Changed
+
+- `neo/game/gamesys/SaveGame.h`
+- `neo/game/gamesys/SaveGame.cpp`
+- `neo/d3xp/gamesys/SaveGame.h`
+- `neo/d3xp/gamesys/SaveGame.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idSaveGame::file` private output stream member | Savegame field / legacy API interop pointer storage | Renamed the private `idFile *` member to `p_file` in base and d3xp game modules. The member still owns no serialized value; it only forwards save writes to the caller-supplied file object. |
+| `idRestoreGame::file` private input stream member | Savegame field / legacy API interop pointer storage | Renamed the private `idFile *` member to `p_file` in base and d3xp game modules. Restore helpers still read the same fixed-width save values from the same caller-supplied file object. |
+
+This slice does not widen, reorder, or reinterpret any savegame stream data. The class-private native pointer field is not serialized into save files; all `Write*` and `Read*` helpers continue to call the same `idFile` methods with the same payload sizes and ordering as before.
+
+### Verification Log For This Slice
+
+- `rg -n "idFile \*\s+file|\bfile\s*=\s*savefile|\bfile->|WriteToSaveGame\( file|ReadFromSaveGame\( file" neo\game\gamesys\SaveGame.h neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.h neo\d3xp\gamesys\SaveGame.cpp`: no stale touched `file` pointer member declarations, assignments, member calls, or pass-through call arguments found.
+- `rg -n "idFile \*\s+p_file|\bp_file\s*=\s*savefile|WriteToSaveGame\( p_file|ReadFromSaveGame\( p_file" neo\game\gamesys\SaveGame.h neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.h neo\d3xp\gamesys\SaveGame.cpp`: confirmed the renamed base/d3xp save and restore file pointer members, constructor assignments, and UI/sound file pass-through calls.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed after the stale `file` pass-through arguments were fixed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed and restored the original runnable Win32 layout.
+- PE architecture check: `Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` are all x86 after the restore.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-15 Async MsgChannel Network Buffer Pointer Name Slice
+
+### Files Changed
+
+- `neo/framework/async/MsgChannel.h`
+- `neo/framework/async/MsgChannel.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idMsgQueue::Add` reliable-message source bytes | Network field / raw packet-buffer pointer parameter | Renamed the source byte pointer parameter from `data` to `p_data`; queue header writes still emit the same 16-bit size and 32-bit sequence fields before copying the same payload bytes. |
+| `idMsgQueue::Get` reliable-message destination bytes | Network field / raw packet-buffer pointer parameter | Renamed the destination byte pointer parameter from `data` to `p_data`; callers may still pass `NULL` to discard acknowledged reliable-message payloads. |
+| `idMsgQueue::WriteData` and `idMsgQueue::ReadData` queue byte helpers | Network field / raw packet-buffer pointer parameter | Renamed the private helper pointer parameters to `p_data`; byte order, queue wraparound, and payload copy behavior are unchanged. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, queue-header, or packet formats. `idMsgQueue` continues to serialize reliable-message size as two bytes, sequence as four bytes, and payload as the same byte stream; the change is source-level pointer naming only.
+
+### Verification Log For This Slice
+
+- `rg -n "idMsgQueue::Add\( const byte \*data|idMsgQueue::Get\( byte \*data|WriteData\( const byte \*data|ReadData\( byte \*data|WriteData\( data|ReadData\( data" neo\framework\async\MsgChannel.h neo\framework\async\MsgChannel.cpp`: no stale touched network-buffer `data` pointer parameters or forwarding calls found.
+- `rg -n "idMsgQueue::Add\( const byte \*p_data|idMsgQueue::Get\( byte \*p_data|WriteData\( const byte \*p_data|ReadData\( byte \*p_data|WriteData\( p_data|ReadData\( p_data|p_data\[i\]" neo\framework\async\MsgChannel.h neo\framework\async\MsgChannel.cpp`: confirmed the renamed queue buffer pointer parameters and payload copies are present.
+- `rg -n "journalEventRecord_t|Journal_ReadLegacy32Event|JOURNAL_EVENT_MAGIC|fixed 16-byte|legacy 32-bit" Documentation\POINTER_64BIT_MIGRATION_REPORT.md neo\framework\EventLoop.cpp`: confirmed the report documents the fixed journal record and legacy reader that exist in source, replacing the older stale journal-status note.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the broad framework/idlib x64 client target graph with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad framework/idlib x64 dedicated target graph with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 release projects through `DoomDLL.vcxproj`, `Game.vcxproj`, and `Game-d3xp.vcxproj`.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 test projects and unit test executables.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed after the x64 compile gates and restored the original runnable Win32 layout (`Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` all x86).
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
 ## 2026-07-15 Renderer And Model Handle Width Assertion Slice
 
 ### Files Changed
@@ -138,7 +342,7 @@ typedef struct sysEvent_s {
 
 Layout impact: field name only; native layout is unchanged by the rename. On 32-bit builds the structure remains 20 bytes with 4-byte pointer alignment. On 64-bit builds it is expected to become 24 bytes with 8-byte pointer alignment.
 
-Binary compatibility: `sysEvent_t` is written directly to `journal.dat` in `neo/framework/EventLoop.cpp`. A 64-bit build cannot replay old 32-bit journals without a versioned journal header and a 32-bit legacy event reader. This is not yet fixed.
+Binary compatibility: current `neo/framework/EventLoop.cpp` no longer writes native `sysEvent_t` directly to `journal.dat`. It writes a fixed 16-byte `journalEventRecord_t` (`evType`, `evValue`, `evValue2`, `evPtrLength`) followed by the optional payload bytes, guarded by a journal magic/version header. Playback supports both the fixed record format and legacy 32-bit journal events through `Journal_ReadLegacy32Event`, which consumes and discards the old 32-bit pointer token before reading the payload. Native `sysEvent_t` layout may still differ between 32-bit and 64-bit builds, but the journal disk record is explicitly fixed-width.
 
 ### `address_t`
 

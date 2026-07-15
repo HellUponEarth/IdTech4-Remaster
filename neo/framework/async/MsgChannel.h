@@ -59,8 +59,8 @@ public:
 
 	void			Init( int sequence );
 
-	bool			Add( const byte *data, const int size );
-	bool			Get( byte *data, int &size );
+	bool			Add( const byte *p_data, const int size );
+	bool			Get( byte *p_data, int &size );
 	int				GetTotalSize( void ) const;
 	int				GetSpaceLeft( void ) const;
 	int				GetFirst( void ) const { return first; }
@@ -80,8 +80,8 @@ private:
 	int				ReadShort( void );
 	void			WriteLong( int l );
 	int				ReadLong( void );
-	void			WriteData( const byte *data, const int size );
-	void			ReadData( byte *data, const int size );
+	void			WriteData( const byte *p_data, const int size );
+	void			ReadData( byte *p_data, const int size );
 };
 
 

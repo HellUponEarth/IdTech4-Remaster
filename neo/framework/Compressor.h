@@ -53,7 +53,7 @@ public:
 	static idCompressor *	AllocLZW( void );
 
 							// initialization
-	virtual void			Init( idFile *f, bool compress, int wordLength ) = 0;
+	virtual void			Init( idFile *p_file, bool compress, int wordLength ) = 0;
 	virtual void			FinishCompress( void ) = 0;
 	virtual float			GetCompressionRatio( void ) const = 0;
 

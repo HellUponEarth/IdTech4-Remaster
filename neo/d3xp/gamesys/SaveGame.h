@@ -89,7 +89,7 @@ public:
 	void					WriteBuildNumber( const int value );
 
 private:
-	idFile *				file;
+	idFile *				p_file;
 
 	idList<const idClass *>	objects;
 
@@ -154,7 +154,7 @@ public:
 private:
 	int						buildNumber;
 
-	idFile *				file;
+	idFile *				p_file;
 
 	idList<idClass *>		objects;
 

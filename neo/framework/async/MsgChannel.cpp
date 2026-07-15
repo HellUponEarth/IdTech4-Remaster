@@ -79,14 +79,14 @@ void idMsgQueue::Init( int sequence ) {
 idMsgQueue::Add
 ===============
 */
-bool idMsgQueue::Add( const byte *data, const int size ) {
+bool idMsgQueue::Add( const byte *p_data, const int size ) {
 	if ( GetSpaceLeft() < size + 8 ) {
 		return false;
 	}
 	int sequence = last;
 	WriteShort( size );
 	WriteLong( sequence );
-	WriteData( data, size );
+	WriteData( p_data, size );
 	last++;
 	return true;
 }
@@ -96,7 +96,7 @@ bool idMsgQueue::Add( const byte *data, const int size ) {
 idMsgQueue::Get
 ===============
 */
-bool idMsgQueue::Get( byte *data, int &size ) {
+bool idMsgQueue::Get( byte *p_data, int &size ) {
 	if ( first == last ) {
 		size = 0;
 		return false;
@@ -104,7 +104,7 @@ bool idMsgQueue::Get( byte *data, int &size ) {
 	int sequence;
 	size = ReadShort();
 	sequence = ReadLong();
-	ReadData( data, size );
+	ReadData( p_data, size );
 	assert( sequence == first );
 	first++;
 	return true;
@@ -216,9 +216,9 @@ int idMsgQueue::ReadLong( void ) {
 idMsgQueue::WriteData
 ===============
 */
-void idMsgQueue::WriteData( const byte *data, const int size ) {
+void idMsgQueue::WriteData( const byte *p_data, const int size ) {
 	for ( int i = 0; i < size; i++ ) {
-		WriteByte( data[i] );
+		WriteByte( p_data[i] );
 	}
 }
 
@@ -227,10 +227,10 @@ void idMsgQueue::WriteData( const byte *data, const int size ) {
 idMsgQueue::ReadData
 ===============
 */
-void idMsgQueue::ReadData( byte *data, const int size ) {
-	if ( data ) {
+void idMsgQueue::ReadData( byte *p_data, const int size ) {
+	if ( p_data ) {
 		for ( int i = 0; i < size; i++ ) {
-			data[i] = ReadByte();
+			p_data[i] = ReadByte();
 		}
 	} else {
 		for ( int i = 0; i < size; i++ ) {

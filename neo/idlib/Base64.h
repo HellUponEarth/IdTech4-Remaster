@@ -43,19 +43,19 @@ public:
 				idBase64( const idStr &s );
 				~idBase64( void );
 
-	void		Encode( const byte *from, int size );
+	void		Encode( const byte *p_from, int size );
 	void		Encode( const idStr &src );
 	int			DecodeLength( void ) const; // minimum size in bytes of destination buffer for decoding
-	int			Decode( byte *to ) const; // does not append a \0 - needs a DecodeLength() bytes buffer
+	int			Decode( byte *p_to ) const; // does not append a \0 - needs a DecodeLength() bytes buffer
 	void		Decode( idStr &dest ) const; // decodes the binary content to an idStr (a bit dodgy, \0 and other non-ascii are possible in the decoded content)
-	void		Decode( idFile *dest ) const;
+	void		Decode( idFile *p_dest ) const;
 
 	const char	*c_str() const;
 
 	void 		operator=( const idStr &s );
 
 private:
-	byte *		data;
+	byte *		p_data;
 	int			len;
 	int			alloced;
 
@@ -78,18 +78,18 @@ ID_INLINE idBase64::~idBase64( void ) {
 }
 
 ID_INLINE const char *idBase64::c_str( void ) const {
-	return (const char *)data;
+	return (const char *)p_data;
 }
 
 ID_INLINE void idBase64::Init( void ) {
 	len = 0;
 	alloced = 0;
-	data = NULL;
+	p_data = NULL;
 }
 
 ID_INLINE void idBase64::Release( void ) {
-	if ( data ) {
-		delete[] data;
+	if ( p_data ) {
+		delete[] p_data;
 	}
 	Init();
 }
@@ -98,13 +98,13 @@ ID_INLINE void idBase64::EnsureAlloced( int size ) {
 	if ( size > alloced ) {
 		Release();
 	}
-	data = new byte[size];
+	p_data = new byte[size];
 	alloced = size;
 }
 
 ID_INLINE void idBase64::operator=( const idStr &s ) {
 	EnsureAlloced( s.Length()+1 ); // trailing \0 - beware, this does a Release
-	strcpy( (char *)data, s.c_str() );
+	strcpy( (char *)p_data, s.c_str() );
 	len = s.Length();
 }
 

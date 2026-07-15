@@ -38,8 +38,8 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 typedef struct {
-	const idMaterial *		from;			// 0 == any unmatched shader
-	const idMaterial *		to;
+	const idMaterial *		p_from;		// 0 == any unmatched shader
+	const idMaterial *		p_to;
 } skinMapping_t;
 
 class idDeclSkin : public idDecl {
