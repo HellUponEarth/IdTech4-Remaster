@@ -157,6 +157,8 @@ typedef enum {
 	INVALID_JOINT				= -1
 } jointHandle_t;
 
+static_assert( sizeof( jointHandle_t ) == sizeof( int ), "jointHandle_t must remain an int-sized model joint index" );
+
 class idMD5Joint {
 public:
 								idMD5Joint() { parent = NULL; }

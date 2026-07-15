@@ -332,9 +332,9 @@ void *R_ClearedStaticAlloc( int bytes ) {
 R_StaticFree
 =================
 */
-void R_StaticFree( void *data ) {
+void R_StaticFree( void *p_data ) {
 	tr.pc.c_free++;
-    Mem_Free( data );
+    Mem_Free( p_data );
 }
 
 /*
@@ -435,7 +435,8 @@ use either static or frame memory can set function pointers
 to both alloc and free.
 ==================
 */
-void R_FrameFree( void *data ) {
+void R_FrameFree( void *p_data ) {
+	(void)p_data;
 }
 
 

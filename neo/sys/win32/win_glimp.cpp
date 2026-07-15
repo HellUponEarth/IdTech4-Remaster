@@ -1182,13 +1182,13 @@ GLimp_WakeBackEnd
 
 ===================
 */
-void GLimp_WakeBackEnd( void *data ) {
+void GLimp_WakeBackEnd( void *p_data ) {
 	int		r;
 
 #ifdef DEBUG_PRINTS
 OutputDebugString( "-->GLimp_WakeBackEnd\n" );
 #endif
-	win32.smpData = data;
+	win32.smpData = p_data;
 
 	if ( renderThreadActive ) {
 		common->FatalError( "GLimp_WakeBackEnd: already active" );
@@ -1238,4 +1238,3 @@ GLExtension_t GLimp_ExtensionPointer( const char *name ) {
 
 	return proc;
 }
-

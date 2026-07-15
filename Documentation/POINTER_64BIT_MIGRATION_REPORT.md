@@ -2,6 +2,86 @@
 
 Status: in progress. This report tracks the codebase-wide 32-bit pointer audit, p_ pointer-variable renaming, ABI impact, and verification. It is intentionally additive so each verified slice can update the same ledger.
 
+## 2026-07-15 Renderer And Model Handle Width Assertion Slice
+
+### Files Changed
+
+- `neo/idlib/Lib.h`
+- `neo/renderer/Model.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `qhandle_t` renderer/world handles | Renderer handle / network field | Added a compile-time assertion that `qhandle_t` remains 4 bytes because portal-state networking and renderer-world handle APIs serialize or consume it as a fixed-width integer handle, not as a native pointer. |
+| `Game_network.cpp` portal-state reliable messages | Network field / renderer handle interop | Left the existing `ReadLong`, `WriteBits`, and `(qhandle_t)(i+1)` portal paths unchanged; they intentionally preserve 32-bit network field semantics. |
+| `jointHandle_t` MD5/model joint handles | Renderer handle / explicit index | Added a compile-time assertion that `jointHandle_t` remains `int` sized because it is an index-style model handle with `INVALID_JOINT = -1`, not pointer storage. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, image, or command-buffer formats. It explicitly documents and enforces that the touched handles remain fixed-width integer/index tokens. Any future conversion to typed handle wrappers should preserve the serialized wire width or introduce a versioned compatibility story first.
+
+### Verification Log For This Slice
+
+- `rg -n "qhandle_t|static_assert\( sizeof\( qhandle_t \)|jointHandle_t|static_assert\( sizeof\( jointHandle_t \)" neo\idlib\Lib.h neo\renderer\Model.h neo\game\Game_network.cpp neo\renderer\tr_local.h`: confirmed the `qhandle_t` and `jointHandle_t` width guards are present and that portal networking still uses fixed-width handle fields.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the broad `Lib.h`/renderer-header-dependent target graph and linked `Doom3.exe` with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad `Lib.h`/renderer-header-dependent dedicated target graph and linked `DedServer.exe` with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 release projects through `DoomDLL.vcxproj`, `Game.vcxproj`, and `Game-d3xp.vcxproj`, proving the handle-width assertions on MSVC x64.
+- `cmake --build --preset vs2026-x64-dedicated-release --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 dedicated release projects.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 test projects and unit test executables.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `.\build.bat all`: passed after the VS x64 compile gates and restored the original runnable Win32 layout (`Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` all x86).
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-15 Renderer Command Payload Pointer Name Slice
+
+### Files Changed
+
+- `neo/renderer/RenderSystem.h`
+- `neo/renderer/RenderSystem.cpp`
+- `neo/renderer/tr_local.h`
+- `neo/renderer/tr_render.cpp`
+- `neo/renderer/tr_main.cpp`
+- `neo/sys/win32/win_glimp.cpp`
+- `neo/sys/linux/glimp.cpp`
+- `neo/sys/osx/macosx_glimp.mm`
+- `neo/sys/stub/stub_gl.cpp`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idRenderSystem::UploadImage` scratch image bytes | Renderer handle / renderer upload buffer pointer parameter | Renamed the image byte payload parameter from `data` to `p_data` in the public virtual declaration, local override, implementation, and `UploadScratch` forwarding call. |
+| `GLimp_WakeBackEnd` backend command payload | Legacy API interop / renderer thread payload pointer parameter | Renamed the backend wake payload parameter to `p_data` in the renderer declaration and platform/stub definitions; the Win32 implementation still stores the same payload pointer in `win32.smpData`. |
+| `RB_DrawView` render command callback payload | Renderer handle / backend command payload pointer parameter | Renamed the generic command payload parameter to `p_data` before casting to `drawSurfsCommand_t`; the command layout and cast target are unchanged. |
+| `R_FrameFree` and `R_StaticFree` memory callback payloads | Renderer handle / renderer memory callback pointer parameters | Renamed the generic free callback payload parameters to `p_data`; `R_StaticFree` still forwards the same pointer to `Mem_Free`, and `R_FrameFree` remains intentionally empty aside from an unused-parameter marker. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, image, or command-buffer formats. `qhandle_t` remains the existing integer handle type, render command payloads still carry typed pointers through the same `void *`/`const void *` callback ABI, and image uploads still forward the same byte buffer, width, and height to the image system.
+
+Implementation note: `neo/sys/osx/macosx_glimp.mm` contains legacy non-UTF-8 bytes, so the `GLimp_WakeBackEnd` rename in that file was applied with an exact byte-preserving ASCII replacement after `apply_patch` refused the file encoding.
+
+### Verification Log For This Slice
+
+- `rg -n "UploadImage\( const char \*imageName, const byte \*data|GLimp_WakeBackEnd\( void \*data|GLimp_WakeBackEnd\(void \*a\)|RB_DrawView\( const void \*data|R_FrameFree\( void \*data|R_StaticFree\( void \*data|UploadScratch\( data|cmd = \(const drawSurfsCommand_t \*\)data|smpData = data|Mem_Free\( data \)" neo\renderer\RenderSystem.h neo\renderer\RenderSystem.cpp neo\renderer\tr_local.h neo\renderer\tr_render.cpp neo\renderer\tr_main.cpp neo\sys\win32\win_glimp.cpp neo\sys\linux\glimp.cpp neo\sys\osx\macosx_glimp.mm neo\sys\stub\stub_gl.cpp`: no stale touched renderer payload pointer names found.
+- `rg -n "UploadImage\( const char \*imageName, const byte \*p_data|GLimp_WakeBackEnd\( void \*p_data|GLimp_WakeBackEnd\(void\*p_data\)|GLimp_WakeBackEnd\(void \*p_data\)|RB_DrawView\( const void \*p_data|R_FrameFree\( void \*p_data|R_StaticFree\( void \*p_data|UploadScratch\( p_data|cmd = \(const drawSurfsCommand_t \*\)p_data|smpData = p_data|Mem_Free\( p_data \)|\(void\)p_data" neo\renderer\RenderSystem.h neo\renderer\RenderSystem.cpp neo\renderer\tr_local.h neo\renderer\tr_render.cpp neo\renderer\tr_main.cpp neo\sys\win32\win_glimp.cpp neo\sys\linux\glimp.cpp neo\sys\osx\macosx_glimp.mm neo\sys\stub\stub_gl.cpp`: confirmed the renamed renderer upload, backend wake, draw-view, and memory-free pointer payloads are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the touched renderer/sys paths and linked `Doom3.exe` with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the dedicated target graph and linked `DedServer.exe` with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the rebuild.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 release projects through `DoomDLL.vcxproj`, `Game.vcxproj`, and `Game-d3xp.vcxproj`.
+- `cmake --build --preset vs2026-x64-dedicated-release --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 dedicated release projects and produced `DedServer.exe`.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed; built the CMake-generated VS x64 test projects and unit test executables.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `.\build.bat all`: passed after the VS x64 compile gates and restored the original runnable Win32 layout (`Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` all x86).
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `Get-Process Doom3,DedServer -ErrorAction SilentlyContinue`: no lingering runtime processes after the smoke runs.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## Current Slice Summary
 
 Files changed:

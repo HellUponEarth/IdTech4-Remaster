@@ -846,10 +846,10 @@ void RB_CreateSingleDrawInteractions( const drawSurf_t *surf, void (*DrawInterac
 RB_DrawView
 =============
 */
-void RB_DrawView( const void *data ) {
+void RB_DrawView( const void *p_data ) {
 	const drawSurfsCommand_t	*cmd;
 
-	cmd = (const drawSurfsCommand_t *)data;
+	cmd = (const drawSurfsCommand_t *)p_data;
 
 	backEnd.viewDef = cmd->viewDef;
 	

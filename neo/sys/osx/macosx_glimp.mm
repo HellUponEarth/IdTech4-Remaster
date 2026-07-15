@@ -1458,7 +1458,8 @@ void *GLimp_BackEndSleep( void ) {
 	return NULL;
 }
 
-void GLimp_WakeBackEnd( void *data ) {
+void GLimp_WakeBackEnd( void *p_data ) {
+	(void)p_data;
 }
 
 // enable / disable context is just for the r_skipRenderContext debug option

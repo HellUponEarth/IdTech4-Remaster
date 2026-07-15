@@ -730,7 +730,7 @@ public:
 	virtual void			CaptureRenderToFile( const char *fileName, bool fixAlpha );
 	virtual void			UnCrop();
 	virtual void			GetCardCaps( bool &oldCard, bool &nv10or20 );
-	virtual bool			UploadImage( const char *imageName, const byte *data, int width, int height );
+	virtual bool			UploadImage( const char *imageName, const byte *p_data, int width, int height );
 
 public:
 	// internal functions
@@ -1106,7 +1106,7 @@ bool		GLimp_SpawnRenderThread( void (*function)( void ) );
 
 void *		GLimp_BackEndSleep( void );
 void		GLimp_FrontEndSleep( void );
-void		GLimp_WakeBackEnd( void *data );
+void		GLimp_WakeBackEnd( void *p_data );
 // these functions implement the dual processor syncronization
 
 void		GLimp_ActivateContext( void );
@@ -1262,7 +1262,7 @@ void RB_CreateSingleDrawInteractions( const drawSurf_t *surf, void (*DrawInterac
 
 const shaderStage_t *RB_SetLightTexture( const idRenderLightLocal *light );
 
-void RB_DrawView( const void *data );
+void RB_DrawView( const void *p_data );
 
 void RB_DetermineLightScale( void );
 void RB_STD_LightScale( void );
@@ -1566,11 +1566,11 @@ int R_CountFrameData( void );
 void R_ToggleSmpFrame( void );
 void *R_FrameAlloc( int bytes );
 void *R_ClearedFrameAlloc( int bytes );
-void R_FrameFree( void *data );
+void R_FrameFree( void *p_data );
 
 void *R_StaticAlloc( int bytes );		// just malloc with error checking
 void *R_ClearedStaticAlloc( int bytes );	// with memset
-void R_StaticFree( void *data );
+void R_StaticFree( void *p_data );
 
 
 /*

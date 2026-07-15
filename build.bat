@@ -27,11 +27,11 @@ call "%ROOT%\generate_project.bat" vs2026-win32
 if errorlevel 1 exit /b %errorlevel%
 
 echo Building Doom3.exe and game DLLs...
-cmake --build --preset vs2026-win32-release
+cmake --build --preset vs2026-win32-release --clean-first
 if errorlevel 1 exit /b %errorlevel%
 
 echo Building DedServer.exe...
-cmake --build --preset vs2026-win32-dedicated-release
+cmake --build --preset vs2026-win32-dedicated-release --clean-first
 if errorlevel 1 exit /b %errorlevel%
 
 echo.

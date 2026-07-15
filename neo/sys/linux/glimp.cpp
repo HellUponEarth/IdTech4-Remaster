@@ -60,7 +60,8 @@ static bool vidmode_active = false;
 static int save_rampsize = 0;
 static unsigned short *save_red, *save_green, *save_blue;
 
-void GLimp_WakeBackEnd(void *a) {
+void GLimp_WakeBackEnd(void *p_data) {
+	(void)p_data;
 	common->DPrintf("GLimp_WakeBackEnd stub\n");
 }
 

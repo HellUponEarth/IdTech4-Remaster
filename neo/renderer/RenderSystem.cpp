@@ -1030,12 +1030,12 @@ void idRenderSystemLocal::PrintMemInfo( MemInfo_t *mi ) {
 idRenderSystemLocal::UploadImage
 ===============
 */
-bool idRenderSystemLocal::UploadImage( const char *imageName, const byte *data, int width, int height  ) {
+bool idRenderSystemLocal::UploadImage( const char *imageName, const byte *p_data, int width, int height  ) {
 	idImage *image = globalImages->GetImage( imageName );
 	if ( !image ) {
 		return false;
 	}
-	image->UploadScratch( data, width, height );
+	image->UploadScratch( p_data, width, height );
 	image->SetImageFilterAndRepeat();
 	return true;
 }

@@ -255,7 +255,7 @@ public:
 	// the image has to be already loaded ( most straightforward way would be through a FindMaterial )
 	// texture filter / mipmapping / repeat won't be modified by the upload
 	// returns false if the image wasn't found
-	virtual bool			UploadImage( const char *imageName, const byte *data, int width, int height ) = 0;
+	virtual bool			UploadImage( const char *imageName, const byte *p_data, int width, int height ) = 0;
 };
 
 extern idRenderSystem *			renderSystem;

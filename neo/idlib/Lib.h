@@ -80,6 +80,10 @@ typedef unsigned long			ulong;
 
 typedef int						qhandle_t;
 
+#ifdef __cplusplus
+static_assert( sizeof( qhandle_t ) == 4, "qhandle_t is serialized as a 32-bit renderer/network handle" );
+#endif
+
 class idFile;
 class idVec3;
 class idVec4;
