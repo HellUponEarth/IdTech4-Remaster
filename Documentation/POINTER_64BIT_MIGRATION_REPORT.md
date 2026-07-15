@@ -2595,3 +2595,38 @@ Known boundary: the broader `varEval_t` design still exposes typed pointer membe
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-15 SSE MinMax Index Lane Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_SSE.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| Legacy Mac/i386 SSE `idSIMD_SSE::MinMax` index reads | Legacy API interop / SIMD fixed 32-bit index lane | Replaced direct `int *` alias reads from `indexes` byte offsets with `SimdSSE_ReadIndexLane`, which copies exactly four bytes into an `int` lane. |
+| `indexes_p` byte cursor | Legacy API interop / pointer const-correctness | Kept the byte cursor as `const char *`, matching the public `const int *indexes` input and avoiding a mutable view of index storage. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, asset, or index formats. The public SIMD API still consumes `const int *indexes`, and each index lane remains an explicitly guarded 32-bit value before being multiplied by the fixed `idDrawVert` byte stride.
+
+Compile-time guard:
+
+```c
+static_assert( sizeof( int ) == 4, "SSE index lanes must stay 32-bit" );
+```
+
+Known boundary: this code is inside the legacy `MACOS_X && __i386__` SSE path. It is not part of the current x64 CMake runtime source list, so direct compiler coverage here is the Win32 MSBuild `idLib` target. The active x64 CMake runtime target graph still passed after the source/report update.
+
+### Verification Log For This Slice
+
+- `rg -n "\*\s*\(\s*int\s*\*\s*\)\s*\(indexes_p\+|SimdSSE_ReadIndexLane|SSE index lanes|const char \*indexes_p" neo\idlib\math\Simd_SSE.cpp`: stale direct `int *` index-lane reads are gone; the fixed-width helper, guard, and const byte cursor are present.
+- `MSBuild.exe neo\idlib.vcxproj /p:Configuration=Release /p:Platform=Win32 /clp:ErrorsOnly`: passed; this is direct compiler coverage for `neo/idlib/math/Simd_SSE.cpp`.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; x64 CMake runtime target graph reported no work remaining.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; x64 dedicated target graph reported no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.

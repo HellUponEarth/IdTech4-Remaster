@@ -3838,7 +3838,7 @@
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup Condition="'$(Platform)'=='x64'">
+  <ItemGroup Condition="'$(UseOfMfc)'!='true'">
     <ClCompile Update="tools\af\**\*.cpp">
       <ExcludedFromBuild>true</ExcludedFromBuild>
     </ClCompile>

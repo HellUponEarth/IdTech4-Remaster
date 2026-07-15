@@ -44,6 +44,7 @@ If you have questions concerning this license or the applicable additional terms
 
 static_assert( sizeof( dword ) == 4, "SSE bit-mask lanes must stay 32-bit" );
 static_assert( sizeof( float ) == 4, "SSE float bit helpers require 32-bit IEEE float storage" );
+static_assert( sizeof( int ) == 4, "SSE index lanes must stay 32-bit" );
 
 static dword SimdSSE_FloatBits( float value ) {
 	dword bits;
@@ -85,6 +86,12 @@ static_assert( offsetof( idDrawVert, normal ) == DRAWVERT_NORMAL_OFFSET, "idDraw
 static_assert( offsetof( idDrawVert, tangents ) == DRAWVERT_TANGENT0_OFFSET, "idDrawVert tangent0 offset must match SSE vertex format" );
 static_assert( offsetof( idDrawVert, tangents ) + sizeof( ( ( idDrawVert * )0 )->tangents[0] ) == DRAWVERT_TANGENT1_OFFSET, "idDrawVert tangent1 offset must match SSE vertex format" );
 static_assert( offsetof( idDrawVert, color ) == DRAWVERT_COLOR_OFFSET, "idDrawVert color offset must match SSE vertex format" );
+
+static int SimdSSE_ReadIndexLane( const char *p_bytes ) {
+	int index;
+	memcpy( &index, p_bytes, sizeof( index ) );
+	return index;
+}
 
 #define SHUFFLEPS( x, y, z, w )		(( (x) & 3 ) << 6 | ( (y) & 3 ) << 4 | ( (z) & 3 ) << 2 | ( (w) & 3 ))
 #define R_SHUFFLEPS( x, y, z, w )	(( (w) & 3 ) << 6 | ( (z) & 3 ) << 4 | ( (y) & 3 ) << 2 | ( (x) & 3 ))
@@ -292,7 +299,7 @@ void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src,
 	assert( offsetof( idDrawVert, xyz ) == DRAWVERT_XYZ_OFFSET );
 
 	__m128 xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7;
-	char *indexes_p;
+	const char *indexes_p;
 	char *src_p;
 	int count_l;
 	int edx;
@@ -322,7 +329,7 @@ void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src,
 		and			eax, ~3
 		jz			done4
 	*/
-		indexes_p = (char *) indexes;
+		indexes_p = (const char *) indexes;
 		src_p = (char *) src;
 		count_l = count;
 		count_l = count_l & ~3;
@@ -349,7 +356,7 @@ void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src,
 		minps		xmm0, xmm4
 		maxps		xmm1, xmm4
 	*/
-			edx = *((int*)(indexes_p+count_l+0));
+			edx = SimdSSE_ReadIndexLane( indexes_p + count_l + 0 );
 			edx = edx * DRAWVERT_SIZE;
 			xmm4 = _mm_load_ss((float *) (src_p+edx+DRAWVERT_XYZ_OFFSET+8));
 			xmm4 = _mm_loadh_pi(xmm4, (__m64 *) (src_p+edx+DRAWVERT_XYZ_OFFSET+0) );
@@ -364,7 +371,7 @@ void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src,
 		minps		xmm2, xmm5
 		maxps		xmm3, xmm5
 	*/
-			edx = *((int*)(indexes_p+count_l+4));
+			edx = SimdSSE_ReadIndexLane( indexes_p + count_l + 4 );
 			edx = edx * DRAWVERT_SIZE;
 			xmm5 = _mm_load_ss((float *) (src_p+edx+DRAWVERT_XYZ_OFFSET+0));
 			xmm5 = _mm_loadh_pi(xmm5, (__m64 *) (src_p+edx+DRAWVERT_XYZ_OFFSET+4) );
@@ -379,7 +386,7 @@ void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src,
 		minps		xmm0, xmm6
 		maxps		xmm1, xmm6
 	*/
-			edx = *((int*)(indexes_p+count_l+8));
+			edx = SimdSSE_ReadIndexLane( indexes_p + count_l + 8 );
 			edx = edx * DRAWVERT_SIZE;
 			xmm6 = _mm_load_ss((float *) (src_p+edx+DRAWVERT_XYZ_OFFSET+8));
 			xmm6 = _mm_loadh_pi(xmm6, (__m64 *) (src_p+edx+DRAWVERT_XYZ_OFFSET+0) );
@@ -394,7 +401,7 @@ void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src,
 		minps		xmm2, xmm7
 		maxps		xmm3, xmm7
 	*/
-			edx = *((int*)(indexes_p+count_l+12));
+			edx = SimdSSE_ReadIndexLane( indexes_p + count_l + 12 );
 			edx = edx * DRAWVERT_SIZE;
 			xmm7 = _mm_load_ss((float *) (src_p+edx+DRAWVERT_XYZ_OFFSET+0));
 			xmm7 = _mm_loadh_pi(xmm7, (__m64 *) (src_p+edx+DRAWVERT_XYZ_OFFSET+4) );
@@ -437,7 +444,7 @@ void VPCALL idSIMD_SSE::MinMax( idVec3 &min, idVec3 &max, const idDrawVert *src,
 		minps		xmm0, xmm4
 		maxps		xmm1, xmm4
 	*/
-			edx = *((int*)(indexes_p+count_l+0));
+			edx = SimdSSE_ReadIndexLane( indexes_p + count_l + 0 );
 			edx = edx * DRAWVERT_SIZE;
 			xmm4 = _mm_load_ss((float *) (src_p+edx+DRAWVERT_XYZ_OFFSET+8));
 			xmm4 = _mm_loadh_pi(xmm4, (__m64 *) (src_p+edx+DRAWVERT_XYZ_OFFSET+0) );
