@@ -1643,13 +1643,13 @@ int idLexer::LoadFile( const char *filename, bool OSPath ) {
 idLexer::LoadMemory
 ================
 */
-int idLexer::LoadMemory( const char *ptr, int length, const char *name, int startLine ) {
+int idLexer::LoadMemory( const char *p_buffer, int length, const char *name, int startLine ) {
 	if ( idLexer::loaded ) {
 		idLib::common->Error("idLexer::LoadMemory: another script already loaded");
 		return false;
 	}
 	idLexer::filename = name;
-	idLexer::buffer = ptr;
+	idLexer::buffer = p_buffer;
 	idLexer::fileTime = 0;
 	idLexer::length = length;
 	// pointer in script buffer
@@ -1757,7 +1757,7 @@ idLexer::idLexer( const char *filename, int flags, bool OSPath ) {
 idLexer::idLexer
 ================
 */
-idLexer::idLexer( const char *ptr, int length, const char *name, int flags ) {
+idLexer::idLexer( const char *p_buffer, int length, const char *name, int flags ) {
 	idLexer::loaded = false;
 	idLexer::flags = flags;
 	idLexer::SetPunctuations( NULL );
@@ -1765,7 +1765,7 @@ idLexer::idLexer( const char *ptr, int length, const char *name, int flags ) {
 	idLexer::token = "";
 	idLexer::next = NULL;
 	idLexer::hadError = false;
-	idLexer::LoadMemory( ptr, length, name );
+	idLexer::LoadMemory( p_buffer, length, name );
 }
 
 /*

@@ -3046,14 +3046,14 @@ int idParser::LoadFile( const char *filename, bool OSPath ) {
 idParser::LoadMemory
 ================
 */
-int idParser::LoadMemory(const char *ptr, int length, const char *name ) {
+int idParser::LoadMemory( const char *p_buffer, int length, const char *name ) {
 	idLexer *script;
 
 	if ( idParser::loaded ) {
 		idLib::common->FatalError("idParser::loadMemory: another source already loaded");
 		return false;
 	}
-	script = new idLexer( ptr, length, name );
+	script = new idLexer( p_buffer, length, name );
 	if ( !script->IsLoaded() ) {
 		delete script;
 		return false;
@@ -3227,7 +3227,7 @@ idParser::idParser( const char *filename, int flags, bool OSPath ) {
 idParser::idParser
 ================
 */
-idParser::idParser( const char *ptr, int length, const char *name, int flags ) {
+idParser::idParser( const char *p_buffer, int length, const char *name, int flags ) {
 	this->loaded = false;
 	this->OSPath = false;
 	this->punctuations = 0;
@@ -3238,7 +3238,7 @@ idParser::idParser( const char *ptr, int length, const char *name, int flags ) {
 	this->defines = NULL;
 	this->tokens = NULL;
 	this->marker_p = NULL;
-	LoadMemory( ptr, length, name );
+	LoadMemory( p_buffer, length, name );
 }
 
 /*

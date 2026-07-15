@@ -80,14 +80,14 @@ public:
 					idParser();
 					idParser( int flags );
 					idParser( const char *filename, int flags = 0, bool OSPath = false );
-					idParser( const char *ptr, int length, const char *name, int flags = 0 );
+					idParser( const char *p_buffer, int length, const char *name, int flags = 0 );
 					// destructor
 					~idParser();
 					// load a source file
 	int				LoadFile( const char *filename, bool OSPath = false );
 					// load a source from the given memory with the given length
-					// NOTE: the ptr is expected to point at a valid C string: ptr[length] == '\0'
-	int				LoadMemory( const char *ptr, int length, const char *name );
+					// NOTE: p_buffer is expected to point at a valid C string: p_buffer[length] == '\0'
+	int				LoadMemory( const char *p_buffer, int length, const char *name );
 					// free the current source
 	void			FreeSource( bool keepDefines = false );
 					// returns true if a source is loaded

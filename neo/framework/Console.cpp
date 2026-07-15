@@ -49,7 +49,7 @@ public:
 	virtual	void		Init( void );
 	virtual void		Shutdown( void );
 	virtual	void		LoadGraphics( void );
-	virtual	bool		ProcessEvent( const sysEvent_t *event, bool forceAccept );
+	virtual	bool		ProcessEvent( const sysEvent_t *p_event, bool forceAccept );
 	virtual	bool		Active( void );
 	virtual	void		ClearNotifyLines( void );
 	virtual	void		Close( void );
@@ -738,9 +738,9 @@ void idConsoleLocal::UpdateDisplayFraction( void ) {
 ProcessEvent
 ==============
 */
-bool	idConsoleLocal::ProcessEvent( const sysEvent_t *event, bool forceAccept ) {
+bool	idConsoleLocal::ProcessEvent( const sysEvent_t *p_event, bool forceAccept ) {
 	bool consoleKey;
-	consoleKey = event->evType == SE_KEY && ( event->evValue == Sys_GetConsoleKey( false ) || event->evValue == Sys_GetConsoleKey( true ) );
+	consoleKey = p_event->evType == SE_KEY && ( p_event->evValue == Sys_GetConsoleKey( false ) || p_event->evValue == Sys_GetConsoleKey( true ) );
 
 #if ID_CONSOLE_LOCK
 	// If the console's not already down, and we have it turned off, check for ctrl+alt
@@ -754,7 +754,7 @@ bool	idConsoleLocal::ProcessEvent( const sysEvent_t *event, bool forceAccept ) {
 	// we always catch the console key event
 	if ( !forceAccept && consoleKey ) {
 		// ignore up events
-		if ( event->evValue2 == 0 ) {
+		if ( p_event->evValue2 == 0 ) {
 			return true;
 		}
 
@@ -785,21 +785,21 @@ bool	idConsoleLocal::ProcessEvent( const sysEvent_t *event, bool forceAccept ) {
 	}
 
 	// handle key and character events
-	if ( event->evType == SE_CHAR ) {
+	if ( p_event->evType == SE_CHAR ) {
 		// never send the console key as a character
-		if ( event->evValue != Sys_GetConsoleKey( false ) && event->evValue != Sys_GetConsoleKey( true ) ) {
-			consoleField.CharEvent( event->evValue );
+		if ( p_event->evValue != Sys_GetConsoleKey( false ) && p_event->evValue != Sys_GetConsoleKey( true ) ) {
+			consoleField.CharEvent( p_event->evValue );
 		}
 		return true;
 	}
 
-	if ( event->evType == SE_KEY ) {
+	if ( p_event->evType == SE_KEY ) {
 		// ignore up key events
-		if ( event->evValue2 == 0 ) {
+		if ( p_event->evValue2 == 0 ) {
 			return true;
 		}
 
-		KeyDownEvent( event->evValue );
+		KeyDownEvent( p_event->evValue );
 		return true;
 	}
 

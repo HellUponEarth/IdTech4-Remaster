@@ -100,7 +100,7 @@ public:
 
 	virtual bool		IsMultiplayer();
 
-	virtual bool		ProcessEvent( const sysEvent_t *event );
+	virtual bool		ProcessEvent( const sysEvent_t *p_event );
 
 	virtual void		StartMenu( bool playIntro = false );
 	virtual void		ExitMenu();
@@ -314,7 +314,7 @@ public:
 	idUserInterface *	GetActiveMenu();
 
 	void				DispatchCommand( idUserInterface *gui, const char *menuCommand, bool doIngame = true );
-	void				MenuEvent( const sysEvent_t *event );
+	void				MenuEvent( const sysEvent_t *p_event );
 	bool				HandleSaveGameMenuCommand( idCmdArgs &args, int &icmd );
 	void				HandleInGameCommands( const char *menuCommand );
 	void				HandleMainMenuCommands( const char *menuCommand );

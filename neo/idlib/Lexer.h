@@ -143,15 +143,15 @@ public:
 					idLexer();
 					idLexer( int flags );
 					idLexer( const char *filename, int flags = 0, bool OSPath = false );
-					idLexer( const char *ptr, int length, const char *name, int flags = 0 );
+					idLexer( const char *p_buffer, int length, const char *name, int flags = 0 );
 					// destructor
 					~idLexer();
 					// load a script from the given file at the given offset with the given length
 	int				LoadFile( const char *filename, bool OSPath = false );
 					// load a script from the given memory with the given length and a specified line offset,
 					// so source strings extracted from a file can still refer to proper line numbers in the file
-					// NOTE: the ptr is expected to point at a valid C string: ptr[length] == '\0'
-	int				LoadMemory( const char *ptr, int length, const char *name, int startLine = 1 );
+					// NOTE: p_buffer is expected to point at a valid C string: p_buffer[length] == '\0'
+	int				LoadMemory( const char *p_buffer, int length, const char *name, int startLine = 1 );
 					// free the script
 	void			FreeSource( void );
 					// returns true if a script is loaded

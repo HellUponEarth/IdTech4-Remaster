@@ -1167,19 +1167,19 @@ idSessionLocal::MenuEvent
 Executes any commands returned by the gui
 ==============
 */
-void idSessionLocal::MenuEvent( const sysEvent_t *event ) {
+void idSessionLocal::MenuEvent( const sysEvent_t *p_event ) {
 	const char	*menuCommand;
 
 	if ( guiActive == NULL ) {
 		return;
 	}
 
-	menuCommand = guiActive->HandleEvent( event, com_frameTime );
+	menuCommand = guiActive->HandleEvent( p_event, com_frameTime );
 
 	if ( !menuCommand || !menuCommand[0] ) {
 		// If the menu didn't handle the event, and it's a key down event for an F key, run the bind
-		if ( event->evType == SE_KEY && event->evValue2 == 1 && event->evValue >= K_F1 && event->evValue <= K_F12 ) {
-			idKeyInput::ExecKeyBinding( event->evValue );
+		if ( p_event->evType == SE_KEY && p_event->evValue2 == 1 && p_event->evValue >= K_F1 && p_event->evValue <= K_F12 ) {
+			idKeyInput::ExecKeyBinding( p_event->evValue );
 		}
 		return;
 	}

@@ -2764,4 +2764,105 @@ This slice does not widen savegame, network, demo, journal, renderer handle, mod
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `Get-Process Doom3,DedServer,MSBuild -ErrorAction SilentlyContinue`: no lingering runtime or build processes after the smoke runs.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-15 Lexer Parser Memory Buffer Pointer Name Slice
+
+### Files Changed
+
+- `neo/idlib/Lexer.h`
+- `neo/idlib/Lexer.cpp`
+- `neo/idlib/Parser.h`
+- `neo/idlib/Parser.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idLexer` memory-buffer constructor | Legacy API interop / parser input pointer parameter | Renamed `const char *ptr` to `p_buffer`; the constructor still forwards the same memory address and length into `LoadMemory`. |
+| `idLexer::LoadMemory` source buffer parameter | Legacy API interop / parser input pointer parameter | Renamed `const char *ptr` to `p_buffer` and kept `idLexer::buffer` assigned to the same external source string. |
+| `idParser` memory-buffer constructor | Legacy API interop / parser input pointer parameter | Renamed `const char *ptr` to `p_buffer`; the constructor still forwards the same memory address and length into `LoadMemory`. |
+| `idParser::LoadMemory` source buffer parameter | Legacy API interop / parser input pointer parameter | Renamed `const char *ptr` to `p_buffer` before constructing the backing `idLexer`. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, asset, lexer token, or parser source formats. The pointer contract is unchanged: callers still provide a valid C string with `p_buffer[length] == '\0'`, and the parser/lexer store the same non-owning source buffer pointer and explicit byte length.
+
+### Verification Log For This Slice
+
+- `rg -n "idLexer\( const char \*ptr|LoadMemory\( const char \*ptr|idParser\( const char \*ptr|\bLoadMemory\( ptr|buffer = ptr|\bptr\[length\]" neo\idlib\Lexer.h neo\idlib\Lexer.cpp neo\idlib\Parser.h neo\idlib\Parser.cpp`: no stale memory-buffer `ptr` parameters, forwarding calls, assignments, or comments found.
+- `rg -n "idLexer\( const char \*p_buffer|LoadMemory\( const char \*p_buffer|idParser\( const char \*p_buffer|LoadMemory\( p_buffer|buffer = p_buffer|p_buffer\[length\]" neo\idlib\Lexer.h neo\idlib\Lexer.cpp neo\idlib\Parser.h neo\idlib\Parser.cpp`: confirmed the renamed lexer/parser memory-buffer pointer parameters, forwarding calls, assignments, and comments are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the broad idlib/header-dependent x64 client target graph with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad idlib/header-dependent x64 dedicated target graph with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `Get-Process Doom3,DedServer,MSBuild -ErrorAction SilentlyContinue`: no lingering runtime or build processes after the smoke runs.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-15 SaveGame Raw Buffer Pointer Parameter Name Slice
+
+### Files Changed
+
+- `neo/game/gamesys/SaveGame.h`
+- `neo/game/gamesys/SaveGame.cpp`
+- `neo/d3xp/gamesys/SaveGame.h`
+- `neo/d3xp/gamesys/SaveGame.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| Base `idSaveGame::Write` raw buffer parameter | Savegame field / raw byte-buffer pointer parameter | Renamed `const void *buffer` to `p_buffer`; the same byte count and `idFile::Write` call are preserved. |
+| Base `idRestoreGame::Read` raw buffer parameter | Savegame field / raw byte-buffer pointer parameter | Renamed `void *buffer` to `p_buffer`; the same byte count and `idFile::Read` call are preserved. |
+| d3xp `idSaveGame::Write` and `idRestoreGame::Read` raw buffer parameters | Savegame field / raw byte-buffer pointer parameter | Applied the same source-level rename to the expansion copy to keep the mirrored save/restore APIs aligned. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The raw save/restore byte APIs still forward exactly `len` bytes to the existing `idFile` read/write helpers, and all typed savegame fields such as `WriteInt`/`ReadInt` retain their existing serialized widths.
+
+### Verification Log For This Slice
+
+- `rg -n "\bWrite\( const void \*buffer, int len \)|\bRead\( void \*buffer, int len \)|file->(Write|Read)\( buffer, len \)" neo\game\gamesys\SaveGame.h neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.h neo\d3xp\gamesys\SaveGame.cpp`: no stale raw `buffer` pointer parameters or forwarding calls found.
+- `rg -n "\bWrite\( const void \*p_buffer, int len \)|\bRead\( void \*p_buffer, int len \)|file->(Write|Read)\( p_buffer, len \)" neo\game\gamesys\SaveGame.h neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.h neo\d3xp\gamesys\SaveGame.cpp`: confirmed the base and d3xp raw save/restore buffer parameters and forwarding calls are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the base/d3xp game savegame target graph, reran TypeInfo, and linked client/game DLL outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the base game savegame target graph for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `Get-Process Doom3,DedServer,MSBuild -ErrorAction SilentlyContinue`: no lingering runtime or build processes after the smoke runs.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-15 Framework SysEvent Pointer Parameter Name Slice
+
+### Files Changed
+
+- `neo/framework/Console.cpp`
+- `neo/framework/Session.h`
+- `neo/framework/Session_local.h`
+- `neo/framework/Session.cpp`
+- `neo/framework/Session_menu.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idConsoleLocal::ProcessEvent` event pointer parameter | Legacy API interop / framework event pointer parameter | Renamed the touched `const sysEvent_t *event` parameter to `p_event` and updated field accesses. |
+| `idSession::ProcessEvent` and `idSessionLocal::ProcessEvent` event pointer parameter | Legacy API interop / framework event pointer parameter | Renamed the public virtual declaration, local override, implementation parameter, and forwarding calls to `p_event`. |
+| `idSessionLocal::MenuEvent` event pointer parameter | Legacy API interop / menu event pointer parameter | Renamed the menu event pointer parameter to `p_event` and updated GUI forwarding and function-key fallback accesses. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. `sysEvent_t` layout and event field widths are unchanged; the change is a source-level pointer-parameter rename in framework event dispatch surfaces.
+
+### Verification Log For This Slice
+
+- `rg -n "ProcessEvent\( const (struct )?sysEvent(_s)?_t \*event|MenuEvent\( const sysEvent_t \*event|const sysEvent_t \*event|\bevent->" neo\framework\Console.cpp neo\framework\Console.h neo\framework\Session.cpp neo\framework\Session.h neo\framework\Session_local.h neo\framework\Session_menu.cpp`: no stale touched `sysEvent_t *event` parameters or `event->` uses found.
+- `rg -n "ProcessEvent\( const (struct )?sysEvent(_s)?_t \*p_event|MenuEvent\( const sysEvent_t \*p_event|\bp_event->" neo\framework\Console.cpp neo\framework\Console.h neo\framework\Session.cpp neo\framework\Session.h neo\framework\Session_local.h neo\framework\Session_menu.cpp`: confirmed the renamed framework event pointer parameters and field accesses are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the broad framework/header-dependent x64 client target graph with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the broad framework/header-dependent x64 dedicated target graph with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `Get-Process Doom3,DedServer,MSBuild -ErrorAction SilentlyContinue`: no lingering runtime or build processes after the smoke runs.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.

@@ -94,7 +94,7 @@ public:
 	virtual bool	IsMultiplayer() = 0;
 
 	// Processes the given event.
-	virtual	bool	ProcessEvent( const sysEvent_t *event ) = 0;
+	virtual	bool	ProcessEvent( const sysEvent_t *p_event ) = 0;
 
 	// Activates the main menu
 	virtual void	StartMenu( bool playIntro = false ) = 0;

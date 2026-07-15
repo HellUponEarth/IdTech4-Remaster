@@ -2149,9 +2149,9 @@ bool idSessionLocal::LoadGame( const char *saveName ) {
 idSessionLocal::ProcessEvent
 ===============
 */
-bool idSessionLocal::ProcessEvent( const sysEvent_t *event ) {
+bool idSessionLocal::ProcessEvent( const sysEvent_t *p_event ) {
 	// hitting escape anywhere brings up the menu
-	if ( !guiActive && event->evType == SE_KEY && event->evValue2 == 1 && event->evValue == K_ESCAPE ) {
+	if ( !guiActive && p_event->evType == SE_KEY && p_event->evValue2 == 1 && p_event->evValue == K_ESCAPE ) {
 		console->Close();
 		if ( game ) {
 			idUserInterface	*gui = NULL;
@@ -2169,20 +2169,20 @@ bool idSessionLocal::ProcessEvent( const sysEvent_t *event ) {
 	}
 
 	// let the pull-down console take it if desired
-	if ( console->ProcessEvent( event, false ) ) {
+	if ( console->ProcessEvent( p_event, false ) ) {
 		return true;
 	}
 
 	// if we are testing a GUI, send all events to it
 	if ( guiTest ) {
 		// hitting escape exits the testgui
-		if ( event->evType == SE_KEY && event->evValue2 == 1 && event->evValue == K_ESCAPE ) {
+		if ( p_event->evType == SE_KEY && p_event->evValue2 == 1 && p_event->evValue == K_ESCAPE ) {
 			guiTest = NULL;
 			return true;
 		}
 		
 		static const char *cmd;
-		cmd = guiTest->HandleEvent( event, com_frameTime );
+		cmd = guiTest->HandleEvent( p_event, com_frameTime );
 		if ( cmd && cmd[0] ) {
 			common->Printf( "testGui event returned: '%s'\n", cmd );
 		}
@@ -2191,19 +2191,19 @@ bool idSessionLocal::ProcessEvent( const sysEvent_t *event ) {
 
 	// menus / etc
 	if ( guiActive ) {
-		MenuEvent( event );
+		MenuEvent( p_event );
 		return true;
 	}
 
 	// if we aren't in a game, force the console to take it
 	if ( !mapSpawned ) {
-		console->ProcessEvent( event, true );
+		console->ProcessEvent( p_event, true );
 		return true;
 	}
 
 	// in game, exec bindings for all key downs
-	if ( event->evType == SE_KEY && event->evValue2 == 1 ) {
-		idKeyInput::ExecKeyBinding( event->evValue );
+	if ( p_event->evType == SE_KEY && p_event->evValue2 == 1 ) {
+		idKeyInput::ExecKeyBinding( p_event->evValue );
 		return true;
 	}
 

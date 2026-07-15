@@ -156,8 +156,8 @@ void idSaveGame::AddObject( const idClass *obj ) {
 idSaveGame::Write
 ================
 */
-void idSaveGame::Write( const void *buffer, int len ) {
-	file->Write( buffer, len );
+void idSaveGame::Write( const void *p_buffer, int len ) {
+	file->Write( p_buffer, len );
 }
 
 /*
@@ -910,8 +910,8 @@ void idRestoreGame::CallRestore_r( const idTypeInfo *cls, idClass *obj ) {
 idRestoreGame::Read
 ================
 */
-void idRestoreGame::Read( void *buffer, int len ) {
-	file->Read( buffer, len );
+void idRestoreGame::Read( void *p_buffer, int len ) {
+	file->Read( p_buffer, len );
 }
 
 /*
