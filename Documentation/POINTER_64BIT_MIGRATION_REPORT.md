@@ -2175,6 +2175,36 @@ Known boundary: this does not address non-aliasing math warnings such as depreca
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
 
+## 2026-07-15 Math SinCos x87 Pointer-Write Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Math.h`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idMath::SinCos` MSVC x86 `fsincos` path | Legacy API interop / math helper pointer-write assembly | Removed the inline x87 assembly that moved reference addresses into 32-bit registers and wrote through them; all builds now use the existing portable `sinf`/`cosf` path. |
+| `idMath::SinCos64` MSVC x86 `fsincos` path | Legacy API interop / math helper pointer-write assembly | Removed the matching double-precision x87 pointer-write path; all builds now use the existing portable `sin`/`cos` path. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The public function signatures are unchanged, and the output references are still written as normal C++ references. The behavioral boundary is runtime math implementation only: legacy MSVC x86 builds no longer use the old x87 `fsincos` instruction path for these helpers.
+
+No binary-format compile-time assertion was added because this slice removes architecture-specific inline assembly and does not define or modify any persisted record layout.
+
+Known boundary: `FtoiFast` and `FtolFast` still contain architecture-gated conversion assembly/fallback code. Those conversions are separate numeric rounding helpers and were intentionally left out of this `SinCos` pointer-write slice.
+
+### Verification Log For This Slice
+
+- `rg -n "SinCos\(|SinCos64\(|fsincos|mov\s+ecx, c|mov\s+edx, s|qword ptr \[ecx\]|dword ptr \[ecx\]" neo\idlib\math\Math.h`: only the `SinCos` declarations/definitions remain; stale x87 pointer-write assembly is gone.
+- `cmake --build --preset ninja-gcc-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `cmake --build --preset ninja-dedicated-release -j 8`: initial invocation exceeded the tool timeout while the header rebuild was still running; after the background build exited, rerun passed with no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
 ## 2026-07-15 Math FloatHash Fixed-Width Lane Cleanup Slice
 
 ### Files Changed

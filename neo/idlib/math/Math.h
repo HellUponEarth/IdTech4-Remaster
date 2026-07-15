@@ -399,19 +399,8 @@ ID_INLINE double idMath::Cos64( float a ) {
 }
 
 ID_INLINE void idMath::SinCos( float a, float &s, float &c ) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	_asm {
-		fld		a
-		fsincos
-		mov		ecx, c
-		mov		edx, s
-		fstp	dword ptr [ecx]
-		fstp	dword ptr [edx]
-	}
-#else
 	s = sinf( a );
 	c = cosf( a );
-#endif
 }
 
 ID_INLINE void idMath::SinCos16( float a, float &s, float &c ) {
@@ -452,19 +441,8 @@ ID_INLINE void idMath::SinCos16( float a, float &s, float &c ) {
 }
 
 ID_INLINE void idMath::SinCos64( float a, double &s, double &c ) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	_asm {
-		fld		a
-		fsincos
-		mov		ecx, c
-		mov		edx, s
-		fstp	qword ptr [ecx]
-		fstp	qword ptr [edx]
-	}
-#else
 	s = sin( a );
 	c = cos( a );
-#endif
 }
 
 ID_INLINE float idMath::Tan( float a ) {
