@@ -274,6 +274,16 @@ function(idtech4_add_executable target vcxproj)
     idtech4_apply_common_settings(${target})
 endfunction()
 
+function(idtech4_link_idlib target scope idlib_target)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        idtech4_neo_dir(_neo_dir)
+        target_sources(${target} PRIVATE "${_neo_dir}/idlib/Dict.cpp")
+        target_link_libraries(${target} ${scope} "$<LINK_GROUP:RESCAN,${idlib_target}>")
+    else()
+        target_link_libraries(${target} ${scope} ${idlib_target})
+    endif()
+endfunction()
+
 function(
     idtech4_add_game_library
     target
@@ -295,7 +305,7 @@ function(
     idtech4_apply_common_settings(${target})
 
     target_compile_definitions(${target} PRIVATE __DOOM__ GAME_DLL)
-    target_link_libraries(${target} PRIVATE ${idlib_target})
+    idtech4_link_idlib(${target} PRIVATE ${idlib_target})
     add_dependencies(${target} ${typeinfo_target})
 
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${_game_dll_name}" PREFIX "")
@@ -370,7 +380,7 @@ endfunction()
 
 function(idtech4_configure_typeinfo target idlib_target)
     target_compile_definitions(${target} PRIVATE ID_ENABLE_CURL=0 ID_TYPEINFO __DOOM_DLL__)
-    target_link_libraries(${target} PRIVATE ${idlib_target})
+    idtech4_link_idlib(${target} PRIVATE ${idlib_target})
 endfunction()
 
 function(
@@ -397,7 +407,8 @@ function(
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wno-narrowing>)
     endif()
-    target_link_libraries(${target} PRIVATE ${curllib_target} ${idlib_target})
+    target_link_libraries(${target} PRIVATE ${curllib_target})
+    idtech4_link_idlib(${target} PRIVATE ${idlib_target})
     add_dependencies(${target} ${typeinfo_target})
     set(_dedicated_config
         "$<OR:$<BOOL:${IDTECH4_BUILD_DEDICATED_SERVER}>,$<STREQUAL:$<CONFIG>,Dedicated Debug>,$<STREQUAL:$<CONFIG>,Dedicated Debug with inlines>,$<STREQUAL:$<CONFIG>,Dedicated Release>>"

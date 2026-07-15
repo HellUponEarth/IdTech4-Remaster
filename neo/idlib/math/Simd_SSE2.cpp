@@ -50,6 +50,16 @@ static_assert( sizeof( dword ) == 4, "SSE2 bit-mask lanes must stay 32-bit" );
 #define SHUFFLEPS( x, y, z, w )		(( (x) & 3 ) << 6 | ( (y) & 3 ) << 4 | ( (z) & 3 ) << 2 | ( (w) & 3 ))
 #define R_SHUFFLEPS( x, y, z, w )	(( (w) & 3 ) << 6 | ( (z) & 3 ) << 4 | ( (y) & 3 ) << 2 | ( (x) & 3 ))
 
+static ID_INLINE dword SSE2_ReadDwordLane( const char *p_bytes ) {
+	dword lane;
+	memcpy( &lane, p_bytes, sizeof( lane ) );
+	return lane;
+}
+
+static ID_INLINE void SSE2_WriteDwordLane( char *p_bytes, dword lane ) {
+	memcpy( p_bytes, &lane, sizeof( lane ) );
+}
+
 /*
 ============
 idSIMD_SSE2::GetName
@@ -75,8 +85,8 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *p_dst, const byte bitNum, const float *p_s
 	const char *p_src0Bytes;
 	const char *p_constantBytes;
 	char *p_dstBytes;
-	int mask_l;
-	int dst_l;
+	dword mask_l;
+	dword dst_l;
 	
 	/* if the float array is not aligned on a 4 byte boundary */
 	if ( reinterpret_cast<uintptr_t>( p_src0 ) & 3 ) {
@@ -140,13 +150,13 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *p_dst, const byte bitNum, const float *p_s
 				xmm0i = (__m128i) xmm0;
 				xmm0i = _mm_packs_epi32(xmm0i, xmm0i);
 				xmm0i = _mm_packs_epi16(xmm0i, xmm0i);
-				mask_l = _mm_cvtsi128_si32(xmm0i);
+				mask_l = static_cast<dword>( _mm_cvtsi128_si32(xmm0i) );
 				// End 
-				mask_l = mask_l &  0x01010101;
+				mask_l = mask_l &  0x01010101u;
 				mask_l = mask_l << bitNum;
-				dst_l  = *((int *) p_dstBytes);
+				dst_l  = SSE2_ReadDwordLane( p_dstBytes );
 				mask_l = mask_l | dst_l;
-				*((int *) p_dstBytes) = mask_l;
+				SSE2_WriteDwordLane( p_dstBytes, mask_l );
 				p_src0Bytes = p_src0Bytes + 16;
 				p_dstBytes = p_dstBytes + 4;
 				cnt_l = cnt_l + 1;
@@ -221,13 +231,13 @@ void VPCALL idSIMD_SSE2::CmpLT( byte *p_dst, const byte bitNum, const float *p_s
 					xmm0i = (__m128i) xmm0;
 					xmm0i = _mm_packs_epi32(xmm0i, xmm0i);
 					xmm0i = _mm_packs_epi16(xmm0i, xmm0i);
-					mask_l = _mm_cvtsi128_si32(xmm0i);
+					mask_l = static_cast<dword>( _mm_cvtsi128_si32(xmm0i) );
 					// End 
-					mask_l = mask_l &  0x01010101;
+					mask_l = mask_l &  0x01010101u;
 					mask_l = mask_l << bitNum;
-					dst_l  = *((int *) p_dstBytes);
+					dst_l  = SSE2_ReadDwordLane( p_dstBytes );
 					mask_l = mask_l | dst_l;
-					*((int *) p_dstBytes) = mask_l;
+					SSE2_WriteDwordLane( p_dstBytes, mask_l );
 					p_src0Bytes = p_src0Bytes + 16;
 					p_dstBytes = p_dstBytes + 4;
 					cnt_l = cnt_l + 1;

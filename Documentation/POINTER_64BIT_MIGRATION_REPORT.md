@@ -2499,3 +2499,99 @@ static_assert( sizeof( color ) == 4, "megaTexture label color storage must stay 
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-15 MMX Memcpy Alignment Peel Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_MMX.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idSIMD_MMX::Memcpy` destination pre-alignment peel | Legacy API interop / runtime pointer alignment arithmetic | Kept destination alignment testing in `uintptr_t`, then computed the bounded byte count needed to reach the next 8-byte boundary before entering the MMX copy loops. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The changed state is process-local MMX copy alignment arithmetic only. `idSIMD_MMX::Memcpy` keeps the same signature and still uses `int` byte counts for the existing ABI; the pointer-derived value is reduced to a 0-7 byte peel count before narrowing.
+
+Known boundary: `neo/idlib/math/Simd_MMX.cpp` is excluded from the current x64 CMake target source list, so the direct compiler coverage for this source is the Win32 MSBuild `idLib` target. The x64 CMake runtime builds still passed after the source/report update.
+
+### Verification Log For This Slice
+
+- `rg -n "static_cast<int>\( reinterpret_cast<uintptr_t>\( p_dest \) & 7 \)|reinterpret_cast<uintptr_t>\( p_dest \) & 7|destAlignment|8 byte aligned boundary" neo\idlib\math\Simd_MMX.cpp`: stale direct pointer-mask-to-int expression is gone; the `destAlignment` low-bit lane and existing `Memset` byte-peel guard are present.
+- `MSBuild.exe neo\idlib.vcxproj /p:Configuration=Release /p:Platform=Win32 /clp:ErrorsOnly`: passed; this is direct compiler coverage for `neo/idlib/math/Simd_MMX.cpp`.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; x64 CMake runtime target graph reported no work remaining.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; x64 dedicated target graph reported no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
+## 2026-07-15 SSE2 CmpLT Destination Lane Alias Cleanup Slice
+
+### Files Changed
+
+- `neo/idlib/math/Simd_SSE2.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| Legacy Mac SSE2 `idSIMD_SSE2::CmpLT` destination mask lane | Legacy API interop / SIMD fixed 32-bit lane | Replaced `*((int *) p_dstBytes)` reads and writes with explicit `dword` lane helpers that copy exactly four bytes with `memcpy`. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The destination comparison mask still updates one four-byte lane per four source floats, and the lane type is now explicitly `dword` to match the existing SSE2 fixed-width mask guard.
+
+Known boundary: this code is inside the legacy `MACOS_X && __i386__` SSE2 path. It is not part of the current x64 CMake runtime source list, so direct compiler coverage here is the Win32 MSBuild `idLib` target. The active x64 CMake runtime target graph still passed after the source/report update.
+
+### Verification Log For This Slice
+
+- `rg -n "\*\s*\(\s*int\s*\*\s*\)\s*p_dstBytes|\(\s*int\s*\*\s*\)\s*p_dstBytes|SSE2_ReadDwordLane|SSE2_WriteDwordLane|dword mask_l|dword dst_l|0x01010101u" neo\idlib\math\Simd_SSE2.cpp`: stale destination `int *` lane accesses are gone; fixed-width helpers and `dword` lanes are present.
+- `MSBuild.exe neo\idlib.vcxproj /p:Configuration=Release /p:Platform=Win32 /clp:ErrorsOnly`: passed; this is direct compiler coverage for `neo/idlib/math/Simd_SSE2.cpp`.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; x64 CMake runtime target graph reported no work remaining.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; x64 dedicated target graph reported no work remaining.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.
+
+## 2026-07-15 Script VM Local Stack Typed-View Helper Slice
+
+### Files Changed
+
+- `neo/game/script/Script_Interpreter.h`
+- `neo/game/script/Script_Interpreter.cpp`
+- `neo/d3xp/script/Script_Interpreter.h`
+- `neo/d3xp/script/Script_Interpreter.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| Base and d3xp `idInterpreter::GetVariable` stack-variable view | Serialization / script VM local stack typed view | Replaced the ad-hoc `( int * )&localstack[...]` stack view construction with `LocalStackValue`, which creates the same `varEval_t` byte-addressed view through one helper. |
+| Base and d3xp `CallEvent` / `CallSysEvent` argument extraction | Legacy API interop / script-to-event stack view | Replaced repeated event bridge casts from `localstack` bytes to `int *` with `LocalStackValue`; string arguments now use `LocalStackBytes`. |
+| Script VM local stack lane assumptions | Serialization / savegame field guard | Added compile-time guards for 32-bit integer lanes, 32-bit float lanes, and 3-float vector lanes used by raw `localstack` save/restore bytes. |
+
+This slice does not widen savegame, network, demo, journal, script bytecode, or VM stack fields. `localstack` remains a byte array and is still saved/restored as raw bytes with `localstackUsed` and `localstackBase` 32-bit counters. The helper centralizes typed views in the touched event/get-variable paths without changing the underlying serialized byte layout.
+
+Compile-time guards:
+
+```c
+static_assert( sizeof( int ) == 4, "script VM local stack scalar lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "script VM local stack float lanes must stay 32-bit" );
+static_assert( sizeof( idVec3 ) == 3 * sizeof( float ), "script VM local stack vector lanes must stay 3 floats" );
+```
+
+Known boundary: the broader `varEval_t` design still exposes typed pointer members into constants, globals, and other stack paths. This slice intentionally does not replace interpreter arithmetic/evaluation with `memcpy` load/store helpers, because that would be a larger VM layout compatibility change.
+
+### Verification Log For This Slice
+
+- `rg -n "LocalStackBytes|LocalStackValue|script VM local stack (float|vector)|\( int \* \)&localstack\[ localstackBase \+ def->value\.stackOffset \]|\( int \* \)&localstack\[ start( \+ pos)? \]|&localstack\[ start \+ pos \]" neo\game\script\Script_Interpreter.h neo\d3xp\script\Script_Interpreter.h neo\game\script\Script_Interpreter.cpp neo\d3xp\script\Script_Interpreter.cpp`: helper functions, guards, and touched use sites are present; stale direct casts in the touched `GetVariable`, `CallEvent`, and `CallSysEvent` paths are gone.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt broad game/d3xp script-dependent surfaces, with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt broad game/d3xp script-dependent surfaces for the dedicated preset, with existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed.

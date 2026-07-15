@@ -230,7 +230,8 @@ void VPCALL idSIMD_MMX::Memcpy( void *p_dest0, const void *p_src0, const int cou
 		byte *p_src = (byte *)p_src0;
 
 		// copy up to the first 8 byte aligned boundary
-		int count = static_cast<int>( reinterpret_cast<uintptr_t>( p_dest ) & 7 );
+		const uintptr_t destAlignment = reinterpret_cast<uintptr_t>( p_dest ) & 7;
+		int count = static_cast<int>( ( 8 - destAlignment ) & 7 );
 		memcpy( p_dest, p_src, count );
 		p_dest += count;
 		p_src += count;

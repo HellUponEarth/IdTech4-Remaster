@@ -724,7 +724,7 @@ void idInterpreter::CallEvent( const function_t *func, int argsize ) {
 	evdef = func->eventdef;
 
 	start = localstackUsed - argsize;
-	var.intPtr = ( int * )&localstack[ start ];
+	var = LocalStackValue( start );
 	eventEntity = GetEntity( *var.entityNumberPtr );
 
 	if ( !eventEntity || !eventEntity->RespondsTo( *evdef ) ) {
@@ -770,26 +770,26 @@ void idInterpreter::CallEvent( const function_t *func, int argsize ) {
 	for( j = 0, i = 0, pos = type_object.Size(); ( pos < argsize ) || ( format[ i ] != 0 ); i++ ) {
 		switch( format[ i ] ) {
 		case D_EVENT_INTEGER :
-			var.intPtr = ( int * )&localstack[ start + pos ];
+			var = LocalStackValue( start + pos );
 			p_data[ i ] = int( *var.floatPtr );
 			break;
 
 		case D_EVENT_FLOAT :
-			var.intPtr = ( int * )&localstack[ start + pos ];
+			var = LocalStackValue( start + pos );
 			ScriptVM_WriteFloatEventArg( p_data, i, *var.floatPtr );
 			break;
 
 		case D_EVENT_VECTOR :
-			var.intPtr = ( int * )&localstack[ start + pos ];
+			var = LocalStackValue( start + pos );
 			p_data[ i ] = reinterpret_cast<intptr_t>( var.vectorPtr );
 			break;
 
 		case D_EVENT_STRING :
-			p_data[ i ] = reinterpret_cast<intptr_t>( &localstack[ start + pos ] );
+			p_data[ i ] = reinterpret_cast<intptr_t>( LocalStackBytes( start + pos ) );
 			break;
 
 		case D_EVENT_ENTITY :
-			var.intPtr = ( int * )&localstack[ start + pos ];
+			var = LocalStackValue( start + pos );
 			p_data[ i ] = reinterpret_cast<intptr_t>( GetEntity( *var.entityNumberPtr ) );
 			if ( !p_data[ i ] ) {
 				Warning( "Entity not found for event '%s'. Terminating thread.", evdef->GetName() );
@@ -800,7 +800,7 @@ void idInterpreter::CallEvent( const function_t *func, int argsize ) {
 			break;
 
 		case D_EVENT_ENTITY_NULL :
-			var.intPtr = ( int * )&localstack[ start + pos ];
+			var = LocalStackValue( start + pos );
 			p_data[ i ] = reinterpret_cast<intptr_t>( GetEntity( *var.entityNumberPtr ) );
 			break;
 
@@ -900,26 +900,26 @@ void idInterpreter::CallSysEvent( const function_t *func, int argsize ) {
 	for( j = 0, i = 0, pos = 0; ( pos < argsize ) || ( format[ i ] != 0 ); i++ ) {
 		switch( format[ i ] ) {
 		case D_EVENT_INTEGER :
-			source.intPtr = ( int * )&localstack[ start + pos ];
+			source = LocalStackValue( start + pos );
 			p_data[ i ] = static_cast<intptr_t>( int( *source.floatPtr ) );
 			break;
 
 		case D_EVENT_FLOAT :
-			source.intPtr = ( int * )&localstack[ start + pos ];
+			source = LocalStackValue( start + pos );
 			ScriptVM_WriteFloatEventArg( p_data, i, *source.floatPtr );
 			break;
 
 		case D_EVENT_VECTOR :
-			source.intPtr = ( int * )&localstack[ start + pos ];
+			source = LocalStackValue( start + pos );
 			p_data[ i ] = reinterpret_cast<intptr_t>( source.vectorPtr );
 			break;
 
 		case D_EVENT_STRING :
-			p_data[ i ] = reinterpret_cast<intptr_t>( &localstack[ start + pos ] );
+			p_data[ i ] = reinterpret_cast<intptr_t>( LocalStackBytes( start + pos ) );
 			break;
 
 		case D_EVENT_ENTITY :
-			source.intPtr = ( int * )&localstack[ start + pos ];
+			source = LocalStackValue( start + pos );
 			p_data[ i ] = reinterpret_cast<intptr_t>( GetEntity( *source.entityNumberPtr ) );
 			if ( !p_data[ i ] ) {
 				Warning( "Entity not found for event '%s'. Terminating thread.", evdef->GetName() );
@@ -930,7 +930,7 @@ void idInterpreter::CallSysEvent( const function_t *func, int argsize ) {
 			break;
 
 		case D_EVENT_ENTITY_NULL :
-			source.intPtr = ( int * )&localstack[ start + pos ];
+			source = LocalStackValue( start + pos );
 			p_data[ i ] = reinterpret_cast<intptr_t>( GetEntity( *source.entityNumberPtr ) );
 			break;
 

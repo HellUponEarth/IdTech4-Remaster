@@ -53,6 +53,7 @@ function(idtech4_apply_compiler_profile target)
             /diagnostics:caret
             /permissive-
             /Zc:__cplusplus
+            /Zc:strictStrings-
         )
     elseif(_family STREQUAL "Clang")
         target_compile_options(

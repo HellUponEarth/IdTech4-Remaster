@@ -33,6 +33,8 @@ If you have questions concerning this license or the applicable additional terms
 #define LOCALSTACK_SIZE 	6144
 
 static_assert( sizeof( int ) == 4, "script VM local stack scalar lanes must stay 32-bit" );
+static_assert( sizeof( float ) == 4, "script VM local stack float lanes must stay 32-bit" );
+static_assert( sizeof( idVec3 ) == 3 * sizeof( float ), "script VM local stack vector lanes must stay 3 floats" );
 
 typedef struct prstack_s {
 	int 				s;
@@ -67,6 +69,9 @@ private:
 	void				AppendString( idVarDef *def, const char *from );
 	void				SetString( idVarDef *def, const char *from );
 	const char			*GetString( idVarDef *def );
+	byte				*LocalStackBytes( int offset );
+	const byte			*LocalStackBytes( int offset ) const;
+	varEval_t			LocalStackValue( int offset );
 	varEval_t			GetVariable( idVarDef *def );
 	idEntity			*GetEntity( int entnum ) const;
 	idScriptObject		*GetScriptObject( int entnum ) const;
@@ -207,10 +212,39 @@ idInterpreter::GetString
 */
 ID_INLINE const char *idInterpreter::GetString( idVarDef *def ) {
 	if ( def->initialized == idVarDef::stackVariable ) {
-		return ( char * )&localstack[ localstackBase + def->value.stackOffset ];
+		return reinterpret_cast<char *>( LocalStackBytes( localstackBase + def->value.stackOffset ) );
 	} else {
 		return def->value.stringPtr;
 	}
+}
+
+/*
+====================
+idInterpreter::LocalStackBytes
+====================
+*/
+ID_INLINE byte *idInterpreter::LocalStackBytes( int offset ) {
+	return &localstack[ offset ];
+}
+
+/*
+====================
+idInterpreter::LocalStackBytes
+====================
+*/
+ID_INLINE const byte *idInterpreter::LocalStackBytes( int offset ) const {
+	return &localstack[ offset ];
+}
+
+/*
+====================
+idInterpreter::LocalStackValue
+====================
+*/
+ID_INLINE varEval_t idInterpreter::LocalStackValue( int offset ) {
+	varEval_t val;
+	val.bytePtr = LocalStackBytes( offset );
+	return val;
 }
 
 /*
@@ -220,9 +254,7 @@ idInterpreter::GetVariable
 */
 ID_INLINE varEval_t idInterpreter::GetVariable( idVarDef *def ) {
 	if ( def->initialized == idVarDef::stackVariable ) {
-		varEval_t val;
-		val.intPtr = ( int * )&localstack[ localstackBase + def->value.stackOffset ];
-		return val;
+		return LocalStackValue( localstackBase + def->value.stackOffset );
 	} else {
 		return def->value;
 	}
