@@ -2662,3 +2662,34 @@ static_assert( sizeof( float ) == 4, "SIMD float bit helpers require 32-bit IEEE
 - `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
 - `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
 - `git diff --check`: passed.
+
+## 2026-07-15 Heap Medium-Page Pointer Name And Header Guard Slice
+
+### Files Changed
+
+- `neo/idlib/Heap.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idHeap::~idHeap` page-list traversal locals | Pointer storage / allocator internal pointer traversal | Renamed the page traversal pointer and next-page pointer locals to `p_page` and `p_next`; no allocator list links or page layout changed. |
+| `idHeap::Dump` page traversal local | Pointer storage / allocator diagnostics | Renamed the diagnostic page pointer local to `p_page`; output format and traversal behavior are unchanged. |
+| `idHeap::MediumAllocateFromPage` page, free-block, new-entry, and return-data pointers | Pointer storage / allocator internal pointer traversal | Renamed touched pointer parameter and locals to `p_page`, `p_best`, `p_newEntry`, and `p_ret`; the free-list and allocated-block layout are unchanged. |
+| `idHeap::MediumAllocate` page, entry, and allocation-result pointers | Pointer storage / allocator internal pointer traversal | Renamed touched pointer locals to `p_page`, `p_entry`, and `p_data`; list ordering and allocation behavior are unchanged. |
+| `LARGE_HEADER_SIZE` / page-link storage via `uintptr_t` | Pointer storage / allocator header | Added a compile-time guard that `uintptr_t` is wide enough to hold native pointers. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, or asset formats. The changed pointers are allocator-internal parameters and locals, and the existing heap page/block structs keep the same field order, field types, and allocation metadata. The new `static_assert` only documents and enforces the already-required invariant that heap pointer headers use native pointer-width integer storage.
+
+### Verification Log For This Slice
+
+- `rg -n "MediumAllocateFromPage\( idHeap::page_s \*p\b|idHeap::page_s\s+\*p;|idHeap::page_s \*next\b|\*pg\b|\*best\b|\*nw\b|\*ret\b|\*data\b|mediumHeapEntry_s \*e\b|\bdata = MediumAllocateFromPage|return data;|uintptr_t \) < sizeof\( void \*\)" neo\idlib\Heap.cpp`: no stale names or inverse-width guard pattern found.
+- `rg -n "static_assert\( sizeof\( uintptr_t \) >= sizeof\( void \* \)|p_best|p_newEntry|p_ret|p_data|p_next|MediumAllocateFromPage\( idHeap::page_s \*p_page" neo\idlib\Heap.cpp`: confirmed the renamed pointer surfaces and heap pointer-width guard are present.
+- `cmake --build --preset ninja-gcc-release -j 8`: initial link was blocked by a stale repo-local `Doom3.exe` process holding the output file; after stopping that process, rerun passed and relinked `Doom3.exe`.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt `neo/idlib/Heap.cpp`, reran TypeInfo, linked `DedServer.exe`, and emitted existing legacy warning noise but no errors.
+- `Doom3.exe +set fs_basepath F:\IdTech4-Remaster +set com_skipRenderer 1 +set s_noSound 1 +quit`: exit code 0.
+- `DedServer.exe +set fs_basepath F:\IdTech4-Remaster +quit`: exit code 0.
+- `Get-Process Doom3,DedServer -ErrorAction SilentlyContinue`: no lingering runtime processes after the smoke runs.
+- `rg --files | rg "(?i)\.(save|sav|savegame)$"`: no checked-in save corpus was found for a save/load compatibility smoke.
+- `git diff --check`: passed after removing one trailing space introduced on the touched destructor comment line.
