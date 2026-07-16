@@ -1,5 +1,63 @@
 # IdTech4 64-bit Pointer Migration Report
 
+## 2026-07-16 AAS Routing Travel-Time Pointer Arithmetic Slice
+
+### Files Changed
+
+- `neo/game/ai/AAS_routing.cpp`
+- `neo/d3xp/ai/AAS_routing.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idAASLocal::CalculateAreaTravelTimes` byte cursor range assert in base game and d3xp | Legacy API interop / runtime pointer arithmetic | Replaced the 32-bit `(unsigned int)bytePtr - (unsigned int)areaTravelTimes` check with same-allocation byte-pointer subtraction and a `size_t` byte count. |
+| AAS routing allocation slab byte cursors | Pointer storage / local pointer naming | Renamed the local byte cursor from `bytePtr` to `p_bytePtr` in the travel-time allocation and routing-cache setup paths while preserving the existing slab layout. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, asset, or script VM formats. The changed values are process-local cursors into in-memory AAS routing cache allocations. No serialized fields or file-format structs are touched.
+
+Known boundary: this slice only removes the live pointer-to-32-bit arithmetic in AAS routing. Other non-pointer binary asset parsing aliases remain separately classified work.
+
+### Verification Log For This Slice
+
+- `rg -n "bytePtr|p_bytePtr|areaTravelTimesBytes|\(unsigned int\)\s*(bytePtr|areaTravelTimes)" neo\game\ai\AAS_routing.cpp neo\d3xp\ai\AAS_routing.cpp`: confirmed the stale 32-bit pointer-difference pattern is gone and only the renamed byte cursor plus `size_t` byte-count guard remain.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt the base and d3xp AAS routing surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the same AAS routing surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release/dedicated rebuilds.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `git diff --check`: passed.
+
+## 2026-07-16 idClass Allocation Header Alignment Slice
+
+### Files Changed
+
+- `neo/game/gamesys/Class.cpp`
+- `neo/d3xp/gamesys/Class.cpp`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idClass::operator new` allocation prefix in base game and d3xp | Pointer storage / legacy API interop | Replaced the 4-byte `int` allocation header with a private 16-byte header that stores the allocation size as `size_t`, then returns the user pointer after a pointer-aligned prefix. This avoids misaligning `idClass` objects on 64-bit builds. |
+| `idClass::operator delete` allocation recovery in base game and d3xp | Pointer storage / legacy API interop | Recovered the original allocation pointer with byte-pointer arithmetic and read the `size_t` header through `memcpy` instead of subtracting an `int *` header from the object pointer. |
+| `ID_DEBUG_UNINITIALIZED_MEMORY` object fill/scan path | Legacy API interop / fixed-width debug lane | Replaced `unsigned long *` object/header views with explicit 32-bit `dword` sentinel lanes so the debug fill pattern is independent of host `unsigned long` width. |
+| `idClass` allocation layout assumptions | Runtime binary-layout assertion | Added local compile-time checks that the private header preserves pointer alignment and remains dword-addressable for debug sentinel scanning. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, model, asset, or script VM formats. The changed metadata is process-local allocation bookkeeping for live `idClass` instances. The public `idClass` allocation API remains unchanged, while the internal allocation prefix now has pointer-width storage and a fixed alignment-preserving size.
+
+Known boundary: `idClass::memused` remains an `int` because the engine memory accounting and `Mem_Alloc` API still accept `int` byte counts. This slice validates the requested allocation size before narrowing the private total allocation size back to `int` for the existing allocator.
+
+### Verification Log For This Slice
+
+- `rg -n "unsigned long \*ptr|\( \( int \* \)ptr \) - 1|p = \(int \*\)Mem_Alloc|return p \+ 1" neo\game\gamesys\Class.cpp neo\d3xp\gamesys\Class.cpp`: no stale allocation-header or debug-fill patterns remain in the touched files.
+- `rg -n "ID_CLASS_ALLOCATION_HEADER_SIZE|unsigned long \*ptr|\( \( int \* \)ptr \) - 1|p = \(int \*\)Mem_Alloc|return p \+ 1" neo\game\gamesys\Class.cpp neo\d3xp\gamesys\Class.cpp neo\game\gamesys\GameTypeInfo.h`: only the private header macro/static assertions and byte-offset uses remain; generated `GameTypeInfo.h` has no diff.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base and d3xp game DLLs and regenerated type info. Existing legacy warning noise remains, but no new errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the touched game surfaces for the dedicated preset with existing legacy warning noise only.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release/dedicated rebuilds.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed 7/7 tests.
+- `git diff --check`: passed.
+
 Status: in progress. This report tracks the codebase-wide 32-bit pointer audit, p_ pointer-variable renaming, ABI impact, and verification. It is intentionally additive so each verified slice can update the same ledger.
 
 ## 2026-07-16 Script Size And Render Demo Command Alias Slice

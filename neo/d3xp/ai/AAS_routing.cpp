@@ -108,7 +108,7 @@ idAASLocal::CalculateAreaTravelTimes
 */
 void idAASLocal::CalculateAreaTravelTimes(void) {
 	int n, i, j, numReach, numRevReach, t, maxt;
-	byte *bytePtr;
+	byte *p_bytePtr;
 	idReachability *reach, *rev_reach;
 
 	// get total memory for all area travel times
@@ -132,7 +132,7 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 	}
 
 	areaTravelTimes = (unsigned short *) Mem_Alloc( numAreaTravelTimes * sizeof( unsigned short ) );
-	bytePtr = (byte *) areaTravelTimes;
+	p_bytePtr = (byte *) areaTravelTimes;
 
 	for ( n = 0; n < file->GetNumAreas(); n++ ) {
 
@@ -149,7 +149,7 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 			}
 			reach->number = i;
 			reach->disableCount = 0;
-			reach->areaTravelTimes = (unsigned short *) bytePtr;
+			reach->areaTravelTimes = (unsigned short *) p_bytePtr;
 			for ( j = 0, rev_reach = file->GetArea( n ).rev_reach; rev_reach; rev_reach = rev_reach->rev_next, j++ ) {
 				t = AreaTravelTime( n, reach->start, rev_reach->end );
 				reach->areaTravelTimes[j] = t;
@@ -157,7 +157,7 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 					maxt = t;
 				}
 			}
-			bytePtr += j * sizeof( unsigned short );
+			p_bytePtr += j * sizeof( unsigned short );
 		}
 
 		// if this area is a portal
@@ -167,7 +167,10 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 		}
 	}
 
-	assert( ( (unsigned int) bytePtr - (unsigned int) areaTravelTimes ) <= numAreaTravelTimes * sizeof( unsigned short ) );
+	const byte *p_areaTravelTimesStart = (const byte *) areaTravelTimes;
+	const size_t areaTravelTimesBytes = (size_t) numAreaTravelTimes * sizeof( unsigned short );
+	assert( p_bytePtr >= p_areaTravelTimesStart );
+	assert( (size_t) ( p_bytePtr - p_areaTravelTimesStart ) <= areaTravelTimesBytes );
 }
 
 /*
@@ -188,7 +191,7 @@ idAASLocal::SetupRoutingCache
 */
 void idAASLocal::SetupRoutingCache( void ) {
 	int i;
-	byte *bytePtr;
+	byte *p_bytePtr;
 
 	areaCacheIndexSize = 0;
 	for ( i = 0; i < file->GetNumClusters(); i++ ) {
@@ -196,10 +199,10 @@ void idAASLocal::SetupRoutingCache( void ) {
 	}
 	areaCacheIndex = (idRoutingCache ***) Mem_ClearedAlloc( file->GetNumClusters() * sizeof( idRoutingCache ** ) +
 													areaCacheIndexSize * sizeof( idRoutingCache *) );
-	bytePtr = ((byte *)areaCacheIndex) + file->GetNumClusters() * sizeof( idRoutingCache ** );
+	p_bytePtr = ((byte *)areaCacheIndex) + file->GetNumClusters() * sizeof( idRoutingCache ** );
 	for ( i = 0; i < file->GetNumClusters(); i++ ) {
-		areaCacheIndex[i] = ( idRoutingCache ** ) bytePtr;
-		bytePtr += file->GetCluster( i ).numReachableAreas * sizeof( idRoutingCache * );
+		areaCacheIndex[i] = ( idRoutingCache ** ) p_bytePtr;
+		p_bytePtr += file->GetCluster( i ).numReachableAreas * sizeof( idRoutingCache * );
 	}
 
 	portalCacheIndexSize = file->GetNumAreas();

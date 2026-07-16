@@ -40,6 +40,43 @@ instancing of objects.
 #include "TypeInfo.h"
 
 static_assert( sizeof( float ) == 4, "event callback float lanes must stay 32-bit" );
+static_assert( sizeof( dword ) == 4, "idClass debug fill lanes must stay 32-bit" );
+
+#define ID_CLASS_ALLOCATION_HEADER_SIZE 16
+
+static ID_INLINE dword idClass_UninitializedWord( void ) {
+	return 0xcdcdcdcdu;
+}
+
+static_assert( ( ID_CLASS_ALLOCATION_HEADER_SIZE % sizeof( void * ) ) == 0, "idClass allocation header must preserve pointer alignment" );
+static_assert( ( ID_CLASS_ALLOCATION_HEADER_SIZE % sizeof( dword ) ) == 0, "idClass allocation header must be dword addressable" );
+
+static int idClass_CheckedAllocationSize( size_t objectSize ) {
+	const size_t allocationSize = objectSize + ID_CLASS_ALLOCATION_HEADER_SIZE;
+	if ( allocationSize > static_cast<size_t>( INT_MAX ) ) {
+		throw idAllocError( "idClass allocation too large" );
+	}
+	return static_cast<int>( allocationSize );
+}
+
+static void idClass_WriteAllocationSize( void *p_allocation, size_t allocationSize ) {
+	memcpy( p_allocation, &allocationSize, sizeof( allocationSize ) );
+}
+
+static size_t idClass_ReadAllocationSize( const void *p_object ) {
+	size_t allocationSize;
+	const byte *p_allocation = static_cast<const byte *>( p_object ) - ID_CLASS_ALLOCATION_HEADER_SIZE;
+	memcpy( &allocationSize, p_allocation, sizeof( allocationSize ) );
+	return allocationSize;
+}
+
+static void *idClass_UserPointer( void *p_allocation ) {
+	return static_cast<byte *>( p_allocation ) + ID_CLASS_ALLOCATION_HEADER_SIZE;
+}
+
+static void *idClass_AllocationPointer( void *p_object ) {
+	return static_cast<byte *>( p_object ) - ID_CLASS_ALLOCATION_HEADER_SIZE;
+}
 
 static float idClass_FloatEventArg( intptr_t value ) {
 	float result;
@@ -293,14 +330,16 @@ idClass::FindUninitializedMemory
 */
 void idClass::FindUninitializedMemory( void ) {
 #ifdef ID_DEBUG_UNINITIALIZED_MEMORY
-	unsigned long *ptr = ( ( unsigned long * )this ) - 1;
-	int size = *ptr;
-	assert( ( size & 3 ) == 0 );
-	size >>= 2;
-	for ( int i = 0; i < size; i++ ) {
-		if ( ptr[i] == 0xcdcdcdcd ) {
-			const char *varName = GetTypeVariableName( GetClassname(), i << 2 );
-			gameLocal.Warning( "type '%s' has uninitialized variable %s (offset %d)", GetClassname(), varName, i << 2 );
+	const size_t allocationSize = idClass_ReadAllocationSize( this );
+	assert( ( allocationSize & ( sizeof( dword ) - 1 ) ) == 0 );
+	const dword *p_words = reinterpret_cast<const dword *>( static_cast<const byte *>( static_cast<const void *>( this ) ) - ID_CLASS_ALLOCATION_HEADER_SIZE );
+	const int headerWords = static_cast<int>( ID_CLASS_ALLOCATION_HEADER_SIZE / sizeof( dword ) );
+	const int numWords = static_cast<int>( allocationSize / sizeof( dword ) );
+	for ( int i = headerWords; i < numWords; i++ ) {
+		if ( p_words[i] == idClass_UninitializedWord() ) {
+			const int objectOffset = ( i - headerWords ) * static_cast<int>( sizeof( dword ) );
+			const char *varName = GetTypeVariableName( GetClassname(), objectOffset );
+			gameLocal.Warning( "type '%s' has uninitialized variable %s (offset %d)", GetClassname(), varName, objectOffset );
 		}
 	}
 #endif
@@ -453,47 +492,49 @@ idClass::new
 #endif
 
 void * idClass::operator new( size_t s ) {
-	int *p;
+	int allocationSize;
+	void *p_allocation;
 
-	s += sizeof( int );
-	p = (int *)Mem_Alloc( s );
-	*p = s;
-	memused += s;
+	allocationSize = idClass_CheckedAllocationSize( s );
+	p_allocation = Mem_Alloc( allocationSize );
+	idClass_WriteAllocationSize( p_allocation, static_cast<size_t>( allocationSize ) );
+	memused += allocationSize;
 	numobjects++;
 
 #ifdef ID_DEBUG_UNINITIALIZED_MEMORY
-	unsigned long *ptr = (unsigned long *)p;
-	int size = s;
-	assert( ( size & 3 ) == 0 );
-	size >>= 3;
-	for ( int i = 1; i < size; i++ ) {
-		ptr[i] = 0xcdcdcdcd;
+	dword *p_words = reinterpret_cast<dword *>( p_allocation );
+	assert( ( allocationSize & ( sizeof( dword ) - 1 ) ) == 0 );
+	const int headerWords = static_cast<int>( ID_CLASS_ALLOCATION_HEADER_SIZE / sizeof( dword ) );
+	const int numWords = allocationSize / static_cast<int>( sizeof( dword ) );
+	for ( int i = headerWords; i < numWords; i++ ) {
+		p_words[i] = idClass_UninitializedWord();
 	}
 #endif
 
-	return p + 1;
+	return idClass_UserPointer( p_allocation );
 }
 
 void * idClass::operator new( size_t s, int, int, char *, int ) {
-	int *p;
+	int allocationSize;
+	void *p_allocation;
 
-	s += sizeof( int );
-	p = (int *)Mem_Alloc( s );
-	*p = s;
-	memused += s;
+	allocationSize = idClass_CheckedAllocationSize( s );
+	p_allocation = Mem_Alloc( allocationSize );
+	idClass_WriteAllocationSize( p_allocation, static_cast<size_t>( allocationSize ) );
+	memused += allocationSize;
 	numobjects++;
 
 #ifdef ID_DEBUG_UNINITIALIZED_MEMORY
-	unsigned long *ptr = (unsigned long *)p;
-	int size = s;
-	assert( ( size & 3 ) == 0 );
-	size >>= 3;
-	for ( int i = 1; i < size; i++ ) {
-		ptr[i] = 0xcdcdcdcd;
+	dword *p_words = reinterpret_cast<dword *>( p_allocation );
+	assert( ( allocationSize & ( sizeof( dword ) - 1 ) ) == 0 );
+	const int headerWords = static_cast<int>( ID_CLASS_ALLOCATION_HEADER_SIZE / sizeof( dword ) );
+	const int numWords = allocationSize / static_cast<int>( sizeof( dword ) );
+	for ( int i = headerWords; i < numWords; i++ ) {
+		p_words[i] = idClass_UninitializedWord();
 	}
 #endif
 
-	return p + 1;
+	return idClass_UserPointer( p_allocation );
 }
 
 #ifdef ID_DEBUG_MEMORY
@@ -506,24 +547,22 @@ idClass::delete
 ================
 */
 void idClass::operator delete( void *ptr ) {
-	int *p;
-
 	if ( ptr ) {
-		p = ( ( int * )ptr ) - 1;
-		memused -= *p;
+		void *p_allocation = idClass_AllocationPointer( ptr );
+		const size_t allocationSize = idClass_ReadAllocationSize( ptr );
+		memused -= static_cast<int>( allocationSize );
 		numobjects--;
-        Mem_Free( p );
+        Mem_Free( p_allocation );
 	}
 }
 
 void idClass::operator delete( void *ptr, int, int, char *, int ) {
-	int *p;
-
 	if ( ptr ) {
-		p = ( ( int * )ptr ) - 1;
-		memused -= *p;
+		void *p_allocation = idClass_AllocationPointer( ptr );
+		const size_t allocationSize = idClass_ReadAllocationSize( ptr );
+		memused -= static_cast<int>( allocationSize );
 		numobjects--;
-        Mem_Free( p );
+        Mem_Free( p_allocation );
 	}
 }
 

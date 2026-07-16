@@ -394,6 +394,7 @@ function(
     idtech4_platform_dir(_platform)
 
     target_compile_definitions(${target} PRIVATE __DOOM__ __DOOM_DLL__)
+    target_sources(${target} PRIVATE "${_neo_dir}/renderer/cg_explicit.cpp")
     if(NOT IDTECH4_ENABLE_EDITOR_CVARS)
         target_sources(${target} PRIVATE "${_neo_dir}/tools/guied/GEWindowWrapper_stub.cpp")
     endif()
