@@ -31,6 +31,8 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "tr_local.h"
 
+static_assert( sizeof( int ) == 4, "GUI model demo material markers must stay 32-bit for demo compatibility" );
+
 
 /*
 ================
@@ -90,7 +92,7 @@ void idGuiModel::WriteToDemo( idDemoFile *demo ) {
 	for ( j = 0 ; j < i ; j++ ) {
 		guiModelSurface_t	*surf = &surfaces[j];
 		
-		demo->WriteInt( (int&)surf->material );
+		demo->WriteInt( surf->material != NULL ? 1 : 0 );
 		demo->WriteFloat( surf->color[0] );
 		demo->WriteFloat( surf->color[1] );
 		demo->WriteFloat( surf->color[2] );
@@ -99,7 +101,7 @@ void idGuiModel::WriteToDemo( idDemoFile *demo ) {
 		demo->WriteInt( surf->numVerts );
 		demo->WriteInt( surf->firstIndex );
 		demo->WriteInt( surf->numIndexes );
-		demo->WriteHashString( surf->material->GetName() );
+		demo->WriteHashString( surf->material != NULL ? surf->material->GetName() : "" );
 	}
 }
 
@@ -139,8 +141,9 @@ void idGuiModel::ReadFromDemo( idDemoFile *demo ) {
 	surfaces.SetNum( i, false );
 	for ( j = 0 ; j < i ; j++ ) {
 		guiModelSurface_t	*surf = &surfaces[j];
+		int					materialPresent;
 		
-		demo->ReadInt( (int&)surf->material );
+		demo->ReadInt( materialPresent );
 		demo->ReadFloat( surf->color[0] );
 		demo->ReadFloat( surf->color[1] );
 		demo->ReadFloat( surf->color[2] );
@@ -149,7 +152,8 @@ void idGuiModel::ReadFromDemo( idDemoFile *demo ) {
 		demo->ReadInt( surf->numVerts );
 		demo->ReadInt( surf->firstIndex );
 		demo->ReadInt( surf->numIndexes );
-		surf->material = declManager->FindMaterial( demo->ReadHashString() );
+		const char *materialName = demo->ReadHashString();
+		surf->material = materialPresent ? declManager->FindMaterial( materialName ) : NULL;
 	}
 }
 
@@ -649,4 +653,3 @@ void idGuiModel::DrawStretchTri( idVec2 p1, idVec2 p2, idVec2 p3, idVec2 t1, idV
 
 	memcpy( &verts[numVerts], tempVerts, vertCount * sizeof( verts[0] ) );
 }
-

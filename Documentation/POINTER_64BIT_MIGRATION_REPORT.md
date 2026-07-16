@@ -2,6 +2,327 @@
 
 Status: in progress. This report tracks the codebase-wide 32-bit pointer audit, p_ pointer-variable renaming, ABI impact, and verification. It is intentionally additive so each verified slice can update the same ledger.
 
+## 2026-07-16 Script Size And Render Demo Command Alias Slice
+
+### Files Changed
+
+- `neo/game/script/Script_Program.cpp`
+- `neo/d3xp/script/Script_Program.cpp`
+- `neo/renderer/RenderWorld_demo.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idScriptObject::Save` base and d3xp object `size_t size` | Savegame field / explicit 32-bit size field | Made the existing 32-bit `WriteInt` format explicit with a bounds check before casting `size_t` to `int`. |
+| `idScriptObject::Restore` base and d3xp object `size_t size` | Savegame field / explicit 32-bit size field | Replaced `ReadInt( (int &)size )` with an explicit signed 32-bit temporary, negative-size validation, and `size_t` cast after validation. |
+| `idRenderWorldLocal::ProcessDemoCommand` `demoCommand_t dc` | Demo stream field / serialization enum | Replaced `ReadInt( (int&)dc )` with an explicit 32-bit integer temporary and `demoCommand_t` cast. |
+| Demo command enum width | Serialization binary-format assertion | Added a local `static_assert` so `demoCommand_t` remains tied to the existing 32-bit demo command slot. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. Script object payload sizes and render demo commands remain serialized as the same 32-bit integer slots; the code now validates/casts explicitly instead of aliasing `size_t` or enum storage through `int&`.
+
+### Verification Log For This Slice
+
+- `rg -n "\(int&\)|\(int &\)" neo\idlib neo\framework neo\game neo\d3xp neo\renderer`: no remaining type-punned integer reference aliases in the audited target directories.
+- `rg -n "sizeValue|static_cast<int>\( size \)|static_cast<size_t>\( sizeValue \)|INT_MAX|demoCommandValue|static_cast<demoCommand_t>|sizeof\( demoCommand_t \) == sizeof\( int \)" neo\game\script\Script_Program.cpp neo\d3xp\script\Script_Program.cpp neo\renderer\RenderWorld_demo.cpp`: confirmed the explicit script-size and render-demo command temporaries, casts, bounds checks, and enum width guard are present.
+- `git diff --check`: passed before and after build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: initially exposed that `idSaveGame` has no save-side `Error` method for the new overflow guard; after switching that guard to `gameLocal.Error`, the release build passed, rebuilt base/d3xp script surfaces and `RenderWorld_demo.cpp`, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the same script/demo surfaces for the dedicated preset and linked `DedServer.exe` with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release/dedicated rebuilds.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 Animator Joint Modifier Savegame Alias Slice
+
+### Files Changed
+
+- `neo/game/anim/Anim_Blend.cpp`
+- `neo/d3xp/anim/Anim_Blend.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idAnimator::Save` base and d3xp joint modifier transforms | Savegame field / serialization enum | Replaced type-punned `WriteInt( (int&)...)` enum aliases with explicit `static_cast<int>` writes for `jointModTransform_t` position and axis modifiers. |
+| `idAnimator::Save` base and d3xp AF pose joint modifiers | Savegame field / serialization enum | Replaced type-punned `WriteInt( (int&)AFPoseJointMods[i].mod )` with an explicit `static_cast<int>` write for `AFJointModType_t`. |
+| `idAnimator::Restore` base and d3xp joint modifier joint handles | Savegame field / renderer model joint handle | Replaced `ReadInt( (int&)jointMods[i]->jointnum )` with an explicit 32-bit integer temporary and `jointHandle_t` cast. |
+| `idAnimator::Restore` base and d3xp joint modifier transforms | Savegame field / serialization enum | Replaced transform-position and transform-axis restore aliases with explicit 32-bit integer temporaries and `jointModTransform_t` casts. |
+| `idAnimator::Restore` base and d3xp AF pose joint modifiers | Savegame field / serialization enum | Replaced AF pose modifier restore aliases with explicit 32-bit integer temporaries and `AFJointModType_t` casts. |
+| Animator joint-handle and enum widths | Serialization binary-format assertions | Added local `static_assert` checks so joint handles, joint modifier transforms, and AF joint modifier enum values remain tied to existing 32-bit save stream fields. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. Animator joint modifiers remain serialized as the same 32-bit integer slots used by the existing save format; restore now reconstructs typed joint handles and enum values explicitly without aliasing enum or handle storage through `int&`.
+
+### Verification Log For This Slice
+
+- `rg -n "\(int&\)|\(int &\)" neo\game\anim\Anim_Blend.cpp neo\d3xp\anim\Anim_Blend.cpp`: no remaining type-punned integer aliases in the touched animator save/restore files.
+- `rg -n "static_cast<int>\( jointMods\[ i \]->transform_|static_cast<int>\( AFPoseJointMods\[i\]\.mod \)|jointNumValue|jointTransformValue|afJointModValue|static_cast<(jointHandle_t|jointModTransform_t|AFJointModType_t)>|sizeof\( (jointHandle_t|jointModTransform_t|AFJointModType_t) \) == sizeof\( int \)" neo\game\anim\Anim_Blend.cpp neo\d3xp\anim\Anim_Blend.cpp`: confirmed the explicit writes, restore temporaries, typed casts, and width guards are present in both base and d3xp animator paths.
+- `git diff --check`: passed before and after build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp animator surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the same animator surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release/dedicated rebuilds.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 Gameplay Handle And State Restore Serialization Alias Slice
+
+### Files Changed
+
+- `neo/game/Game_local.cpp`
+- `neo/d3xp/Game_local.cpp`
+- `neo/game/Projectile.cpp`
+- `neo/d3xp/Projectile.cpp`
+- `neo/game/Moveable.cpp`
+- `neo/d3xp/Moveable.cpp`
+- `neo/game/Misc.cpp`
+- `neo/d3xp/Misc.cpp`
+- `neo/game/Weapon.cpp`
+- `neo/d3xp/Weapon.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idGameLocal::Restore` base and d3xp `gameType` | Savegame field / serialization enum | Replaced the type-punned `ReadInt( (int &)gameType )` restore alias with an explicit 32-bit integer temporary and `gameType_t` cast. |
+| `idGameLocal::Restore` base and d3xp `playerPVS.h` / `playerConnectedAreas.h` | Savegame field / typed PVS handle hash slot | Replaced unsigned handle-slot aliases with explicit 32-bit integer temporaries and `unsigned int` casts, guarded by a width assertion. |
+| `idProjectile::Restore` base and d3xp `lightDefHandle` | Savegame field / renderer handle | Replaced the `qhandle_t` restore alias with an explicit 32-bit integer temporary and typed handle cast. |
+| `idProjectile::Restore` base and d3xp `state` | Savegame field / serialization enum | Replaced the projectile state restore alias with an explicit 32-bit integer temporary and `projectileState_t` cast. |
+| `idExplodingBarrel::Restore` base and d3xp `state` / renderer handles | Savegame field / serialization enum / renderer handle | Replaced exploding barrel state and `qhandle_t` handle aliases with explicit 32-bit integer temporaries and typed casts. |
+| `idVacuumSeparatorEntity::Restore` and `idFuncPortal::Restore` base and d3xp `portal` | Savegame field / renderer portal handle | Replaced `qhandle_t` portal aliases with explicit 32-bit integer temporaries and typed handle casts. |
+| `idWeapon::Restore` base and d3xp `status` / `ammoType` | Savegame field / serialization enum / explicit index | Replaced weapon status and ammo type aliases with explicit 32-bit integer temporaries and typed casts. |
+| Gameplay handle and enum widths | Serialization binary-format assertions | Added local `static_assert` checks so every touched enum, handle, and PVS hash slot remains tied to the existing 32-bit save stream fields. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. The touched values continue to be written by the existing 32-bit `WriteInt` calls, and restore now reconstructs typed enums, handles, and explicit indices without aliasing their storage through `int&`.
+
+### Verification Log For This Slice
+
+- `rg -n "ReadInt\( \(int &\)(gameType|playerPVS\.h|playerConnectedAreas\.h|lightDefHandle|particleModelDefHandle|state|portal|status|ammoType)" neo\game\Game_local.cpp neo\d3xp\Game_local.cpp neo\game\Projectile.cpp neo\d3xp\Projectile.cpp neo\game\Moveable.cpp neo\d3xp\Moveable.cpp neo\game\Misc.cpp neo\d3xp\Misc.cpp neo\game\Weapon.cpp neo\d3xp\Weapon.cpp`: no remaining type-punned restore aliases for the touched gameplay enum, handle, PVS, portal, weapon, moveable, or projectile fields.
+- `rg -n "gameTypeValue|pvsHandleHashValue|lightDefHandleValue|projectileStateValue|rendererHandleValue|portalValue|weaponStatusValue|ammoTypeValue|static_cast<(gameType_t|qhandle_t|projectileState_t|explode_state_t|weaponStatus_t|ammo_t)>|sizeof\( (gameType_t|qhandle_t|projectileState_t|explode_state_t|weaponStatus_t|ammo_t|unsigned int) \) == sizeof\( int \)" neo\game\Game_local.cpp neo\d3xp\Game_local.cpp neo\game\Projectile.cpp neo\d3xp\Projectile.cpp neo\game\Moveable.cpp neo\d3xp\Moveable.cpp neo\game\Misc.cpp neo\d3xp\Misc.cpp neo\game\Weapon.cpp neo\d3xp\Weapon.cpp`: confirmed the explicit temporaries, casts, and width guards are present in the touched restore paths.
+- `git diff --check`: passed before and after build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp gameplay surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the same gameplay surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release/dedicated rebuilds.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 Physics Enum Restore Serialization Alias Slice
+
+### Files Changed
+
+- `neo/game/physics/Force_Field.cpp`
+- `neo/d3xp/physics/Force_Field.cpp`
+- `neo/game/physics/Physics_AF.cpp`
+- `neo/d3xp/physics/Physics_AF.cpp`
+- `neo/game/physics/Physics_Monster.cpp`
+- `neo/d3xp/physics/Physics_Monster.cpp`
+- `neo/game/physics/Physics_Parametric.cpp`
+- `neo/d3xp/physics/Physics_Parametric.cpp`
+- `neo/game/physics/Physics_Player.cpp`
+- `neo/d3xp/physics/Physics_Player.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idForce_Field::Restore` base and d3xp `type` / `applyType` | Savegame field / serialization enum | Replaced type-punned `ReadInt` aliases with explicit 32-bit integer temporaries and `forceFieldType` / `forceFieldApplyType` casts. |
+| `idAFConstraint::Restore` base and d3xp constraint type marker | Savegame field / serialization enum | Replaced `ReadInt( (int &)t )` with an explicit 32-bit integer temporary and `constraintType_t` cast before the existing type assertion. |
+| `idPhysics_Monster::Restore` base and d3xp `moveResult` | Savegame field / serialization enum | Replaced `ReadInt( (int &)moveResult )` with an explicit 32-bit integer temporary and `monsterMoveResult_t` cast. |
+| `idPhysics_Parametric_RestorePState` base and d3xp extrapolation types | Savegame field / serialization enum | Replaced both `ReadInt( (int &)etype )` reads with an explicit 32-bit integer temporary and `extrapolation_t` cast. |
+| `idPhysics_Player::Restore` base and d3xp `waterLevel` | Savegame field / serialization enum | Replaced `ReadInt( (int &)waterLevel )` with an explicit 32-bit integer temporary and `waterLevel_t` cast. |
+| Physics enum widths | Serialization binary-format assertions | Added local `static_assert` checks so every touched enum remains tied to its existing 32-bit save stream slot. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. The touched physics values remain serialized as the same 32-bit integer slots already written by the matching `WriteInt` calls, and restore now reconstructs enum values explicitly without aliasing enum storage through `int&`.
+
+### Verification Log For This Slice
+
+- `rg -n "ReadInt\( \(int &\)(type|applyType|moveResult|waterLevel|t|etype)|typeValue|applyTypeValue|constraintTypeValue|moveResultValue|waterLevelValue|extrapolationTypeValue|static_cast<(forceFieldType|forceFieldApplyType|constraintType_t|monsterMoveResult_t|waterLevel_t|extrapolation_t)>|sizeof\( (forceFieldType|forceFieldApplyType|constraintType_t|monsterMoveResult_t|waterLevel_t|extrapolation_t) \) == sizeof\( int \)" neo\game\physics neo\d3xp\physics`: confirmed the explicit temporaries, casts, and enum width guards are present in the touched physics restore paths.
+- `rg -n "ReadInt\( \(int &\)(type|applyType|moveResult|waterLevel|t|etype)" neo\game\physics neo\d3xp\physics`: no remaining type-punned restore aliases for the touched physics enum fields.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp physics game DLL surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the physics game DLL surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 AI Move-State Restore Serialization Alias Slice
+
+### Files Changed
+
+- `neo/game/ai/AI.cpp`
+- `neo/d3xp/ai/AI.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idMoveState::Restore` base and d3xp `moveType` | Savegame field / serialization enum | Replaced `ReadInt( (int &)moveType )` with an explicit 32-bit integer temporary and `moveType_t` cast. |
+| `idMoveState::Restore` base and d3xp `moveCommand` | Savegame field / serialization enum | Replaced `ReadInt( (int &)moveCommand )` with an explicit 32-bit integer temporary and `moveCommand_t` cast. |
+| `idMoveState::Restore` base and d3xp `moveStatus` | Savegame field / serialization enum | Replaced `ReadInt( (int &)moveStatus )` with an explicit 32-bit integer temporary and `moveStatus_t` cast. |
+| AI move-state enum widths | Serialization binary-format assertions | Added local `static_assert` checks so each AI movement enum remains tied to its existing 32-bit save stream slot. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. AI movement state values remain serialized as the same 32-bit integer slots already written by `idMoveState::Save`, and restore now reconstructs the enum values explicitly without aliasing enum storage through `int&`.
+
+### Verification Log For This Slice
+
+- `rg -n "\(int &\)(moveType|moveCommand|moveStatus)|move(Type|Command|Status)Value|static_cast<(moveType_t|moveCommand_t|moveStatus_t)>|sizeof\( move(Type|Command|Status)_t \) == sizeof\( int \)" neo\game\ai\AI.cpp neo\d3xp\ai\AI.cpp`: confirmed the explicit temporaries, casts, and enum width guards are present in both base and d3xp AI move-state restore paths.
+- `rg -n "ReadInt\( \(int &\)(moveType|moveCommand|moveStatus)" neo\game\ai\AI.cpp neo\d3xp\ai\AI.cpp`: no remaining type-punned AI move-state restore reads in the touched files.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp AI game DLL surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the AI game DLL surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 Contact Trace Restore Serialization Alias Slice
+
+### Files Changed
+
+- `neo/game/gamesys/Event.cpp`
+- `neo/d3xp/gamesys/Event.cpp`
+- `neo/game/gamesys/SaveGame.cpp`
+- `neo/d3xp/gamesys/SaveGame.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idEvent::RestoreTrace` base and d3xp `trace.c.type` | Savegame field / serialization enum | Replaced `ReadInt( (int&)trace.c.type )` with an explicit 32-bit integer temporary and `contactType_t` cast. |
+| `idRestoreGame::ReadContactInfo` base and d3xp `contactInfo.type` | Savegame field / serialization enum | Replaced `ReadInt( (int &)contactInfo.type )` with an explicit 32-bit integer temporary and `contactType_t` cast. |
+| Contact type savegame width | Serialization binary-format assertion | Reused the existing event trace `contactType_t` width assertions and added local savegame read assertions so contact-type fields remain tied to 32-bit save stream slots. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. Contact trace types remain serialized as the same 32-bit integer slots already written by the matching `WriteInt` calls, and restore now reconstructs the enum values explicitly without aliasing enum storage through `int&`.
+
+### Verification Log For This Slice
+
+- `rg -n "ReadInt\( \(int ?&\)(trace\.c\.type|contactInfo\.type)|ReadInt\( contactType \)|static_cast<contactType_t>|sizeof\( contactType_t \) == sizeof\( int \)|WriteInt\( \(int\)contactInfo\.type|WriteInt\( trace\.c\.type" neo\game\gamesys\Event.cpp neo\d3xp\gamesys\Event.cpp neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.cpp`: confirmed the explicit contact-type temporaries/casts, width guards, and unchanged 32-bit write paths are present.
+- `rg -n "\(int ?&\)(trace\.c\.type|contactInfo\.type)" neo\game\gamesys\Event.cpp neo\d3xp\gamesys\Event.cpp neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.cpp`: no remaining type-punned contact-type restore aliases in the touched base/d3xp files.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp event and savegame surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the event and savegame surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 Mover Command And State Restore Serialization Alias Slice
+
+### Files Changed
+
+- `neo/game/Mover.cpp`
+- `neo/d3xp/Mover.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idMover::Restore` base and d3xp `lastCommand` | Savegame field / serialization enum | Replaced `ReadInt( (int &)lastCommand )` with an explicit 32-bit integer temporary and `moverCommand_t` cast. |
+| `idElevator::Restore` base and d3xp `state` | Savegame field / serialization enum | Replaced `ReadInt( (int &)state )` with an explicit 32-bit integer temporary and `elevatorState_t` cast. |
+| `idMover_Binary::Restore` base and d3xp `moverState` | Savegame field / serialization enum | Replaced `ReadInt( (int &)moverState )` with an explicit 32-bit integer temporary and `moverState_t` cast. |
+| Mover command/state enum widths | Serialization binary-format assertions | Added local `static_assert` checks so each enum remains tied to its existing 32-bit save stream slot. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. The touched mover command/state values remain serialized as the same 32-bit integer slots already written by the matching `WriteInt` calls, and the explicit restore casts remove type-punned references without changing the byte layout.
+
+### Verification Log For This Slice
+
+- `rg -n "\(int &\)(lastCommand|state|moverState)|commandValue|stateValue|moverStateValue|moverCommand_t must remain|elevatorState_t must remain|moverState_t must remain|static_cast<(moverCommand_t|elevatorState_t|moverState_t)>" neo\game\Mover.cpp neo\d3xp\Mover.cpp`: confirmed the explicit temporaries, casts, and enum width guards are present in both base and d3xp mover restore paths.
+- `rg -n "ReadInt\( \(int &\)|ReadInt\( \(int&\)" neo\game\Mover.cpp neo\d3xp\Mover.cpp`: no remaining type-punned `ReadInt` aliases in the touched mover files.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp mover game DLL surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the mover game DLL surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 Mover Stage Restore Serialization Alias Slice
+
+### Files Changed
+
+- `neo/game/Mover.cpp`
+- `neo/d3xp/Mover.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idMover::Restore` base and d3xp `move.stage` | Savegame field / serialization enum | Replaced `ReadInt( (int&)move.stage )` with an explicit 32-bit integer temporary and `moveStage_t` cast. |
+| `idMover::Restore` base and d3xp `rot.stage` | Savegame field / serialization enum | Replaced `ReadInt( (int&)rot.stage )` with an explicit 32-bit integer temporary and `moveStage_t` cast. |
+| `idMover::moveStage_t` savegame width | Serialization binary-format assertion | Added a local `static_assert( sizeof( moveStage_t ) == sizeof( int ) )` in `Restore` so the stage enum remains tied to the existing 32-bit save stream slots. |
+
+This slice does not widen savegame, network, demo, journal, or renderer handle fields. Mover stages remain serialized as the same 32-bit integer slots already written by the existing `WriteInt( move.stage )` and `WriteInt( rot.stage )` calls. The network snapshot path remains unchanged and continues to exchange mover stages through the existing 3-bit `ReadBits( 3 )` / `WriteBits` fields.
+
+### Verification Log For This Slice
+
+- `rg -n "ReadInt\( \(int&\)(move|rot)\.stage|static_cast<moveStage_t>|sizeof\( moveStage_t \) == sizeof\( int \)|WriteInt\( (move|rot)\.stage|ReadBits\( 3 \)" neo\game\Mover.cpp neo\d3xp\Mover.cpp`: confirmed the stale type-punned stage restore reads are gone and the explicit cast, width guard, existing save writes, and unchanged network reads are present.
+- `rg -n "\(int&\)(move|rot)\.stage|ReadInt\( stageValue \)|moveStage_t must remain int-sized|WriteInt\( (move|rot)\.stage|ReadBits\( 3 \)" neo\game\Mover.cpp neo\d3xp\Mover.cpp`: confirmed both restore paths read through the shared 32-bit temporary and no mover stage `int&` aliases remain.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp mover game DLL surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the mover game DLL surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 IK Joint Handle Restore Serialization Alias Slice
+
+### Files Changed
+
+- `neo/game/IK.cpp`
+- `neo/d3xp/IK.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idIK_Walk::Restore` base and d3xp leg/waist joint handles | Savegame field / renderer model handle | Replaced `ReadInt( (int&)...)` restore aliases for foot, ankle, knee, hip, direction, and waist joint handles with explicit 32-bit integer temporaries/casts through `IK_ReadJointHandle`. |
+| `idIK_Reach::Restore` base and d3xp arm joint handles | Savegame field / renderer model handle | Replaced `ReadInt( (int&)...)` restore aliases for hand, elbow, shoulder, and direction joint handles with explicit 32-bit integer temporaries/casts through `IK_ReadJointHandle`. |
+
+This slice does not widen savegame, network, demo, journal, renderer handle, or model fields. IK joint handles remain serialized as the same 32-bit integer slots already written by the existing `WriteInt` calls. `jointHandle_t` remains guarded as int-sized in `Model.h`, so the explicit cast preserves the existing save layout while removing type-punned references during restore.
+
+### Verification Log For This Slice
+
+- `rg -n "ReadInt\( \(int&\)(footJoints|ankleJoints|kneeJoints|hipJoints|dirJoints|waistJoint|handJoints|elbowJoints|shoulderJoints)|IK_ReadJointHandle|static_cast<jointHandle_t>|ReadInt\( jointValue \)|sizeof\( jointHandle_t \) == sizeof\( int \)" neo\game\IK.cpp neo\d3xp\IK.cpp neo\renderer\Model.h`: confirmed the helper path, explicit cast, and joint-handle width guard are present.
+- `rg -n "\(int&\).*Joints|\(int&\)waistJoint|IK_ReadJointHandle" neo\game\IK.cpp neo\d3xp\IK.cpp`: no remaining type-punned IK joint-handle restore reads in the touched base/d3xp files.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt base/d3xp IK game DLL surfaces, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt the IK game DLL surfaces for the dedicated preset with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
+## 2026-07-16 GUI Model Demo Material Marker Serialization Slice
+
+### Files Changed
+
+- `neo/renderer/GuiModel.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idGuiModel::WriteToDemo` GUI surface material slot | Serialization / renderer handle interop | Replaced `WriteInt( (int&)surf->material )` with an explicit 32-bit material-present marker. |
+| `idGuiModel::ReadFromDemo` GUI surface material slot | Serialization / renderer handle interop | Replaced `ReadInt( (int&)surf->material )` with a 32-bit temporary marker before reconstructing the material pointer from the following hash string. |
+| GUI model material marker width | Serialization binary-format assertion | Added `static_assert( sizeof( int ) == 4 )` so the GUI-model demo material marker remains tied to the existing 32-bit demo stream field. |
+
+This slice preserves the GUI model demo byte layout for the touched surface field: each former material pointer slot is still one 32-bit integer field, followed by the existing material-name hash string. New demos write a deterministic 0/1 marker instead of the low 32 bits of a process-local material address. Legacy demos that wrote a nonzero truncated material pointer still replay because the reader treats the marker as presence and resolves the live material pointer from the unchanged following material name. No savegame or network fields were widened.
+
+### Verification Log For This Slice
+
+- `rg -n "WriteInt\( \(int&\)surf->material|ReadInt\( \(int&\)surf->material|static_assert\( sizeof\( int \) == 4|materialPresent|WriteHashString\( surf->material != NULL" neo\renderer\GuiModel.cpp`: confirmed the stale type-punned material pointer serialization is gone and the explicit marker/assertion path is present.
+- `rg -n "\(int&\).*material|surf->material\)|materialPresent|GUI model demo material markers" neo\renderer\GuiModel.cpp`: no remaining material pointer `int&` cast in the touched GUI model demo path.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed; rebuilt `neo/renderer/GuiModel.cpp`, reran TypeInfo, and linked runtime outputs with existing legacy warning noise but no errors.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed; rebuilt `neo/renderer/GuiModel.cpp` for the dedicated preset and linked `DedServer.exe`.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed; test preset target graph reported no work remaining after the release rebuild.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `rg --files -g "*.save" -g "*.sav" -g "*.savegame" -g "*.SAVE" -g "*.SAV"`: no checked-in save corpus was found for a save/load compatibility smoke.
+
 ## 2026-07-16 Framework DemoFile Pointer Storage Name Slice
 
 ### Files Changed

@@ -1137,7 +1137,9 @@ void idEvent::RestoreTrace( idRestoreGame *savefile, trace_t &trace ) {
 	savefile->ReadFloat( trace.fraction );
 	savefile->ReadVec3( trace.endpos );
 	savefile->ReadMat3( trace.endAxis );
-	savefile->ReadInt( (int&)trace.c.type );
+	int contactType;
+	savefile->ReadInt( contactType );
+	trace.c.type = static_cast<contactType_t>( contactType );
 	savefile->ReadVec3( trace.c.point );
 	savefile->ReadVec3( trace.c.normal );
 	savefile->ReadFloat( trace.c.dist );

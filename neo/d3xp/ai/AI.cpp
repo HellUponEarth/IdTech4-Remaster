@@ -107,9 +107,19 @@ idMoveState::Restore
 =====================
 */
 void idMoveState::Restore( idRestoreGame *savefile ) {
-	savefile->ReadInt( (int &)moveType );
-	savefile->ReadInt( (int &)moveCommand );
-	savefile->ReadInt( (int &)moveStatus );
+	static_assert( sizeof( moveType_t ) == sizeof( int ), "moveType_t must remain int-sized for AI move-state savegame serialization" );
+	static_assert( sizeof( moveCommand_t ) == sizeof( int ), "moveCommand_t must remain int-sized for AI move-state savegame serialization" );
+	static_assert( sizeof( moveStatus_t ) == sizeof( int ), "moveStatus_t must remain int-sized for AI move-state savegame serialization" );
+
+	int moveTypeValue;
+	int moveCommandValue;
+	int moveStatusValue;
+	savefile->ReadInt( moveTypeValue );
+	moveType = static_cast<moveType_t>( moveTypeValue );
+	savefile->ReadInt( moveCommandValue );
+	moveCommand = static_cast<moveCommand_t>( moveCommandValue );
+	savefile->ReadInt( moveStatusValue );
+	moveStatus = static_cast<moveStatus_t>( moveStatusValue );
 	savefile->ReadVec3( moveDest );
 	savefile->ReadVec3( moveDir );
 	goalEntity.Restore( savefile );

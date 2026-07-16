@@ -149,7 +149,10 @@ void idProjectile::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( thrust_end );
 
 	savefile->ReadRenderLight( renderLight );
-	savefile->ReadInt( (int &)lightDefHandle );
+	static_assert( sizeof( qhandle_t ) == sizeof( int ), "qhandle_t must remain int-sized for projectile renderer handle savegame serialization" );
+	int lightDefHandleValue;
+	savefile->ReadInt( lightDefHandleValue );
+	lightDefHandle = static_cast<qhandle_t>( lightDefHandleValue );
 	savefile->ReadVec3( lightOffset );
 	savefile->ReadInt( lightStartTime );
 	savefile->ReadInt( lightEndTime );
@@ -158,7 +161,10 @@ void idProjectile::Restore( idRestoreGame *savefile ) {
 	savefile->ReadParticle( smokeFly );
 	savefile->ReadInt( smokeFlyTime );
 
-	savefile->ReadInt( (int &)state );
+	static_assert( sizeof( projectileState_t ) == sizeof( int ), "projectileState_t must remain int-sized for projectile savegame serialization" );
+	int projectileStateValue;
+	savefile->ReadInt( projectileStateValue );
+	state = static_cast<projectileState_t>( projectileStateValue );
 
 	savefile->ReadFloat( damagePower );
 

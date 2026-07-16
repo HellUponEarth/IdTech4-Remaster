@@ -112,10 +112,13 @@ bool		idRenderWorldLocal::ProcessDemoCommand( idDemoFile *readDemo, renderView_t
 	demoCommand_t	dc;
 	qhandle_t		h;
 
-	if ( !readDemo->ReadInt( (int&)dc ) ) {
+	static_assert( sizeof( demoCommand_t ) == sizeof( int ), "demoCommand_t must remain int-sized for render demo command serialization" );
+	int demoCommandValue;
+	if ( !readDemo->ReadInt( demoCommandValue ) ) {
 		// a demoShot may not have an endFrame, but it is still valid
 		return false;
 	}
+	dc = static_cast<demoCommand_t>( demoCommandValue );
 
 	switch( dc ) {
 	case DC_LOADMAP:

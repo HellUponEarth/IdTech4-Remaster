@@ -1331,7 +1331,10 @@ bool idGameLocal::InitFromSaveGame( const char *mapName, idRenderWorld *renderWo
 	savegame.ReadBool( skipCinematic );
 
 	savegame.ReadBool( isMultiplayer );
-	savegame.ReadInt( (int &)gameType );
+	static_assert( sizeof( gameType_t ) == sizeof( int ), "gameType_t must remain int-sized for game-local savegame serialization" );
+	int gameTypeValue;
+	savegame.ReadInt( gameTypeValue );
+	gameType = static_cast<gameType_t>( gameTypeValue );
 
 	savegame.ReadInt( framenum );
 	savegame.ReadInt( previousTime );
@@ -1376,9 +1379,13 @@ bool idGameLocal::InitFromSaveGame( const char *mapName, idRenderWorld *renderWo
 	savegame.ReadDict( &spawnArgs );
 
 	savegame.ReadInt( playerPVS.i );
-	savegame.ReadInt( (int &)playerPVS.h );
+	static_assert( sizeof( unsigned int ) == sizeof( int ), "pvsHandle_t hash slot must remain 32-bit for game-local savegame serialization" );
+	int pvsHandleHashValue;
+	savegame.ReadInt( pvsHandleHashValue );
+	playerPVS.h = static_cast<unsigned int>( pvsHandleHashValue );
 	savegame.ReadInt( playerConnectedAreas.i );
-	savegame.ReadInt( (int &)playerConnectedAreas.h );
+	savegame.ReadInt( pvsHandleHashValue );
+	playerConnectedAreas.h = static_cast<unsigned int>( pvsHandleHashValue );
 
 	savegame.ReadVec3( gravity );
 

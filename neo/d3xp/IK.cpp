@@ -31,6 +31,12 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "Game_local.h"
 
+static jointHandle_t IK_ReadJointHandle( idRestoreGame *p_saveFile ) {
+	int jointValue;
+	p_saveFile->ReadInt( jointValue );
+	return static_cast<jointHandle_t>( jointValue );
+}
+
 /*
 ===============================================================================
 
@@ -367,16 +373,16 @@ void idIK_Walk::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( numLegs );
 	savefile->ReadInt( enabledLegs );
 	for ( i = 0; i < MAX_LEGS; i++ )
-		savefile->ReadInt( (int&)footJoints[i] );
+		footJoints[i] = IK_ReadJointHandle( savefile );
 	for ( i = 0; i < MAX_LEGS; i++ )
-		savefile->ReadInt( (int&)ankleJoints[i] );
+		ankleJoints[i] = IK_ReadJointHandle( savefile );
 	for ( i = 0; i < MAX_LEGS; i++ )
-		savefile->ReadInt( (int&)kneeJoints[i] );
+		kneeJoints[i] = IK_ReadJointHandle( savefile );
 	for ( i = 0; i < MAX_LEGS; i++ )
-		savefile->ReadInt( (int&)hipJoints[i] );
+		hipJoints[i] = IK_ReadJointHandle( savefile );
 	for ( i = 0; i < MAX_LEGS; i++ )
-		savefile->ReadInt( (int&)dirJoints[i] );
-	savefile->ReadInt( (int&)waistJoint );
+		dirJoints[i] = IK_ReadJointHandle( savefile );
+	waistJoint = IK_ReadJointHandle( savefile );
 	
 	for ( i = 0; i < MAX_LEGS; i++ )
 		savefile->ReadVec3( hipForward[i] );
@@ -922,13 +928,13 @@ void idIK_Reach::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( numArms );
 	savefile->ReadInt( enabledArms );
 	for ( i = 0; i <  MAX_ARMS; i++ )
-		savefile->ReadInt( (int&)handJoints[i] );
+		handJoints[i] = IK_ReadJointHandle( savefile );
 	for ( i = 0; i <  MAX_ARMS; i++ )
-		savefile->ReadInt( (int&)elbowJoints[i] );
+		elbowJoints[i] = IK_ReadJointHandle( savefile );
 	for ( i = 0; i <  MAX_ARMS; i++ )
-		savefile->ReadInt( (int&)shoulderJoints[i] );
+		shoulderJoints[i] = IK_ReadJointHandle( savefile );
 	for ( i = 0; i <  MAX_ARMS; i++ )
-		savefile->ReadInt( (int&)dirJoints[i] );
+		dirJoints[i] = IK_ReadJointHandle( savefile );
 		
 	for ( i = 0; i <  MAX_ARMS; i++ )
 		savefile->ReadVec3( shoulderForward[i] );

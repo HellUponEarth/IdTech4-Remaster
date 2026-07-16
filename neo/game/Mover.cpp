@@ -230,19 +230,26 @@ idMover::Restore
 ================
 */
 void idMover::Restore( idRestoreGame *savefile ) {
+	static_assert( sizeof( moveStage_t ) == sizeof( int ), "moveStage_t must remain int-sized for mover savegame stage serialization" );
+	static_assert( sizeof( moverCommand_t ) == sizeof( int ), "moverCommand_t must remain int-sized for mover savegame command serialization" );
+
 	int i, num;
+	int stageValue;
+	int commandValue;
 	bool hasSpline = false;
 
 	savefile->ReadStaticObject( physicsObj );
 	RestorePhysics( &physicsObj );
 
-	savefile->ReadInt( (int&)move.stage );
+	savefile->ReadInt( stageValue );
+	move.stage = static_cast<moveStage_t>( stageValue );
 	savefile->ReadInt( move.acceleration );
 	savefile->ReadInt( move.movetime );
 	savefile->ReadInt( move.deceleration );
 	savefile->ReadVec3( move.dir );
 	
-	savefile->ReadInt( (int&)rot.stage );
+	savefile->ReadInt( stageValue );
+	rot.stage = static_cast<moveStage_t>( stageValue );
 	savefile->ReadInt( rot.acceleration );
 	savefile->ReadInt( rot.movetime );
 	savefile->ReadInt( rot.deceleration );
@@ -264,7 +271,8 @@ void idMover::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( acceltime );
 	savefile->ReadBool( stopRotation );
 	savefile->ReadBool( useSplineAngles );
-	savefile->ReadInt( (int &)lastCommand );
+	savefile->ReadInt( commandValue );
+	lastCommand = static_cast<moverCommand_t>( commandValue );
 	savefile->ReadFloat( damage );
 
 	savefile->ReadInt( areaPortal );
@@ -1629,9 +1637,13 @@ idElevator::Restore
 ================
 */
 void idElevator::Restore( idRestoreGame *savefile ) {
-	int i, num;
+	static_assert( sizeof( elevatorState_t ) == sizeof( int ), "elevatorState_t must remain int-sized for elevator savegame state serialization" );
 
-	savefile->ReadInt( (int &)state );
+	int i, num;
+	int stateValue;
+
+	savefile->ReadInt( stateValue );
+	state = static_cast<elevatorState_t>( stateValue );
 
 	savefile->ReadInt( num );
 	for ( i = 0; i < num; i++ ) {
@@ -2208,12 +2220,16 @@ idMover_Binary::Restore
 ================
 */
 void idMover_Binary::Restore( idRestoreGame *savefile ) {
+	static_assert( sizeof( moverState_t ) == sizeof( int ), "moverState_t must remain int-sized for binary mover savegame state serialization" );
+
 	int		i, num, portalState;
+	int		moverStateValue;
 	idStr	temp;
 
 	savefile->ReadVec3( pos1 );
 	savefile->ReadVec3( pos2 );
-	savefile->ReadInt( (int &)moverState );
+	savefile->ReadInt( moverStateValue );
+	moverState = static_cast<moverState_t>( moverStateValue );
 
 	savefile->ReadObject( reinterpret_cast<idClass *&>( moveMaster ) );
 	savefile->ReadObject( reinterpret_cast<idClass *&>( activateChain ) );

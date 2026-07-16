@@ -1452,7 +1452,11 @@ idRestoreGame::ReadContactInfo
 ===================
 */
 void idRestoreGame::ReadContactInfo( contactInfo_t &contactInfo ) {
-	ReadInt( (int &)contactInfo.type );
+	static_assert( sizeof( contactType_t ) == sizeof( int ), "contactType_t must remain int-sized for contact savegame serialization" );
+
+	int contactType;
+	ReadInt( contactType );
+	contactInfo.type = static_cast<contactType_t>( contactType );
 	ReadVec3( contactInfo.point );
 	ReadVec3( contactInfo.normal );
 	ReadFloat( contactInfo.dist );

@@ -334,7 +334,11 @@ void idPhysics_Monster::Restore( idRestoreGame *savefile ) {
 	savefile->ReadBool( useVelocityMove );
 	savefile->ReadBool( noImpact );
 
-	savefile->ReadInt( (int &)moveResult );
+	static_assert( sizeof( monsterMoveResult_t ) == sizeof( int ), "monsterMoveResult_t must remain int-sized for monster physics savegame serialization" );
+
+	int moveResultValue;
+	savefile->ReadInt( moveResultValue );
+	moveResult = static_cast<monsterMoveResult_t>( moveResultValue );
 	savefile->ReadObject( reinterpret_cast<idClass *&>( blockingEntity ) );
 }
 

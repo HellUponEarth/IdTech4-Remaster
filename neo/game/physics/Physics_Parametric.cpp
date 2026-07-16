@@ -202,7 +202,10 @@ idPhysics_Parametric_RestorePState
 ================
 */
 void idPhysics_Parametric_RestorePState( idRestoreGame *savefile, parametricPState_t &state ) {
+	static_assert( sizeof( extrapolation_t ) == sizeof( int ), "extrapolation_t must remain int-sized for parametric physics savegame serialization" );
+
 	extrapolation_t etype;
+	int extrapolationTypeValue;
 	float startTime, duration, accelTime, decelTime, startValue, endValue;
 	idVec3 linearStartValue, linearBaseSpeed, linearSpeed, startPos, endPos;
 	idAngles angularStartValue, angularBaseSpeed, angularSpeed, startAng, endAng;
@@ -216,7 +219,8 @@ void idPhysics_Parametric_RestorePState( idRestoreGame *savefile, parametricPSta
 	savefile->ReadVec3( state.localOrigin );
 	savefile->ReadAngles( state.localAngles );
 
-	savefile->ReadInt( (int &)etype );
+	savefile->ReadInt( extrapolationTypeValue );
+	etype = static_cast<extrapolation_t>( extrapolationTypeValue );
 	savefile->ReadFloat( startTime );
 	savefile->ReadFloat( duration );
 	savefile->ReadVec3( linearStartValue );
@@ -225,7 +229,8 @@ void idPhysics_Parametric_RestorePState( idRestoreGame *savefile, parametricPSta
 
 	state.linearExtrapolation.Init( startTime, duration, linearStartValue, linearBaseSpeed, linearSpeed, etype );
 
-	savefile->ReadInt( (int &)etype );
+	savefile->ReadInt( extrapolationTypeValue );
+	etype = static_cast<extrapolation_t>( extrapolationTypeValue );
 	savefile->ReadFloat( startTime );
 	savefile->ReadFloat( duration );
 	savefile->ReadAngles( angularStartValue );

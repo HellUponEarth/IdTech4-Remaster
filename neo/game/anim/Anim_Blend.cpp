@@ -3058,6 +3058,10 @@ void idAnimator::Save( idSaveGame *savefile ) const {
 	int i;
 	int j;
 
+	static_assert( sizeof( jointHandle_t ) == sizeof( int ), "jointHandle_t must remain int-sized for animator savegame serialization" );
+	static_assert( sizeof( jointModTransform_t ) == sizeof( int ), "jointModTransform_t must remain int-sized for animator savegame serialization" );
+	static_assert( sizeof( AFJointModType_t ) == sizeof( int ), "AFJointModType_t must remain int-sized for animator savegame serialization" );
+
 	savefile->WriteModelDef( modelDef );
 	savefile->WriteObject( entity );
 
@@ -3066,8 +3070,8 @@ void idAnimator::Save( idSaveGame *savefile ) const {
 		savefile->WriteInt( jointMods[ i ]->jointnum );
 		savefile->WriteMat3( jointMods[ i ]->mat );
 		savefile->WriteVec3( jointMods[ i ]->pos );
-		savefile->WriteInt( (int&)jointMods[ i ]->transform_pos );
-		savefile->WriteInt( (int&)jointMods[ i ]->transform_axis );
+		savefile->WriteInt( static_cast<int>( jointMods[ i ]->transform_pos ) );
+		savefile->WriteInt( static_cast<int>( jointMods[ i ]->transform_axis ) );
 	}
 	
 	savefile->WriteInt( numJoints );
@@ -3092,7 +3096,7 @@ void idAnimator::Save( idSaveGame *savefile ) const {
 	
 	savefile->WriteInt( AFPoseJointMods.Num() );
 	for ( i = 0; i < AFPoseJointMods.Num(); i++ ) {
-		savefile->WriteInt( (int&)AFPoseJointMods[i].mod );
+		savefile->WriteInt( static_cast<int>( AFPoseJointMods[i].mod ) );
 		savefile->WriteMat3( AFPoseJointMods[i].axis );
 		savefile->WriteVec3( AFPoseJointMods[i].origin );
 	}
@@ -3130,6 +3134,10 @@ void idAnimator::Restore( idRestoreGame *savefile ) {
 	int j;
 	int num;
 
+	static_assert( sizeof( jointHandle_t ) == sizeof( int ), "jointHandle_t must remain int-sized for animator savegame serialization" );
+	static_assert( sizeof( jointModTransform_t ) == sizeof( int ), "jointModTransform_t must remain int-sized for animator savegame serialization" );
+	static_assert( sizeof( AFJointModType_t ) == sizeof( int ), "AFJointModType_t must remain int-sized for animator savegame serialization" );
+
 	savefile->ReadModelDef( modelDef );
 	savefile->ReadObject( reinterpret_cast<idClass *&>( entity ) );
 
@@ -3137,11 +3145,16 @@ void idAnimator::Restore( idRestoreGame *savefile ) {
 	jointMods.SetNum( num );
 	for( i = 0; i < num; i++ ) {
 		jointMods[ i ] = new jointMod_t;
-		savefile->ReadInt( (int&)jointMods[ i ]->jointnum );
+		int jointNumValue;
+		savefile->ReadInt( jointNumValue );
+		jointMods[ i ]->jointnum = static_cast<jointHandle_t>( jointNumValue );
 		savefile->ReadMat3( jointMods[ i ]->mat );
 		savefile->ReadVec3( jointMods[ i ]->pos );
-		savefile->ReadInt( (int&)jointMods[ i ]->transform_pos );
-		savefile->ReadInt( (int&)jointMods[ i ]->transform_axis );
+		int jointTransformValue;
+		savefile->ReadInt( jointTransformValue );
+		jointMods[ i ]->transform_pos = static_cast<jointModTransform_t>( jointTransformValue );
+		savefile->ReadInt( jointTransformValue );
+		jointMods[ i ]->transform_axis = static_cast<jointModTransform_t>( jointTransformValue );
 	}
 	
 	savefile->ReadInt( numJoints );
@@ -3171,7 +3184,9 @@ void idAnimator::Restore( idRestoreGame *savefile ) {
 	AFPoseJointMods.SetGranularity( 1 );
 	AFPoseJointMods.SetNum( num );
 	for ( i = 0; i < AFPoseJointMods.Num(); i++ ) {
-		savefile->ReadInt( (int&)AFPoseJointMods[i].mod );
+		int afJointModValue;
+		savefile->ReadInt( afJointModValue );
+		AFPoseJointMods[i].mod = static_cast<AFJointModType_t>( afJointModValue );
 		savefile->ReadMat3( AFPoseJointMods[i].axis );
 		savefile->ReadVec3( AFPoseJointMods[i].origin );
 	}

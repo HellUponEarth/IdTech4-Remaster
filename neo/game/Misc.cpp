@@ -1952,7 +1952,10 @@ idVacuumSeparatorEntity::Restore
 void idVacuumSeparatorEntity::Restore( idRestoreGame *savefile ) {
 	int state;
 
-	savefile->ReadInt( (int &)portal );
+	static_assert( sizeof( qhandle_t ) == sizeof( int ), "qhandle_t must remain int-sized for portal savegame serialization" );
+	int portalValue;
+	savefile->ReadInt( portalValue );
+	portal = static_cast<qhandle_t>( portalValue );
 	savefile->ReadInt( state );
 
 	gameLocal.SetPortalState( portal, state );
@@ -2640,7 +2643,10 @@ idFuncPortal::Restore
 ===============
 */
 void idFuncPortal::Restore( idRestoreGame *savefile ) {
-	savefile->ReadInt( (int &)portal );
+	static_assert( sizeof( qhandle_t ) == sizeof( int ), "qhandle_t must remain int-sized for portal savegame serialization" );
+	int portalValue;
+	savefile->ReadInt( portalValue );
+	portal = static_cast<qhandle_t>( portalValue );
 	savefile->ReadBool( state );
 	gameLocal.SetPortalState( portal, state ? PS_BLOCK_ALL : PS_BLOCK_NONE );
 }

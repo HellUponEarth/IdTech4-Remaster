@@ -83,8 +83,15 @@ idForce_Field::Restore
 ================
 */
 void idForce_Field::Restore( idRestoreGame *savefile ) {
-	savefile->ReadInt( (int &)type );
-	savefile->ReadInt( (int &)applyType);
+	static_assert( sizeof( forceFieldType ) == sizeof( int ), "forceFieldType must remain int-sized for force-field savegame serialization" );
+	static_assert( sizeof( forceFieldApplyType ) == sizeof( int ), "forceFieldApplyType must remain int-sized for force-field savegame serialization" );
+
+	int typeValue;
+	int applyTypeValue;
+	savefile->ReadInt( typeValue );
+	type = static_cast<forceFieldType>( typeValue );
+	savefile->ReadInt( applyTypeValue );
+	applyType = static_cast<forceFieldApplyType>( applyTypeValue );
 	savefile->ReadFloat( magnitude );
 	savefile->ReadVec3( dir );
 	savefile->ReadFloat( randomTorque );

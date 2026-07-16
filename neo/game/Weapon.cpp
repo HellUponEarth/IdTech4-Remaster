@@ -377,7 +377,11 @@ idWeapon::Restore
 */
 void idWeapon::Restore( idRestoreGame *savefile ) {
 
-	savefile->ReadInt( (int &)status );
+	static_assert( sizeof( weaponStatus_t ) == sizeof( int ), "weaponStatus_t must remain int-sized for weapon savegame serialization" );
+	static_assert( sizeof( ammo_t ) == sizeof( int ), "ammo_t must remain int-sized for weapon savegame serialization" );
+	int weaponStatusValue;
+	savefile->ReadInt( weaponStatusValue );
+	status = static_cast<weaponStatus_t>( weaponStatusValue );
 	savefile->ReadObject( reinterpret_cast<idClass *&>( thread ) );
 	savefile->ReadString( state );
 	savefile->ReadString( idealState );
@@ -465,7 +469,9 @@ void idWeapon::Restore( idRestoreGame *savefile ) {
 	savefile->ReadAngles( muzzle_kick_angles );
 	savefile->ReadVec3( muzzle_kick_offset );
 
-	savefile->ReadInt( (int &)ammoType );
+	int ammoTypeValue;
+	savefile->ReadInt( ammoTypeValue );
+	ammoType = static_cast<ammo_t>( ammoTypeValue );
 	savefile->ReadInt( ammoRequired );
 	savefile->ReadInt( clipSize );
 	savefile->ReadInt( ammoClip );

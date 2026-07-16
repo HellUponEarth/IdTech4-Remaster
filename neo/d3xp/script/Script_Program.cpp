@@ -906,7 +906,10 @@ void idScriptObject::Save( idSaveGame *savefile ) const {
 	} else {
 		savefile->WriteString( type->Name() );
 		size = type->Size();
-		savefile->WriteInt( size );
+		if ( size > static_cast<size_t>( INT_MAX ) ) {
+			gameLocal.Error( "idScriptObject::Save: object '%s' is too large for the 32-bit savegame size field.", type->Name() );
+		}
+		savefile->WriteInt( static_cast<int>( size ) );
 		savefile->Write( data, size );
 	}
 }
@@ -931,7 +934,12 @@ void idScriptObject::Restore( idRestoreGame *savefile ) {
 		savefile->Error( "idScriptObject::Restore: failed to restore object of type '%s'.", typeName.c_str() );
 	}
 
-	savefile->ReadInt( (int &)size );
+	int sizeValue;
+	savefile->ReadInt( sizeValue );
+	if ( sizeValue < 0 ) {
+		savefile->Error( "idScriptObject::Restore: negative size for object '%s' in save game.", typeName.c_str() );
+	}
+	size = static_cast<size_t>( sizeValue );
 	if ( size != type->Size() ) {
 		savefile->Error( "idScriptObject::Restore: size of object '%s' doesn't match size in save game.", typeName.c_str() );
 	}

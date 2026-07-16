@@ -249,8 +249,11 @@ idAFConstraint::Restore
 ================
 */
 void idAFConstraint::Restore( idRestoreGame *saveFile ) {
-	constraintType_t t;
-	saveFile->ReadInt( (int &)t );
+	static_assert( sizeof( constraintType_t ) == sizeof( int ), "constraintType_t must remain int-sized for AF constraint savegame serialization" );
+
+	int constraintTypeValue;
+	saveFile->ReadInt( constraintTypeValue );
+	constraintType_t t = static_cast<constraintType_t>( constraintTypeValue );
 	assert( t == type );
 }
 

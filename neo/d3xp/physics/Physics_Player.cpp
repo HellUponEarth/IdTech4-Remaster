@@ -1624,7 +1624,11 @@ void idPhysics_Player::Restore( idRestoreGame *savefile ) {
 	savefile->ReadBool( ladder );
 	savefile->ReadVec3( ladderNormal );
 
-	savefile->ReadInt( (int &)waterLevel );
+	static_assert( sizeof( waterLevel_t ) == sizeof( int ), "waterLevel_t must remain int-sized for player physics savegame serialization" );
+
+	int waterLevelValue;
+	savefile->ReadInt( waterLevelValue );
+	waterLevel = static_cast<waterLevel_t>( waterLevelValue );
 	savefile->ReadInt( waterType );
 }
 
@@ -2042,4 +2046,3 @@ void idPhysics_Player::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		clipModel->Link( gameLocal.clip, self, 0, current.origin, clipModel->GetAxis() );
 	}
 }
-

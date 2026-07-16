@@ -798,9 +798,16 @@ void idExplodingBarrel::Restore( idRestoreGame *savefile ) {
 	savefile->ReadVec3( spawnOrigin );
 	savefile->ReadMat3( spawnAxis );
 
-	savefile->ReadInt( (int &)state );
-	savefile->ReadInt( (int &)particleModelDefHandle );
-	savefile->ReadInt( (int &)lightDefHandle );
+	static_assert( sizeof( explode_state_t ) == sizeof( int ), "explode_state_t must remain int-sized for exploding barrel savegame serialization" );
+	static_assert( sizeof( qhandle_t ) == sizeof( int ), "qhandle_t must remain int-sized for exploding barrel renderer handle savegame serialization" );
+	int stateValue;
+	savefile->ReadInt( stateValue );
+	state = static_cast<explode_state_t>( stateValue );
+	int rendererHandleValue;
+	savefile->ReadInt( rendererHandleValue );
+	particleModelDefHandle = static_cast<qhandle_t>( rendererHandleValue );
+	savefile->ReadInt( rendererHandleValue );
+	lightDefHandle = static_cast<qhandle_t>( rendererHandleValue );
 
 	savefile->ReadRenderEntity( particleRenderEntity );
 	savefile->ReadRenderLight( light );
