@@ -59,6 +59,8 @@ typedef enum {
 	TRM_CUSTOM			// loaded from map model or ASE/LWO
 } traceModel_t;
 
+static_assert( sizeof( traceModel_t ) == sizeof( int ), "traceModel_t must remain 32-bit for savegame trace model serialization" );
+
 // these are bit cache limits
 #define MAX_TRACEMODEL_VERTS		32
 #define MAX_TRACEMODEL_EDGES		32
@@ -186,4 +188,3 @@ ID_INLINE bool idTraceModel::operator!=( const idTraceModel &trm ) const {
 }
 
 #endif /* !__TRACEMODEL_H__ */
-

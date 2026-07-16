@@ -41,11 +41,11 @@ idDemoFile::idDemoFile
 ================
 */
 idDemoFile::idDemoFile() {
-	f = NULL;
-	fLog = NULL;
+	p_file = NULL;
+	p_logFile = NULL;
 	log = false;
-	fileImage = NULL;
-	compressor = NULL;
+	p_fileImage = NULL;
+	p_compressor = NULL;
 	writing = false;
 }
 
@@ -86,38 +86,38 @@ bool idDemoFile::OpenForReading( const char *fileName ) {
 
 	Close();
 
-	f = fileSystem->OpenFileRead( fileName );
-	if ( !f ) {
+	p_file = fileSystem->OpenFileRead( fileName );
+	if ( !p_file ) {
 		return false;
 	}
 
-	fileLength = f->Length();
+	fileLength = p_file->Length();
 
 	if ( com_preloadDemos.GetBool() ) {
-		fileImage = (byte *)Mem_Alloc( fileLength );
-		f->Read( fileImage, fileLength );
-		fileSystem->CloseFile( f );
-		f = new idFile_Memory( va( "preloaded(%s)", fileName ), (const char *)fileImage, fileLength );
+		p_fileImage = (byte *)Mem_Alloc( fileLength );
+		p_file->Read( p_fileImage, fileLength );
+		fileSystem->CloseFile( p_file );
+		p_file = new idFile_Memory( va( "preloaded(%s)", fileName ), (const char *)p_fileImage, fileLength );
 	}
 
 	if ( com_logDemos.GetBool() ) {
-		fLog = fileSystem->OpenFileWrite( "demoread.log" );
+		p_logFile = fileSystem->OpenFileWrite( "demoread.log" );
 	}
 
 	writing = false;
 
-	f->Read(magicBuffer, magicLen);
+	p_file->Read(magicBuffer, magicLen);
 	if ( memcmp(magicBuffer, DEMO_MAGIC, magicLen) == 0 ) {
-		f->ReadInt( compression );
+		p_file->ReadInt( compression );
 	} else {
 		// Ideally we would error out if the magic string isn't there,
 		// but for backwards compatibility we are going to assume it's just an uncompressed demo file
 		compression = 0;
-		f->Rewind();
+		p_file->Rewind();
 	}
 
-	compressor = AllocCompressor( compression );
-	compressor->Init( f, false, 8 );
+	p_compressor = AllocCompressor( compression );
+	p_compressor->Init( p_file, false, 8 );
 
 	return true;
 }
@@ -127,10 +127,10 @@ bool idDemoFile::OpenForReading( const char *fileName ) {
 idDemoFile::SetLog
 ================
 */
-void idDemoFile::SetLog(bool b, const char *p) {
+void idDemoFile::SetLog(bool b, const char *p_logName) {
 	log = b;
-	if (p) {
-		logStr = p;
+	if (p_logName) {
+		logStr = p_logName;
 	}
 }
 
@@ -139,9 +139,9 @@ void idDemoFile::SetLog(bool b, const char *p) {
 idDemoFile::Log
 ================
 */
-void idDemoFile::Log(const char *p) {
-	if ( fLog && p && *p ) {
-		fLog->Write( p, strlen(p) );
+void idDemoFile::Log(const char *p_text) {
+	if ( p_logFile && p_text && *p_text ) {
+		p_logFile->Write( p_text, strlen(p_text) );
 	}
 }
 
@@ -153,23 +153,23 @@ idDemoFile::OpenForWriting
 bool idDemoFile::OpenForWriting( const char *fileName ) {
 	Close();
 
-	f = fileSystem->OpenFileWrite( fileName );
-	if ( f == NULL ) {
+	p_file = fileSystem->OpenFileWrite( fileName );
+	if ( p_file == NULL ) {
 		return false;
 	}
 
 	if ( com_logDemos.GetBool() ) {
-		fLog = fileSystem->OpenFileWrite( "demowrite.log" );
+		p_logFile = fileSystem->OpenFileWrite( "demowrite.log" );
 	}
 
 	writing = true;
 
-	f->Write(DEMO_MAGIC, sizeof(DEMO_MAGIC));
-	f->WriteInt( com_compressDemos.GetInteger() );
-	f->Flush();
+	p_file->Write(DEMO_MAGIC, sizeof(DEMO_MAGIC));
+	p_file->WriteInt( com_compressDemos.GetInteger() );
+	p_file->Flush();
 
-	compressor = AllocCompressor( com_compressDemos.GetInteger() );
-	compressor->Init( f, true, 8 );
+	p_compressor = AllocCompressor( com_compressDemos.GetInteger() );
+	p_compressor->Init( p_file, true, 8 );
 
 	return true;
 }
@@ -180,25 +180,25 @@ idDemoFile::Close
 ================
 */
 void idDemoFile::Close() {
-	if ( writing && compressor ) {
-		compressor->FinishCompress();
+	if ( writing && p_compressor ) {
+		p_compressor->FinishCompress();
 	}
 
-	if ( f ) {
-		fileSystem->CloseFile( f );
-		f = NULL;
+	if ( p_file ) {
+		fileSystem->CloseFile( p_file );
+		p_file = NULL;
 	}
-	if ( fLog ) {
-		fileSystem->CloseFile( fLog );
-		fLog = NULL;
+	if ( p_logFile ) {
+		fileSystem->CloseFile( p_logFile );
+		p_logFile = NULL;
 	}
-	if ( fileImage ) {
-		Mem_Free( fileImage );
-		fileImage = NULL;
+	if ( p_fileImage ) {
+		Mem_Free( p_fileImage );
+		p_fileImage = NULL;
 	}
-	if ( compressor ) {
-		delete compressor;
-		compressor = NULL;
+	if ( p_compressor ) {
+		delete p_compressor;
+		p_compressor = NULL;
 	}
 
 	demoStrings.DeleteContents( true );
@@ -212,9 +212,9 @@ idDemoFile::ReadHashString
 const char *idDemoFile::ReadHashString() {
 	int		index;
 
-	if ( log && fLog ) {
+	if ( log && p_logFile ) {
 		const char *text = va( "%s > Reading hash string\n", logStr.c_str() );
-		fLog->Write( text, strlen( text ) );
+		p_logFile->Write( text, strlen( text ) );
 	} 
 
 	ReadInt( index );
@@ -246,9 +246,9 @@ idDemoFile::WriteHashString
 ================
 */
 void idDemoFile::WriteHashString( const char *str ) {
-	if ( log && fLog ) {
+	if ( log && p_logFile ) {
 		const char *text = va( "%s > Writing hash string\n", logStr.c_str() );
-		fLog->Write( text, strlen( text ) );
+		p_logFile->Write( text, strlen( text ) );
 	}
 	// see if it is already in the has table
 	for ( int i = 0 ; i < demoStrings.Num() ; i++ ) {
@@ -306,10 +306,10 @@ void idDemoFile::WriteDict( const idDict &dict ) {
  idDemoFile::Read
  ================
  */
-int idDemoFile::Read( void *buffer, int len ) {
-	int read = compressor->Read( buffer, len );
+int idDemoFile::Read( void *p_buffer, int len ) {
+	int read = p_compressor->Read( p_buffer, len );
 	if ( read == 0 && len >= 4 ) {
-		*(demoSystem_t *)buffer = DS_FINISHED;
+		*(demoSystem_t *)p_buffer = DS_FINISHED;
 	}
 	return read;
 }
@@ -319,10 +319,7 @@ int idDemoFile::Read( void *buffer, int len ) {
  idDemoFile::Write
  ================
  */
-int idDemoFile::Write( const void *buffer, int len ) {
-	return compressor->Write( buffer, len );
+int idDemoFile::Write( const void *p_buffer, int len ) {
+	return p_compressor->Write( p_buffer, len );
 }
-
-
-
 

@@ -2,6 +2,67 @@
 
 Status: in progress. This report tracks the codebase-wide 32-bit pointer audit, p_ pointer-variable renaming, ABI impact, and verification. It is intentionally additive so each verified slice can update the same ledger.
 
+## 2026-07-16 Framework DemoFile Pointer Storage Name Slice
+
+### Files Changed
+
+- `neo/framework/DemoFile.h`
+- `neo/framework/DemoFile.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idDemoFile` backing file, preloaded image, compressor, and log file members | Framework pointer storage / legacy API interop | Renamed the private stored pointers to `p_file`, `p_fileImage`, `p_compressor`, and `p_logFile` so this framework surface follows the pointer migration naming contract without changing ownership or lifetime. |
+| `idDemoFile::Read` / `Write` buffer parameters and log string helpers | Framework pointer parameter interop | Renamed raw pointer parameters to `p_buffer`, `p_logName`, and `p_text`; call sites still pass through the same bytes and strings. |
+
+This slice does not alter demo stream headers, compression selection, compressed payload bytes, hash-string table encoding, renderer handles, savegame fields, or network fields. No binary-format static assertion was added because the change is source-level pointer storage/parameter naming only and does not widen or reinterpret any serialized demo field.
+
+### Verification Log For This Slice
+
+- `rg -n "byte \*\s*fileImage|idFile \*\s*f\b|idCompressor \*\s*compressor|idFile \*\s*fLog|\bfileImage\b|\bfLog\b|\bcompressor\b|\bf->|void \*buffer|const void \*buffer|SetLog\(bool b, const char \*p\)|Log\(const char \*p\)" neo\framework\DemoFile.h neo\framework\DemoFile.cpp`: no remaining stale pointer member or parameter names in the touched demo file surface.
+- `rg -n "p_fileImage|p_file|p_compressor|p_logFile|p_buffer|p_logName|p_text" neo\framework\DemoFile.h neo\framework\DemoFile.cpp`: confirmed the renamed pointer members and parameters are present in the declaration and implementation.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: produced the original runnable Win32 layout but exceeded the 10-minute tool timeout while the child MSBuild process was still running.
+- `cmake --build --preset vs2026-win32-release --parallel 8 -- /nr:false /v:minimal`: passed and refreshed `Doom3.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll`.
+- `cmake --build --preset vs2026-win32-dedicated-release --parallel 8 -- /nr:false /v:minimal`: passed and refreshed `DedServer.exe`.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-16 SaveGame Enum Handle Serialization Alias Slice
+
+### Files Changed
+
+- `neo/idlib/geometry/TraceModel.h`
+- `neo/game/gamesys/SaveGame.cpp`
+- `neo/d3xp/gamesys/SaveGame.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idSaveGame::WriteJoint` / `idRestoreGame::ReadJoint` in base game and d3xp | Savegame field / renderer model handle | Replaced `WriteInt( (int&)value )` and `ReadInt( (int&)value )` with explicit `int` temporaries/casts for `jointHandle_t`. |
+| `idSaveGame::WriteTraceModel` / `idRestoreGame::ReadTraceModel` in base game and d3xp | Savegame field / serialization | Replaced `WriteInt( (int&)trace.type )` and `ReadInt( (int&)trace.type )` with explicit `int` temporaries/casts for `traceModel_t`. |
+| `traceModel_t` savegame width | Serialization binary-format assertion | Added `static_assert( sizeof( traceModel_t ) == sizeof( int ) )` so the trace-model type remains tied to the 32-bit save stream field. |
+
+This slice does not widen savegame, network, renderer handle, or demo fields. The saved byte layout remains one 32-bit integer for each joint handle and trace-model type value; the change removes type-punned references while keeping the existing 32-bit compatibility contract. `jointHandle_t` already has an int-width assertion in `Model.h`.
+
+### Verification Log For This Slice
+
+- `rg -n "WriteInt\( \(int&\)(value|trace\.type)|ReadInt\( \(int&\)(value|trace\.type)|p_file->ReadInt\( \(int&\)value|WriteInt\( static_cast<int>\( (value|trace\.type) \) \)|ReadInt\( traceType \)|static_cast<(jointHandle_t|traceModel_t)>|sizeof\( traceModel_t \) == sizeof\( int \)" neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.cpp neo\idlib\geometry\TraceModel.h`: confirmed the explicit casts/temporaries and trace-model width assertion are present.
+- `rg -n "WriteInt\( \(int&\)|ReadInt\( \(int&\)|p_file->WriteInt\( \(int&\)|p_file->ReadInt\( \(int&\)" neo\game\gamesys\SaveGame.cpp neo\d3xp\gamesys\SaveGame.cpp`: no remaining type-punned `int&` savegame serialization in the touched base/d3xp savegame files.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+
 ## 2026-07-15 Render Model Demo Index Serialization Slice
 
 ### Files Changed
@@ -2174,7 +2235,6 @@ Binary compatibility: no file-format or network-format impact. The changed state
 
 Known remaining:
 
-- `sysEvent_t` journaling still serializes a native pointer-bearing structure and needs a versioned fixed-width format.
 - `contactInfo_t::modelFeature` remains savegame/event serialized as `int`; this is acceptable only because it now carries a stable polygon ID rather than a pointer token.
 - Renderer `qhandle_t` and `jointHandle_t` surfaces remain explicit handles/indices. They should be documented or wrapped with typed handles where API ownership changes, not widened as pointer storage.
 - This slice did not perform a save/load smoke because it did not change save serialization and no existing save corpus is checked into this workspace.

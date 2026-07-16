@@ -175,7 +175,7 @@ idSaveGame::WriteJoint
 ================
 */
 void idSaveGame::WriteJoint( const jointHandle_t value ) {
-	p_file->WriteInt( (int&)value );
+	p_file->WriteInt( static_cast<int>( value ) );
 }
 
 /*
@@ -701,7 +701,7 @@ void idSaveGame::WriteTrace( const trace_t &trace ) {
 void idSaveGame::WriteTraceModel( const idTraceModel &trace ) {
 	int j, k;
 	
-	WriteInt( (int&)trace.type );
+	WriteInt( static_cast<int>( trace.type ) );
 	WriteInt( trace.numVerts );
 	for ( j = 0; j < MAX_TRACEMODEL_VERTS; j++ ) {
 		WriteVec3( trace.verts[j] );
@@ -924,7 +924,9 @@ idRestoreGame::ReadJoint
 ================
 */
 void idRestoreGame::ReadJoint( jointHandle_t &value ) {
-	p_file->ReadInt( (int&)value );
+	int jointValue;
+	p_file->ReadInt( jointValue );
+	value = static_cast<jointHandle_t>( jointValue );
 }
 
 /*
@@ -1472,7 +1474,9 @@ void idRestoreGame::ReadTrace( trace_t &trace ) {
 void idRestoreGame::ReadTraceModel( idTraceModel &trace ) {
 	int j, k;
 	
-	ReadInt( (int&)trace.type );
+	int traceType;
+	ReadInt( traceType );
+	trace.type = static_cast<traceModel_t>( traceType );
 	ReadInt( trace.numVerts );
 	for ( j = 0; j < MAX_TRACEMODEL_VERTS; j++ ) {
 		ReadVec3( trace.verts[j] );
