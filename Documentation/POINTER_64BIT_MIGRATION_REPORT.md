@@ -2,6 +2,75 @@
 
 Status: in progress. This report tracks the codebase-wide 32-bit pointer audit, p_ pointer-variable renaming, ABI impact, and verification. It is intentionally additive so each verified slice can update the same ledger.
 
+## 2026-07-15 Render Model Demo Index Serialization Slice
+
+### Files Changed
+
+- `neo/renderer/Model.h`
+- `neo/renderer/Model.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| `idRenderModelStatic::ReadFromDemoFile` / `WriteToDemoFile` triangle index fields | Serialization / renderer model index field | Replaced `ReadInt( (int&)tri->indexes[j] )` and `WriteInt( (int&)tri->indexes[j] )` with explicit 32-bit integer temporaries/casts. |
+| `glIndex_t` render model demo width | Serialization binary-format assertion | Added `static_assert( sizeof( glIndex_t ) == sizeof( int ) )` to keep render model demo indices tied to the 32-bit stream field. |
+
+This slice does not widen savegame fields, network fields, renderer handles, or demo fields. The render model demo byte layout remains one 32-bit integer per triangle index; the change removes type-punned references and documents the required `glIndex_t` width.
+
+### Verification Log For This Slice
+
+- `rg -n "ReadInt\( \(int&\)tri->indexes|WriteInt\( \(int&\)tri->indexes|static_assert\( sizeof\( glIndex_t \) == sizeof\( int \)|static_cast<glIndex_t>|static_cast<int>\( tri->indexes" neo\renderer\Model.h neo\renderer\Model.cpp`: confirmed the stale type-punned index reads/writes are gone and the explicit casts/assertion are present.
+- `rg -n "WriteInt\( \(int&\)|ReadInt\( \(int&\)" neo\renderer\Model.cpp neo\renderer\Model.h`: no remaining type-punned `int&` demo serialization in the model files.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed and restored the original runnable Win32 layout.
+- PE architecture check: `Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` are all x86 after the restore.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
+## 2026-07-15 Render Demo Pointer Presence Serialization Slice
+
+### Files Changed
+
+- `neo/renderer/RenderWorld_demo.cpp`
+- `Documentation/POINTER_64BIT_MIGRATION_REPORT.md`
+
+### Classification And Compatibility Story
+
+| Surface | Category | Resolution |
+| --- | --- | --- |
+| Render demo pointer presence fields for `renderView_t::globalMaterial` | Serialization / renderer handle interop | Replaced `WriteInt( (int&)renderView->globalMaterial )` with an explicit 32-bit presence flag and consumed the same field on read. The replay path sets `globalMaterial` to `NULL` because no material name is serialized for this field in the legacy format. |
+| Render demo pointer presence fields for `renderLight_t::prelightModel`, `shader`, and `referenceSound` | Serialization / renderer handle interop | Replaced pointer-to-`int` writes and reads with explicit 32-bit presence flags. Existing follow-up model/material names and sound-emitter indices remain unchanged and still reconstruct the live pointers. |
+| Render demo pointer presence fields for `renderEntity_t` model, callback, material, skin, sound, GUI, remote-view, and joint pointers | Serialization / renderer handle interop | Replaced pointer-to-`int` writes and reads with explicit 32-bit presence flags. Reconstructable fields still read their existing names/indices, callback and remote-view pointers remain replay-local `NULL`, GUI pointers allocate from the GUI manager when their flag is present, and joint matrices remain controlled by `numJoints`. |
+| Render demo integer field width | Serialization binary-format assertion | Added `static_assert( sizeof( int ) == 4 )` in the render-demo path to pin the 32-bit width used by legacy demo integer fields and pointer-presence flags. |
+
+This slice preserves the legacy render demo byte layout for the touched fields: each former pointer slot is still serialized as one `WriteInt` / `ReadInt` field, but the value is now an explicit 0/1 presence token instead of the low 32 bits of a process-local address. The existing follow-up hash strings, sound indices, GUI allocation path, and joint matrix payload are unchanged. No savegame or network fields were widened.
+
+### Verification Log For This Slice
+
+- `rg -n "\(int&\).*\b(globalMaterial|prelightModel|shader|referenceSound|hModel|callback|callbackData|customShader|referenceShader|customSkin|gui|remoteRenderView|joints)|WriteInt\( \(int&\)|ReadInt\( \(int&\)" neo\renderer\RenderWorld_demo.cpp`: only `ReadInt( (int&)dc )` remains, which is the non-pointer `demoCommand_t` enum tag and is intentionally outside this pointer-storage slice.
+- `rg -n "DemoPointerPresence|DemoReadPointerPresence|DemoDiscardPointerPresence|static_assert\( sizeof\( int \) == 4|float \*p_data" neo\renderer\RenderWorld_demo.cpp`: confirmed explicit presence helpers, the 32-bit integer width assertion, and renamed joint matrix float pointers are present.
+- `git diff --check`: passed before build verification.
+- `cmake --build --preset ninja-gcc-release -j 8`: passed.
+- `cmake --build --preset ninja-dedicated-release -j 8`: passed.
+- `cmake --build --preset ninja-gcc-release-tests -j 8`: passed.
+- `ctest --preset ninja-gcc-release-tests --output-on-failure`: passed, 7/7 tests.
+- `cmake --build --preset vs2026-x64-release --parallel 8 -- /nr:false /v:minimal`: passed.
+- `cmake --build --preset vs2026-x64-tests-debug --parallel 8 -- /nr:false /v:minimal`: passed.
+- `ctest --preset vs2026-x64-tests-debug --output-on-failure`: passed, 7/7 tests.
+- `cmd.exe /c build.bat all`: passed and restored the original runnable Win32 layout.
+- PE architecture check: `Doom3.exe`, `DedServer.exe`, `base\gamex86.dll`, and `d3xp\gamex86.dll` are all x86 after the restore.
+- `Doom3.exe +set fs_basepath . +set fs_savepath build\smoke +set s_noSound 1 +set r_fullscreen 0`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+- `DedServer.exe +set fs_basepath . +set fs_savepath build\smoke +set developer 1`: remained alive for the bounded 5-second startup smoke and was terminated by the harness.
+
 ## 2026-07-15 DeclSkin Material Mapping Pointer Name Slice
 
 ### Files Changed

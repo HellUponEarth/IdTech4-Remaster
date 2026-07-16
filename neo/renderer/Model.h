@@ -58,6 +58,8 @@ typedef short glIndex_t;
 
 #endif
 
+static_assert( sizeof( glIndex_t ) == sizeof( int ), "glIndex_t must remain 32-bit for render model demo index serialization" );
+
 
 typedef struct {
 	// NOTE: making this a glIndex is dubious, as there can be 2x the faces as verts
